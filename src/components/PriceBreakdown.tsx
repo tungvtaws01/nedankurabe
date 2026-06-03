@@ -1,4 +1,4 @@
-interface Row { labelJP: string; labelEN: string; value: string; negative?: boolean }
+export interface Row { labelJP: string; labelEN: string; value: string; negative?: boolean }
 interface Props { rows: Row[]; total: number }
 
 export default function PriceBreakdown({ rows, total }: Props) {

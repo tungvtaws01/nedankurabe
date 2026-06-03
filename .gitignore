@@ -1,0 +1,29 @@
+# Claude / brainstorming
+.claude
+.superpowers
+
+# IDE
+.idea
+.vscode
+
+# Screenshots
+*.png
+
+# Next.js
+.next/
+out/
+
+# Dependencies
+node_modules/
+
+# Environment
+.env.local
+.env*.local
+
+# Vercel
+.vercel
+
+# Logs / temp
+*.log
+*.cache
+*.tmp

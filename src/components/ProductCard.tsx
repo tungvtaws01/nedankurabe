@@ -1,8 +1,8 @@
 import { ProductResult, UserToggles } from '@/lib/types'
-import PriceBreakdown from './PriceBreakdown'
+import PriceBreakdown, { Row } from './PriceBreakdown'
 
-function buildRows(r: ProductResult, t: UserToggles) {
-  const rows = [{ labelJP: '定価', labelEN: 'List price', value: `¥${r.salePrice.toLocaleString()}` }]
+function buildRows(r: ProductResult, t: UserToggles): Row[] {
+  const rows: Row[] = [{ labelJP: '定価', labelEN: 'List price', value: `¥${r.salePrice.toLocaleString()}` }]
 
   if (r.platform === 'amazon') {
     if (t.amazonSubscribeSave && r.subscribeAvailable) {
