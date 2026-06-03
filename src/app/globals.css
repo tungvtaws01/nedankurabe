@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+:root {
+  --cream: #F7F4EF;
+  --ink: #1A1A1A;
+  --ink-mid: #4A4A4A;
+  --ink-soft: #8A8A8A;
+  --red: #D0021B;
+  --win-bg: #FFFBF0;
+  --win-border: #E8C840;
+  --amazon: #232F3E;
+  --amazon-accent: #FF9900;
+  --border: #E5E0D8;
+}
+
+body {
+  background: var(--cream);
+  color: var(--ink);
+}
