@@ -3,7 +3,7 @@ import { lookupAmazon, searchAmazon } from '@/lib/platforms/amazon'
 import { lookupRakuten, searchRakuten } from '@/lib/platforms/rakuten'
 import { findBestMatch } from '@/lib/matching/llm-match'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
-import { SearchResponse } from '@/lib/types'
+import { ProductResult, SearchResponse } from '@/lib/types'
 import { MOCK_RESULTS } from '@/lib/mock-data'
 
 function parseProductUrl(url: string): { platform: 'amazon' | 'rakuten'; id: string } | null {

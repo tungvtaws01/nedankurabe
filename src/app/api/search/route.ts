@@ -3,7 +3,7 @@ import { searchAmazon } from '@/lib/platforms/amazon'
 import { searchRakuten } from '@/lib/platforms/rakuten'
 import { findBestMatch } from '@/lib/matching/llm-match'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
-import { SearchResponse } from '@/lib/types'
+import { ProductResult, SearchResponse } from '@/lib/types'
 import { MOCK_RESULTS } from '@/lib/mock-data'
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
