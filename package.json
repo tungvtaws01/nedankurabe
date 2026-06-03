@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 0.0.0.0",
     "build": "next build",
     "start": "next start",
     "test": "jest",
@@ -12,7 +12,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
     "@vercel/kv": "^3.0.0",
-    "next": "15.3.2",
+    "next": "^16.2.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
