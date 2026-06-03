@@ -3,9 +3,21 @@ import { searchAmazon } from '@/lib/platforms/amazon'
 import { searchRakuten } from '@/lib/platforms/rakuten'
 import { findBestMatch } from '@/lib/matching/llm-match'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
-import { ProductResult, SearchResponse } from '@/lib/types'
+import { SearchResponse } from '@/lib/types'
+import { MOCK_RESULTS } from '@/lib/mock-data'
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  if (process.env.STAGE === 'local') {
+    const body = await req.json() as { query?: string }
+    if (!body.query?.trim()) {
+      return NextResponse.json({ error: 'query required' }, { status: 400 })
+    }
+    return NextResponse.json({
+      results: MOCK_RESULTS,
+      query: body.query.trim(),
+      cached: false,
+    } satisfies SearchResponse)
+  }
   const body = await req.json() as { query?: string }
   if (!body.query?.trim()) {
     return NextResponse.json({ error: 'query required' }, { status: 400 })
