@@ -1,4 +1,4 @@
-import { parseRakutenItem } from './rakuten'
+import { parseRakutenItem, isTrialOrSamplePack } from './rakuten'
 
 const MOCK = {
   itemName: 'パンパース オムツ はじめての肌へのいちばん テープ S 108枚',
@@ -53,5 +53,31 @@ describe('parseRakutenItem', () => {
 
   it('affiliateUrl falls back to itemUrl when no affiliateId', () => {
     expect(parseRakutenItem(MOCK, '').affiliateUrl).toBe(MOCK.itemUrl)
+  })
+})
+
+describe('isTrialOrSamplePack', () => {
+  it('flags お試し', () => {
+    expect(isTrialOrSamplePack('パンパース テープ 7枚 お試しセット バラ売り')).toBe(true)
+  })
+
+  it('flags バラ売り', () => {
+    expect(isTrialOrSamplePack('メリーズ Sサイズ バラ売り 10枚')).toBe(true)
+  })
+
+  it('flags ポイント消化', () => {
+    expect(isTrialOrSamplePack('パンパース 1枚 ポイント消化 送料無料')).toBe(true)
+  })
+
+  it('flags 試供品', () => {
+    expect(isTrialOrSamplePack('おむつ 試供品 サンプル')).toBe(true)
+  })
+
+  it('does not flag regular bulk pack', () => {
+    expect(isTrialOrSamplePack('パンパース はじめての肌へのいちばん テープ Sサイズ 108枚')).toBe(false)
+  })
+
+  it('does not flag large case pack', () => {
+    expect(isTrialOrSamplePack('花王 メリーズ テープ Sサイズ 296枚 ケース品 送料無料')).toBe(false)
   })
 })
