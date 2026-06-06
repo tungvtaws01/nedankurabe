@@ -123,8 +123,8 @@ describe('getGenreId', () => {
     expect(getGenreId('ピジョン 母乳実感 乳首 Mサイズ')).toBe('205208')
   })
 
-  it('maps ブレンダー to baby food appliance genre 568496', () => {
-    expect(getGenreId('ハンドブレンダー 離乳食 ブレンダー')).toBe('568496')
+  it('maps ブレンダー to no-genre (0) since real blenders live in kitchen category', () => {
+    expect(getGenreId('ハンドブレンダー 離乳食 ブレンダー')).toBe('0')
   })
 
   it('maps 離乳食 to baby food genre 213980', () => {
