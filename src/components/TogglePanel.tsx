@@ -34,7 +34,7 @@ export default function TogglePanel({ toggles, onChange, amazonSubscribeAvailabl
       <div>
         <p className="font-bold text-[10px] uppercase tracking-wide text-[var(--ink-soft)] mb-1.5">楽天 Rakuten</p>
         <div className="flex items-center gap-2 mb-1.5">
-          <span>ポイント倍率 <span className="italic text-[var(--ink-soft)]">SPU level</span></span>
+          <span>ポイント倍率 <span className="italic text-[var(--ink-soft)]">Points multiplier</span></span>
           <div className="flex gap-1 ml-auto">
             {([1, 3, 5, 10] as const).map(v => (
               <button key={v} onClick={() => set({ rakutenSPU: v })}
