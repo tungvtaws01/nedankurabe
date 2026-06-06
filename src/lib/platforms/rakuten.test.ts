@@ -93,6 +93,14 @@ describe('isTrialOrSamplePack', () => {
     expect(isTrialOrSamplePack('花王 メリーズ テープ Sサイズ 296枚 ケース品 送料無料')).toBe(false)
   })
 
+  it('flags 単品購入不可 non-standalone items', () => {
+    expect(isTrialOrSamplePack('バンボ ベビーソファ 専用ラッピング【単品購入不可】')).toBe(true)
+  })
+
+  it('flags 購入者限定 buyer-only add-ons', () => {
+    expect(isTrialOrSamplePack('【ハンドブレンダー購入者限定ラッピングオプション】ブレンダー専用ラッピング')).toBe(true)
+  })
+
   it('does not flag new first shoes', () => {
     expect(isTrialOrSamplePack('アシックス キッズ スクスク ファーストシューズ 11.5cm 送料無料')).toBe(false)
   })
