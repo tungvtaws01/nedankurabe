@@ -53,8 +53,16 @@ export default function ProductCard({ result, isWinner, toggles }: {
         </span>
       </div>
 
-      <p className="text-xs font-bold leading-snug mb-0.5 line-clamp-2">{result.title}</p>
-      <p className="text-[10px] text-[var(--ink-soft)] mb-3">{result.shopName}</p>
+      <div className="flex gap-3 mb-3">
+        {result.imageUrl && (
+          <img src={result.imageUrl} alt={result.title}
+            className="w-16 h-16 object-contain rounded-lg border border-[var(--border)] shrink-0 bg-white" />
+        )}
+        <div className="min-w-0">
+          <p className="text-xs font-bold leading-snug mb-0.5 line-clamp-3">{result.title}</p>
+          <p className="text-[10px] text-[var(--ink-soft)]">{result.shopName}</p>
+        </div>
+      </div>
 
       <div className="flex items-baseline gap-2 mb-3">
         <span className="text-2xl font-black text-[var(--red)]"
