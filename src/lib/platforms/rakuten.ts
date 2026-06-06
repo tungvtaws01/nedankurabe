@@ -1,10 +1,10 @@
 import { ProductResult } from "@/lib/types";
 import { calcRakutenEffectivePrice } from "@/lib/price/normalize";
 
-const TRIAL_KEYWORDS = ["お試し", "バラ売り", "試供品", "サンプル", "ポイント消化", "お試しセット"];
+const EXCLUDE_KEYWORDS = ["お試し", "バラ売り", "試供品", "サンプル", "ポイント消化", "お試しセット", "【中古】", "中古", "訳あり", "ジャンク"];
 
 export function isTrialOrSamplePack(itemName: string): boolean {
-  return TRIAL_KEYWORDS.some((kw) => itemName.includes(kw));
+  return EXCLUDE_KEYWORDS.some((kw) => itemName.includes(kw));
 }
 
 const SEARCH_URL =

@@ -73,11 +73,27 @@ describe('isTrialOrSamplePack', () => {
     expect(isTrialOrSamplePack('おむつ 試供品 サンプル')).toBe(true)
   })
 
+  it('flags 【中古】 used items', () => {
+    expect(isTrialOrSamplePack('【中古】アシックス ファーストシューズ 12.5cm')).toBe(true)
+  })
+
+  it('flags 訳あり defective items', () => {
+    expect(isTrialOrSamplePack('パンパース テープ Mサイズ 訳あり 送料無料')).toBe(true)
+  })
+
+  it('flags ジャンク junk items', () => {
+    expect(isTrialOrSamplePack('ベビーカー ジャンク 部品取り')).toBe(true)
+  })
+
   it('does not flag regular bulk pack', () => {
     expect(isTrialOrSamplePack('パンパース はじめての肌へのいちばん テープ Sサイズ 108枚')).toBe(false)
   })
 
   it('does not flag large case pack', () => {
     expect(isTrialOrSamplePack('花王 メリーズ テープ Sサイズ 296枚 ケース品 送料無料')).toBe(false)
+  })
+
+  it('does not flag new first shoes', () => {
+    expect(isTrialOrSamplePack('アシックス キッズ スクスク ファーストシューズ 11.5cm 送料無料')).toBe(false)
   })
 })
