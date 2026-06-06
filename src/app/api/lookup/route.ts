@@ -21,6 +21,20 @@ function parseProductUrl(url: string): { platform: 'amazon' | 'rakuten'; id: str
   return null
 }
 
+function extractTitleFromAmazonUrl(url: string): string | null {
+  try {
+    const u = new URL(url)
+    const slug = u.pathname.split('/dp/')[0].split('/').filter(Boolean).pop()
+    if (!slug) return null
+    const decoded = decodeURIComponent(slug)
+    // Match hiragana, katakana, kanji only — excludes brackets (】), symbols (×), numbers
+    const jpWords = (decoded.match(/[ぁ-ゖァ-ー一-鿿㐀-䶿]+/g) ?? [])
+      .filter(w => w.length >= 2) // drop single-char counters like 枚
+    const keyword = jpWords.slice(0, 3).join(' ').trim()
+    return keyword || null
+  } catch { return null }
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   if (process.env.STAGE === 'local') {
     const body = await req.json() as { url?: string }
@@ -55,22 +69,33 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   if (parsed.platform === 'amazon') {
     source = await lookupAmazon(parsed.id).catch(() => null)
-    if (source) crossItems = await searchRakuten(source.title).catch(() => [])
+    if (source) {
+      crossItems = await searchRakuten(source.title).catch(() => [])
+    } else {
+      // No Amazon API keys — extract title from URL slug and search Rakuten directly
+      const title = extractTitleFromAmazonUrl(url)
+      if (title) crossItems = await searchRakuten(title).catch(() => [])
+    }
   } else {
     source = await lookupRakuten(parsed.id).catch(() => null)
     if (source) crossItems = await searchAmazon(source.title).catch(() => [])
   }
 
-  if (!source) {
+  if (!source && !crossItems.length) {
     return NextResponse.json({ error: '商品が見つかりませんでした。' }, { status: 404 })
   }
 
-  const crossMatch = crossItems.length
-    ? await findBestMatch(source, crossItems).catch(() => crossItems[0] ?? null)
-    : null
-
-  const results = [source, ...(crossMatch ? [crossMatch] : [])]
-    .sort((a, b) => a.effectivePrice - b.effectivePrice)
+  let results: ProductResult[]
+  if (!source) {
+    // Amazon lookup failed — return best Rakuten result from title search
+    results = crossItems.slice(0, 1)
+  } else {
+    const crossMatch = crossItems.length
+      ? await findBestMatch(source, crossItems).catch(() => crossItems[0] ?? null)
+      : null
+    results = [source, ...(crossMatch ? [crossMatch] : [])]
+      .sort((a, b) => a.effectivePrice - b.effectivePrice)
+  }
 
   await setCached(cacheKey, results).catch(() => {})
   return NextResponse.json({ results, query: url, cached: false } satisfies SearchResponse)
