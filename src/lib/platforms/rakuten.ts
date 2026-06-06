@@ -1,7 +1,16 @@
 import { ProductResult } from "@/lib/types";
 import { calcRakutenEffectivePrice } from "@/lib/price/normalize";
 
-const EXCLUDE_KEYWORDS = ["お試し", "バラ売り", "試供品", "サンプル", "ポイント消化", "お試しセット", "【中古】", "中古", "訳あり", "ジャンク", "単品購入不可", "購入者限定"];
+const EXCLUDE_KEYWORDS = [
+  // Trial / sample
+  "お試し", "バラ売り", "試供品", "サンプル", "ポイント消化", "お試しセット",
+  // Used / defective
+  "【中古】", "中古", "訳あり", "ジャンク",
+  // Non-purchasable add-ons
+  "単品購入不可", "購入者限定",
+  // Spare parts
+  "補給部品", "交換パーツ", "交換部品", "替刃", "専用パーツ", "パーツ販売",
+];
 
 export function isTrialOrSamplePack(itemName: string): boolean {
   return EXCLUDE_KEYWORDS.some((kw) => itemName.includes(kw));
@@ -9,6 +18,36 @@ export function isTrialOrSamplePack(itemName: string): boolean {
 
 const SEARCH_URL =
   "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401";
+
+// Maps keyword patterns to Rakuten genreId (verified via IchibaGenre/Search API)
+const GENRE_MAP: Array<[RegExp, string]> = [
+  [/おむつ|オムツ|紙おむつ/,                                              "205197"], // おむつ
+  [/おしりふき|お尻ふき|お尻拭き|おしり拭き/,                              "205194"], // おしりふき
+  [/哺乳瓶|哺乳びん|乳首|ニップル/,                                        "205208"], // 哺乳びん・授乳用品
+  [/粉ミルク/,                                                             "401171"], // 粉ミルク
+  [/液体ミルク/,                                                           "568293"], // 液体ミルク
+  [/ブレンダー|ミキサー.*離乳食|離乳食.*ミキサー|フードプロセッサー.*ベビー/, "568496"], // 離乳食調理器具
+  [/離乳食|ベビーフード|ハイハイン/,                                        "213980"], // 離乳食・ベビーフード
+  [/マグ|ストローマグ|コップマグ|ベビー食器|スプーン.*ベビー/,              "207750"], // ベビー食器
+  [/スタイ|よだれかけ|お食事エプロン/,                                      "407002"], // スタイ・お食事エプロン
+  [/ベビーカー/,                                                           "200833"], // ベビーカー
+  [/抱っこ紐|抱っこひも|スリング/,                                         "566089"], // 抱っこひも・スリング
+  [/チャイルドシート/,                                                     "566088"], // チャイルドシート
+  [/歯ブラシ|歯みがき|仕上げ磨き|虫歯/,                                   "551691"], // 歯ブラシ・虫歯ケア
+  [/ベビーローション|ベビーオイル|ベビークリーム/,                          "205205"], // ベビーローション・オイル
+  [/日焼け止め.*ベビー|ベビー.*日焼け止め/,                                "401166"], // 日焼け止め
+  [/メリー|ガラガラ|ラトル|歯固め|プレイジム/,                             "201591"], // ベビー向けおもちゃ
+  [/プレイマット|ベビーマット|フロアマット.*ベビー/,                        "566090"], // ベビー用インテリア (prevents cross-category, e.g. pet cages)
+  [/バウンサー/,                                                           "213968"], // バウンサー
+  [/ベビーチェア|バンボ|ローチェア|ハイチェア.*ベビー/,                    "566882"], // ベビーチェア
+];
+
+export function getGenreId(keyword: string): string {
+  for (const [pattern, genreId] of GENRE_MAP) {
+    if (pattern.test(keyword)) return genreId;
+  }
+  return "100533"; // Default: キッズ・ベビー・マタニティ (prevents cross-category errors)
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function parseRakutenItem(
@@ -60,10 +99,12 @@ export async function searchRakuten(keyword: string): Promise<ProductResult[]> {
   const accessKey = process.env.RAKUTEN_ACCESS_KEY!;
   const affiliateId = process.env.RAKUTEN_AFFILIATE_ID ?? "";
   const normalizedKeyword = keyword.replace(/【[^】]*】/g, " ").replace(/\s+/g, " ").trim();
+  const genreId = getGenreId(normalizedKeyword);
   const params = new URLSearchParams({
     applicationId: appId,
     accessKey,
     keyword: normalizedKeyword,
+    genreId,
     hits: "10",
     sort: "+itemPrice",
   });

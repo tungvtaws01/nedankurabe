@@ -1,4 +1,4 @@
-import { parseRakutenItem, isTrialOrSamplePack } from './rakuten'
+import { parseRakutenItem, isTrialOrSamplePack, getGenreId } from './rakuten'
 
 const MOCK = {
   itemName: 'パンパース オムツ はじめての肌へのいちばん テープ S 108枚',
@@ -103,5 +103,89 @@ describe('isTrialOrSamplePack', () => {
 
   it('does not flag new first shoes', () => {
     expect(isTrialOrSamplePack('アシックス キッズ スクスク ファーストシューズ 11.5cm 送料無料')).toBe(false)
+  })
+})
+
+describe('getGenreId', () => {
+  it('maps おむつ to diaper genre 205197', () => {
+    expect(getGenreId('パンパース おむつ テープ Sサイズ')).toBe('205197')
+  })
+
+  it('maps おしりふき to wipes genre 205194', () => {
+    expect(getGenreId('おしりふき 水99% ベビー')).toBe('205194')
+  })
+
+  it('maps 哺乳瓶 to nursing genre 205208', () => {
+    expect(getGenreId('ピジョン 哺乳瓶 160ml')).toBe('205208')
+  })
+
+  it('maps 乳首 to nursing genre 205208', () => {
+    expect(getGenreId('ピジョン 母乳実感 乳首 Mサイズ')).toBe('205208')
+  })
+
+  it('maps ブレンダー to baby food appliance genre 568496', () => {
+    expect(getGenreId('ハンドブレンダー 離乳食 ブレンダー')).toBe('568496')
+  })
+
+  it('maps 離乳食 to baby food genre 213980', () => {
+    expect(getGenreId('和光堂 ハイハイン 赤ちゃん用')).toBe('213980')
+  })
+
+  it('maps マグ to baby tableware genre 207750', () => {
+    expect(getGenreId('ピジョン マグマグ ストローマグ')).toBe('207750')
+  })
+
+  it('maps 抱っこ紐 to carrier genre 566089', () => {
+    expect(getGenreId('エルゴベビー 抱っこ紐 新生児')).toBe('566089')
+  })
+
+  it('maps ベビーカー to stroller genre 200833', () => {
+    expect(getGenreId('コンビ ベビーカー 軽量')).toBe('200833')
+  })
+
+  it('maps 歯ブラシ to dental genre 551691', () => {
+    expect(getGenreId('ピジョン 歯ブラシ 仕上げ磨き')).toBe('551691')
+  })
+
+  it('maps メリー to baby toy genre 201591', () => {
+    expect(getGenreId('タカラトミー メリー ベビー')).toBe('201591')
+  })
+
+  it('maps プレイマット to baby interior genre 566090', () => {
+    expect(getGenreId('プレイマット ベビー 折りたたみ')).toBe('566090')
+  })
+
+  it('maps バウンサー to bouncer genre 213968', () => {
+    expect(getGenreId('バウンサー ベビー 電動')).toBe('213968')
+  })
+
+  it('maps バンボ to baby chair genre 566882', () => {
+    expect(getGenreId('バンボ ベビーソファ')).toBe('566882')
+  })
+
+  it('defaults to baby category 100533 for unknown keywords', () => {
+    expect(getGenreId('ベビー用品 その他')).toBe('100533')
+  })
+})
+
+describe('isTrialOrSamplePack — spare parts', () => {
+  it('flags 補給部品', () => {
+    expect(isTrialOrSamplePack('ブレンダー 補給部品 スウィッツプロッツ')).toBe(true)
+  })
+
+  it('flags 替刃', () => {
+    expect(isTrialOrSamplePack('離乳食ブレンダー パパっとクック 替刃 専用パーツ')).toBe(true)
+  })
+
+  it('flags 専用パーツ', () => {
+    expect(isTrialOrSamplePack('EDIMOTTO ブレード 専用パーツ 赤ちゃん')).toBe(true)
+  })
+
+  it('flags パーツ販売', () => {
+    expect(isTrialOrSamplePack('離乳食ブレンダー パパっとクック ブレード [パーツ販売]')).toBe(true)
+  })
+
+  it('does not flag full blender product', () => {
+    expect(isTrialOrSamplePack('ブラウン ハンドブレンダー マルチクイック 離乳食 スムージー')).toBe(false)
   })
 })
