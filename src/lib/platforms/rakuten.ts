@@ -8,8 +8,12 @@ const EXCLUDE_KEYWORDS = [
   "【中古】", "中古", "訳あり", "ジャンク",
   // Non-purchasable add-ons
   "単品購入不可", "購入者限定",
-  // Spare parts
+  // Spare parts / accessories / replacement parts
   "補給部品", "交換パーツ", "交換部品", "替刃", "専用パーツ", "パーツ販売",
+  "パッキン", "替えパッキン", "拡張フレーム",
+  "替えストロー", "替え ストロー", "専用底板", "底板", "フードセット", "キャップ・フード",
+  // Rental / lease products
+  "レンタル", "レンタル延長",
 ];
 
 export function isTrialOrSamplePack(itemName: string): boolean {
@@ -99,32 +103,41 @@ export async function searchRakuten(keyword: string): Promise<ProductResult[]> {
   const accessKey = process.env.RAKUTEN_ACCESS_KEY!;
   const affiliateId = process.env.RAKUTEN_AFFILIATE_ID ?? "";
   const normalizedKeyword = keyword.replace(/【[^】]*】/g, " ").replace(/\s+/g, " ").trim();
-  const genreId = getGenreId(normalizedKeyword);
-  const params = new URLSearchParams({
-    applicationId: appId,
-    accessKey,
-    keyword: normalizedKeyword,
-    genreId,
-    hits: "10",
-    sort: "+itemPrice",
-  });
-  const res = await fetch(`${SEARCH_URL}?${params}`, {
-    headers: {
-      "Referer": "https://nedankurabe.vercel.app/",
-      "Origin": "https://nedankurabe.vercel.app",
-      "Sec-Fetch-Site": "cross-site",
-      "Sec-Fetch-Mode": "cors",
-      "Sec-Fetch-Dest": "empty",
-      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-    },
-  });
-  const body = await res.text();
-  console.log("[rakuten:search] status:", res.status, "body:", body.slice(0, 200));
-  if (!res.ok) throw new Error(`Rakuten API ${res.status}: ${body}`);
-  const data = JSON.parse(body) as { Items: Array<{ Item: any }> };
-  return (data.Items ?? [])
-    .filter(({ Item }) => !isTrialOrSamplePack(Item.itemName ?? ""))
-    .map(({ Item }) => parseRakutenItem(Item, affiliateId));
+  const specificGenre = getGenreId(normalizedKeyword);
+  // Try specific genre first, fall back to baby category (100533), then all genres (0)
+  const genreFallbacks = specificGenre === "100533"
+    ? ["100533", "0"]
+    : [specificGenre, "100533", "0"];
+
+  const HEADERS = {
+    "Referer": "https://nedankurabe.vercel.app/",
+    "Origin": "https://nedankurabe.vercel.app",
+    "Sec-Fetch-Site": "cross-site",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Dest": "empty",
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+  };
+
+  for (const genreId of genreFallbacks) {
+    const params = new URLSearchParams({
+      applicationId: appId,
+      accessKey,
+      keyword: normalizedKeyword,
+      genreId,
+      hits: "10",
+      sort: "+itemPrice",
+    });
+    const res = await fetch(`${SEARCH_URL}?${params}`, { headers: HEADERS });
+    const body = await res.text();
+    console.log("[rakuten:search] genre:", genreId, "status:", res.status, "body:", body.slice(0, 150));
+    if (!res.ok) continue; // try next genre on error
+    const data = JSON.parse(body) as { Items: Array<{ Item: any }> };
+    const filtered = (data.Items ?? [])
+      .filter(({ Item }) => !isTrialOrSamplePack(Item.itemName ?? ""))
+      .map(({ Item }) => parseRakutenItem(Item, affiliateId));
+    if (filtered.length > 0) return filtered; // return first genre with results
+  }
+  return [];
 }
 
 export async function lookupRakuten(

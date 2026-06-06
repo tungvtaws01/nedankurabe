@@ -27,11 +27,17 @@ function extractTitleFromAmazonUrl(url: string): string | null {
     const slug = u.pathname.split('/dp/')[0].split('/').filter(Boolean).pop()
     if (!slug) return null
     const decoded = decodeURIComponent(slug)
-    // Match hiragana, katakana, kanji only — excludes brackets (】), symbols (×), numbers
+    // Extract size indicators: Sサイズ, Mサイズ, LLサイズ, 乳首M (size letter attached to noun)
+    const sizesWithWord = decoded.match(/[A-Z0-9]{1,3}サイズ/g) ?? []
+    const sizesAttached = (decoded.match(/[ぁ-ゖァ-ー一-鿿]+[A-Z]{1,2}(?=-|$|\s)/g) ?? [])
+      .map(m => m.replace(/[A-Z]+$/, s => s + 'サイズ')) // normalize: 乳首M → 乳首 Mサイズ
+    const sizes = sizesWithWord.length ? sizesWithWord : sizesAttached.map(m => m.match(/[A-Z]+サイズ/)?.[0]).filter(Boolean) as string[]
+    // Extract Japanese content words — hiragana/katakana/kanji, 2+ chars, skip bare サイズ
     const jpWords = (decoded.match(/[ぁ-ゖァ-ー一-鿿㐀-䶿]+/g) ?? [])
-      .filter(w => w.length >= 2) // drop single-char counters like 枚
-    const keyword = jpWords.slice(0, 3).join(' ').trim()
-    return keyword || null
+      .filter(w => w.length >= 2 && w !== 'サイズ')
+    // Combine: size first (most critical for correct matching), then product name
+    const parts = [...sizes, ...jpWords].slice(0, 4)
+    return parts.join(' ').trim() || null
   } catch { return null }
 }
 

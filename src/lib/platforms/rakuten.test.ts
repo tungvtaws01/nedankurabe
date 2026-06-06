@@ -185,6 +185,14 @@ describe('isTrialOrSamplePack — spare parts', () => {
     expect(isTrialOrSamplePack('離乳食ブレンダー パパっとクック ブレード [パーツ販売]')).toBe(true)
   })
 
+  it('flags パッキン gasket replacement', () => {
+    expect(isTrialOrSamplePack('ピジョン ストローボトル 専用替えパッキン 2個入')).toBe(true)
+  })
+
+  it('flags 拡張フレーム extension frame', () => {
+    expect(isTrialOrSamplePack('日本育児 スマートゲイト2 手すりよけ拡張フレーム')).toBe(true)
+  })
+
   it('does not flag full blender product', () => {
     expect(isTrialOrSamplePack('ブラウン ハンドブレンダー マルチクイック 離乳食 スムージー')).toBe(false)
   })
