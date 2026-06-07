@@ -122,28 +122,42 @@ export async function crawlRakutenSearch(keyword: string): Promise<ProductResult
 
 export async function crawlRakutenProduct(itemUrl: string): Promise<ProductResult | null> {
   try {
-    // render:true so ScraperAPI executes JavaScript — Rakuten points are JS-rendered
-    const res = await proxyFetch(itemUrl, { headers: HEADERS }, { render: true })
+    // No render=true: Vercel Hobby plan has 10s function timeout; ScraperAPI JS rendering
+    // takes 10-15s and would always time out. Static HTML has all we need.
+    const res = await proxyFetch(itemUrl, { headers: HEADERS })
     if (!res.ok) return null
-    const html = await res.text()
+
+    // Rakuten item pages use EUC-JP encoding. Decode with the charset from Content-Type.
+    const buffer = await res.arrayBuffer()
+    const contentType = res.headers.get('content-type') ?? ''
+    const charsetMatch = contentType.match(/charset=([^\s;]+)/i)
+    const charset = charsetMatch?.[1] ?? 'utf-8'
+    let html: string
+    try {
+      html = new TextDecoder(charset).decode(buffer)
+    } catch {
+      html = new TextDecoder('utf-8').decode(buffer)
+    }
     const root = parse(html)
 
-    const title = root.querySelector('h1[itemprop="name"], #item-title, .item_name')?.text.trim() ?? ''
+    // og:title is in static HTML and correctly decoded once charset is handled.
+    // Format is often "Product Name：Shop Name" — take only the product part.
+    const ogTitle = root.querySelector('meta[property="og:title"]')?.getAttribute('content') ?? ''
+    const title = cleanRakutenTitle(ogTitle.split('：')[0].split(':')[0].trim())
     if (!title) return null
 
     const priceAttr = root.querySelector('[itemprop="price"]')?.getAttribute('content')
-    const priceText = root.querySelector('[itemprop="price"], .price2, .important')?.text ?? '0'
-    const salePrice = priceAttr ? parseInt(priceAttr, 10) : parsePrice(priceText)
+    const salePrice = priceAttr ? parseInt(priceAttr, 10) : 0
     if (!salePrice) return null
 
-    const pointsEarned = parsePoints(root.querySelector('#point, .item_point, [class*="point"]'))
-    const shippingCost = root.querySelector('#free-deliver, .free-delivery, [class*="freeShip"]') ? 0 : 490
-    const imageUrl = root.querySelector('#rakutenLogo ~ img, #imageMain img, #item_image img')?.getAttribute('src') ?? ''
+    // Points are JavaScript-rendered — not in static HTML, set to 0.
+    const shippingCost = salePrice >= 3980 ? 0 : 490
+    const imageUrl = root.querySelector('meta[property="og:image"]')?.getAttribute('content') ?? ''
 
     const shopMatch = itemUrl.match(/item\.rakuten\.co\.jp\/([^/]+)\//)
     const shopName = shopMatch?.[1] ?? ''
 
-    return buildResult(title, salePrice, pointsEarned, shippingCost, 0, imageUrl, itemUrl, shopName)
+    return buildResult(title, salePrice, 0, shippingCost, 0, imageUrl, itemUrl, shopName)
   } catch {
     return null
   }

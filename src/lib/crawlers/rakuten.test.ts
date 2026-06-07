@@ -39,13 +39,15 @@ const SEARCH_HTML = `
 </body></html>
 `
 
-const ITEM_HTML = `
-<html><body>
-  <h1 itemprop="name">明治ほほえみ(780g×2缶入)</h1>
+// Rakuten item pages use EUC-JP encoding; the new crawler uses og:title + itemprop price
+// (both available in static HTML). We mock the response with an ArrayBuffer.
+const ITEM_HTML_UTF8 = `
+<html><head>
+  <meta charset="UTF-8">
+  <meta property="og:title" content="明治ほほえみ(780g×2缶入)：楽天24 ベビー館" />
+  <meta property="og:image" content="https://thumbnail.image.rakuten.co.jp/item.jpg" />
+</head><body>
   <span itemprop="price" content="5979">5,979</span>
-  <img id="rakutenLogo" /><img src="https://thumbnail.image.rakuten.co.jp/item.jpg" />
-  <div id="point"><strong>553</strong>ポイント</div>
-  <span id="free-deliver">送料無料</span>
 </body></html>
 `
 
@@ -94,13 +96,23 @@ describe('crawlRakutenSearch', () => {
 })
 
 describe('crawlRakutenProduct', () => {
-  it('extracts title, price, points from item page', async () => {
-    mockFetch.mockResolvedValue({ ok: true, text: async () => ITEM_HTML })
+  it('extracts title and price from og:title + itemprop:price in static HTML', async () => {
+    // New crawler uses arrayBuffer() + TextDecoder for EUC-JP encoding support
+    const encoder = new TextEncoder()
+    const buf = encoder.encode(ITEM_HTML_UTF8).buffer
+    mockFetch.mockResolvedValue({
+      ok: true,
+      headers: { get: (h: string) => h === 'content-type' ? 'text/html; charset=UTF-8' : null },
+      arrayBuffer: async () => buf,
+    })
     const result = await crawlRakutenProduct('https://item.rakuten.co.jp/netbaby/4902705129566/')
     expect(result).not.toBeNull()
+    // og:title "明治ほほえみ(780g×2缶入)：楽天24 ベビー館" → split on "：" → first part
     expect(result!.title).toBe('明治ほほえみ(780g×2缶入)')
     expect(result!.salePrice).toBe(5979)
-    expect(result!.pointsEarned).toBe(553)
+    // Points are JS-rendered — static HTML cannot provide them
+    expect(result!.pointsEarned).toBe(0)
+    // price >= 3980 → free shipping heuristic
     expect(result!.shippingCost).toBe(0)
   })
 
