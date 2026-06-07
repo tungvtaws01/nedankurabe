@@ -122,12 +122,9 @@ export async function crawlRakutenSearch(keyword: string): Promise<ProductResult
 
 export async function crawlRakutenProduct(itemUrl: string): Promise<ProductResult | null> {
   try {
-    // No render=true: Vercel Hobby plan has 10s function timeout; ScraperAPI JS rendering
-    // takes 10-15s and would always time out. Static HTML has all we need.
     const res = await proxyFetch(itemUrl, { headers: HEADERS })
     if (!res.ok) return null
 
-    // Rakuten item pages use EUC-JP encoding. Decode with the charset from Content-Type.
     const buffer = await res.arrayBuffer()
     const contentType = res.headers.get('content-type') ?? ''
     const charsetMatch = contentType.match(/charset=([^\s;]+)/i)
@@ -140,8 +137,6 @@ export async function crawlRakutenProduct(itemUrl: string): Promise<ProductResul
     }
     const root = parse(html)
 
-    // og:title is in static HTML and correctly decoded once charset is handled.
-    // Format is often "Product Name：Shop Name" — take only the product part.
     const ogTitle = root.querySelector('meta[property="og:title"]')?.getAttribute('content') ?? ''
     const title = cleanRakutenTitle(ogTitle.split('：')[0].split(':')[0].trim())
     if (!title) return null
