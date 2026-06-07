@@ -67,13 +67,13 @@ describe('semanticMatch', () => {
     expect(idx).toBeNull()
   })
 
-  it('falls back to 0 when LLM response is invalid JSON', async () => {
+  it('returns null when LLM response is invalid JSON (safe fallback — no wrong match)', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({ choices: [{ message: { content: 'not json' } }] }),
     })
     const idx = await semanticMatch(mockProduct('A', 100), [mockProduct('B', 200)])
-    expect(idx).toBe(0)
+    expect(idx).toBeNull()
   })
 
   it('returns null when candidates is empty', async () => {

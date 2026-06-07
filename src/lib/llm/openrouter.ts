@@ -53,10 +53,12 @@ export async function semanticMatch(
     }])
     const parsed = JSON.parse(result) as { match: number | null }
     if (parsed.match === null || parsed.match === undefined) return null
-    if (!candidates[parsed.match]) return 0
+    if (!candidates[parsed.match]) return null
     return parsed.match
   } catch {
-    return 0
+    // On LLM failure, return null (no match) rather than 0 (first candidate).
+    // Returning 0 caused wrong products to be shown when the model was unavailable.
+    return null
   }
 }
 

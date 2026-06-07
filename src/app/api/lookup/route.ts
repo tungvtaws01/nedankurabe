@@ -91,7 +91,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
     const amazonKeyword = await refineKeyword(rakutenProduct.title, 'amazon').catch(() => rakutenProduct.title)
     const amazonCandidates = await crawlAmazonSearch(amazonKeyword).catch(() => [] as ProductResult[])
-    const matchIdx = await semanticMatch(rakutenProduct, amazonCandidates).catch(() => 0)
+    const matchIdx = await semanticMatch(rakutenProduct, amazonCandidates).catch(() => null)
     const amazonMatch = matchIdx !== null ? amazonCandidates[matchIdx] ?? null : null
     results = [rakutenProduct, ...(amazonMatch ? [amazonMatch] : [])].sort((a, b) => a.effectivePrice - b.effectivePrice)
   }

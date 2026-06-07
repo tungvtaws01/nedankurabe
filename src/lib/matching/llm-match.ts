@@ -6,7 +6,7 @@ export async function findBestMatch(
   candidates: ProductResult[],
 ): Promise<ProductResult | null> {
   if (!candidates.length) return null
-  const idx = await semanticMatch(source, candidates).catch(() => 0)
+  const idx = await semanticMatch(source, candidates).catch(() => null)
   if (idx === null) return null
   return candidates[idx] ?? null
 }
