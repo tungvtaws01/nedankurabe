@@ -17,23 +17,28 @@ Replace both the Rakuten Search API and Amazon PA-API with direct page crawling 
 
 ```
 User types keyword
-  → crawlRakutenSearch(keyword)
-      fetch https://search.rakuten.co.jp/search/mall/{keyword}/
-      extract 10 items: title, price, points (actual earned), coupon, shipping, image, URL
-      calculate real effectivePrice per item
-  → return pick-list to frontend
+  → [parallel]:
+      crawlRakutenSearch(keyword)
+          fetch https://search.rakuten.co.jp/search/mall/{keyword}/
+          extract 10 items: title, price, points (actual earned), coupon, shipping, image, URL
+          calculate real effectivePrice per item
+      llmRefineKeyword(keyword, 'amazon') → clean Amazon keyword
+          then: crawlAmazonSearch(amazonKeyword)
+              fetch https://www.amazon.co.jp/s?k={amazonKeyword}
+              extract top 5 results: title, price, points, shipping, image, ASIN
+              calculate real effectivePrice per item
+  → return { rakutenResults: [...10], amazonResults: [...5] } to frontend
+  → show Rakuten pick-list with effective prices
+  → Amazon results held in state (ready for matching when user taps)
 ```
 
 ### User taps Rakuten card (comparison)
 
 ```
-  → llmRefineKeyword(rakutenTitle) → clean Amazon keyword
-      strips promotional noise, keeps brand + product type + size
-  → crawlAmazonSearch(amazonKeyword)
-      fetch https://www.amazon.co.jp/s?k={keyword}
-      extract top 5 results: title, price, points, shipping, image, ASIN
-  → llmSemanticMatch(rakutenProduct, amazonCandidates) → index | null
-  → return matched Amazon ProductResult | null
+  → Amazon results already in state (fetched during keyword search)
+  → llmSemanticMatch(selectedRakutenProduct, amazonResults) → index | null
+  → show comparison [selectedRakutenProduct, matchedAmazonProduct].sort(by effectivePrice)
+  → no additional crawl needed
 ```
 
 ### URL paste (Amazon URL)
@@ -81,14 +86,32 @@ User taps Amazon card from Rakuten URL pick-list:
 
 | File | Change |
 |---|---|
-| `src/app/api/search/route.ts` | `crawlRakutenSearch` instead of `searchRakuten` |
-| `src/app/api/find-amazon/route.ts` | LLM refine → `crawlAmazonSearch` → LLM match |
+| `src/app/api/search/route.ts` | Parallel: `crawlRakutenSearch` + LLM refine → `crawlAmazonSearch`; returns `{ rakutenResults, amazonResults }` |
+| `src/app/api/find-amazon/route.ts` | Now only called for URL paste flows — not needed for keyword search (Amazon already fetched) |
+| `src/app/results/page.tsx` | Hold `amazonResults` in state from keyword search; pass to `handlePickSelect` for LLM match without re-fetching |
 | `src/app/api/lookup/route.ts` | Amazon URL → `crawlAmazonProduct` → LLM refine → `crawlRakutenSearch` → pick-list; Rakuten URL → `crawlRakutenProduct` → LLM refine → `crawlAmazonSearch` → pick-list |
 | `src/lib/matching/llm-match.ts` | Replace Anthropic client with OpenRouter |
 
+## Type Change: `SearchResponse`
+
+`/api/search` now returns both result sets so the frontend can hold Amazon results in state without a second fetch:
+
+```typescript
+// src/lib/types.ts — updated
+export interface SearchResponse {
+  rakutenResults: ProductResult[]   // pick-list items (replaces `results`)
+  amazonResults: ProductResult[]    // held in state, used when user taps a card
+  query: string
+  cached: boolean
+  mode: 'keyword-list'
+}
+```
+
+URL paste flows (`/api/lookup`) return the existing single-comparison shape — unchanged.
+
 ## Unchanged
 
-`ProductResult` type, `taxRate`, `calcRakutenEffectivePrice`, `recalcWithToggles`, all UI components, toggle logic, `KeywordResultsList`, `ProductCard`, caching layer.
+`ProductResult` type, `taxRate`, `calcRakutenEffectivePrice`, `recalcWithToggles`, all UI components, toggle logic, `ProductCard`, caching layer.
 
 ## Crawlers
 
