@@ -24,7 +24,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const body = await req.json() as { query?: string }
   if (!body.query?.trim()) return NextResponse.json({ error: 'query required' }, { status: 400 })
   const query = body.query.trim()
-  const cacheKey = makeCacheKey(`kw2:${query}`)
+  // kw3: prefix — busts stale kw2: entries cached before ScraperAPI was active
+  const cacheKey = makeCacheKey(`kw3:${query}`)
 
   const cached = await getCached<{ rakutenResults: ProductResult[]; amazonResults: ProductResult[] }>(cacheKey).catch(() => null)
   if (cached && cached.rakutenResults.length > 0) {
