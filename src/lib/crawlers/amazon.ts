@@ -121,15 +121,20 @@ export async function crawlAmazonProduct(asin: string, productUrl?: string): Pro
     if (!result) throw new Error('parse failed')
     return result
   }
+  // ScraperAPI with country_code=jp is the authoritative source for Japanese prices.
+  // Direct fetch from non-JP servers returns locale-based prices that may differ.
+  // Use ScraperAPI as primary; direct fetch as fallback only if proxy is unavailable.
   try {
-    return await Promise.any([
-      // Direct fetch (~2-5s from Tokyo edge)
-      fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(12000) }).then(attempt),
-      // ScraperAPI fallback with extended timeout for slow Amazon pages
-      proxyFetch(url, { headers: HEADERS }, { timeoutMs: 25000 }).then(attempt),
-    ])
+    const res = await proxyFetch(url, { headers: HEADERS }, { timeoutMs: 25000 })
+    return await attempt(res)
   } catch {
-    return null
+    // Fallback: direct fetch (less accurate locale but better than nothing)
+    try {
+      const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(12000) })
+      return await attempt(res)
+    } catch {
+      return null
+    }
   }
 }
 
