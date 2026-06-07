@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server'
 import { crawlRakutenProduct, crawlRakutenProductLive, crawlRakutenSearch } from '@/lib/crawlers/rakuten'
 import { crawlAmazonProduct, crawlAmazonSearch } from '@/lib/crawlers/amazon'
 import { refineKeyword, semanticMatch } from '@/lib/llm/openrouter'
-import { lookupRakuten } from '@/lib/platforms/rakuten'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult } from '@/lib/types'
 
@@ -30,23 +29,6 @@ function extractItemUrl(affiliateUrl: string): string {
     }
   } catch {}
   return affiliateUrl
-}
-
-/**
- * Fast path for Rakuten item URLs: try the API lookup first (~1-2s, no proxy).
- * Falls back to page crawl (~15s via ScraperAPI) if API returns nothing.
- * API lookup uses itemCode extracted from the URL path.
- */
-async function getRakutenProduct(itemUrl: string): Promise<ProductResult | null> {
-  // Extract shopName:itemCode from https://item.rakuten.co.jp/{shop}/{code}/
-  const m = itemUrl.match(/item\.rakuten\.co\.jp\/([^/]+)\/([^/?]+)/)
-  if (m) {
-    const itemCode = `${m[1]}:${m[2]}`
-    const via_api = await lookupRakuten(itemCode).catch(() => null)
-    if (via_api) return via_api
-  }
-  // Fallback: crawl the item page via ScraperAPI
-  return crawlRakutenProduct(itemUrl).catch(() => null)
 }
 
 function extractTitleFromAmazonUrl(url: string): string | null {
@@ -113,8 +95,9 @@ export async function POST(req: NextRequest): Promise<Response> {
 
         if (parsed.platform === 'rakuten') {
           // ── Rakuten URL ──────────────────────────────────────────────────
+          // ScraperAPI call 1: static HTML only (~3-5s) — fast, no JS
           send({ type: 'status', message: '楽天の商品ページを取得中…' })
-          const rakutenProduct = await getRakutenProduct(parsed.id)
+          const rakutenProduct = await crawlRakutenProduct(parsed.id).catch(() => null)
           if (!rakutenProduct) {
             send({ type: 'error', message: '商品が見つかりませんでした。' })
             controller.close()

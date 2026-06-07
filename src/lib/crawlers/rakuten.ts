@@ -125,43 +125,47 @@ export async function crawlRakutenSearch(keyword: string): Promise<ProductResult
   }
 }
 
+function parseRakutenItemHtml(html: string, itemUrl: string): ProductResult | null {
+  const root = parse(html)
+  const ogTitle = root.querySelector('meta[property="og:title"]')?.getAttribute('content') ?? ''
+  const title = cleanRakutenTitle(ogTitle.split('：')[0].split(':')[0].trim())
+  if (!title) return null
+  const priceAttr = root.querySelector('[itemprop="price"]')?.getAttribute('content')
+  const salePrice = priceAttr ? parseInt(priceAttr, 10) : 0
+  if (!salePrice) return null
+  const shippingCost = salePrice >= 3980 ? 0 : 490
+  const imageUrl = root.querySelector('meta[property="og:image"]')?.getAttribute('content') ?? ''
+  const rawDesc = root.querySelector('meta[property="og:description"]')?.getAttribute('content') ?? ''
+  const description = rawDesc.replace(/\s+/g, ' ').trim().slice(0, 200) || undefined
+  const shopMatch = itemUrl.match(/item\.rakuten\.co\.jp\/([^/]+)\//)
+  const shopName = shopMatch?.[1] ?? ''
+  return { ...buildResult(title, salePrice, 0, shippingCost, 0, imageUrl, itemUrl, shopName), description }
+}
+
+async function fetchAndDecode(res: Response): Promise<string> {
+  const buffer = await res.arrayBuffer()
+  const charset = res.headers.get('content-type')?.match(/charset=([^\s;]+)/i)?.[1] ?? 'utf-8'
+  try { return new TextDecoder(charset).decode(buffer) }
+  catch { return new TextDecoder('utf-8').decode(buffer) }
+}
+
 export async function crawlRakutenProduct(itemUrl: string): Promise<ProductResult | null> {
+  // Race direct fetch (fast when unblocked) against ScraperAPI (reliable fallback).
+  // Promise.any returns whichever resolves first; only fails if both reject.
+  const attempt = async (res: Response): Promise<ProductResult> => {
+    if (!res.ok) throw new Error('bad status')
+    const html = await fetchAndDecode(res)
+    const result = parseRakutenItemHtml(html, itemUrl)
+    if (!result) throw new Error('parse failed')
+    return result
+  }
   try {
-    const res = await proxyFetch(itemUrl, { headers: HEADERS })
-    if (!res.ok) return null
-
-    const buffer = await res.arrayBuffer()
-    const contentType = res.headers.get('content-type') ?? ''
-    const charsetMatch = contentType.match(/charset=([^\s;]+)/i)
-    const charset = charsetMatch?.[1] ?? 'utf-8'
-    let html: string
-    try {
-      html = new TextDecoder(charset).decode(buffer)
-    } catch {
-      html = new TextDecoder('utf-8').decode(buffer)
-    }
-    const root = parse(html)
-
-    const ogTitle = root.querySelector('meta[property="og:title"]')?.getAttribute('content') ?? ''
-    const title = cleanRakutenTitle(ogTitle.split('：')[0].split(':')[0].trim())
-    if (!title) return null
-
-    const priceAttr = root.querySelector('[itemprop="price"]')?.getAttribute('content')
-    const salePrice = priceAttr ? parseInt(priceAttr, 10) : 0
-    if (!salePrice) return null
-
-    // Points are JavaScript-rendered — not in static HTML, set to 0.
-    const shippingCost = salePrice >= 3980 ? 0 : 490
-    const imageUrl = root.querySelector('meta[property="og:image"]')?.getAttribute('content') ?? ''
-
-    const rawDesc = root.querySelector('meta[property="og:description"]')?.getAttribute('content') ?? ''
-    const description = rawDesc.replace(/\s+/g, ' ').trim().slice(0, 200) || undefined
-
-    const shopMatch = itemUrl.match(/item\.rakuten\.co\.jp\/([^/]+)\//)
-    const shopName = shopMatch?.[1] ?? ''
-
-    const result = buildResult(title, salePrice, 0, shippingCost, 0, imageUrl, itemUrl, shopName)
-    return { ...result, description }
+    return await Promise.any([
+      // Direct: fast if Rakuten doesn't block this IP (~2-5s on Vercel JP edge)
+      fetch(itemUrl, { headers: HEADERS, signal: AbortSignal.timeout(12000) }).then(attempt),
+      // ScraperAPI: reliable but slower (~8-14s)
+      proxyFetch(itemUrl, { headers: HEADERS }).then(attempt),
+    ])
   } catch {
     return null
   }
