@@ -64,10 +64,13 @@ function ResultsContent() {
   async function handlePickSelect(selected: ProductResult) {
     setLoading(true); setError(null)
     try {
+      // If user tapped a Rakuten card → match against Amazon pool
+      // If user tapped an Amazon card → match against Rakuten pick-list
+      const candidates = selected.platform === 'rakuten' ? amazonPool : pickList
       const res = await fetch('/api/find-amazon', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: selected, candidates: amazonPool }),
+        body: JSON.stringify({ source: selected, candidates }),
       })
       const data = await res.json() as { result: ProductResult | null }
       const results = [selected, ...(data.result ? [data.result] : [])]
@@ -122,7 +125,11 @@ function ResultsContent() {
       )}
 
       {!loading && !error && mode === 'keyword-list' && (
-        <KeywordResultsList results={pickList} query={query ?? ''} onSelect={handlePickSelect} />
+        <KeywordResultsList
+          results={[...pickList, ...amazonPool].sort((a, b) => a.salePrice - b.salePrice)}
+          query={query ?? ''}
+          onSelect={handlePickSelect}
+        />
       )}
 
       {!loading && !error && mode === 'comparison' && ranked.length > 0 && (
