@@ -44,25 +44,46 @@ User types keyword
       extract: title, price, points, image
   → llmRefineKeyword(amazonTitle) → clean Rakuten keyword
   → crawlRakutenSearch(rakutenKeyword) → 10 Rakuten results with real effective prices
-  → llmSemanticMatch(amazonProduct, rakutenCandidates) → index | null
-  → return [amazonResult, rakutenMatch].sort(by effectivePrice)
+  → show Rakuten pick-list (same as keyword search pick-list)
+
+User taps Rakuten card from Amazon URL pick-list:
+  → selected Rakuten product is the match
+  → show comparison [amazonSource, selectedRakutenProduct].sort(by effectivePrice)
+```
+
+### URL paste (Rakuten URL)
+
+```
+  → crawlRakutenProduct(itemUrl)
+      fetch https://item.rakuten.co.jp/{shop}/{itemCode}/
+      extract: title, price, points, coupon, shipping, image
+  → llmRefineKeyword(rakutenTitle) → clean Amazon keyword
+  → crawlAmazonSearch(amazonKeyword)
+      fetch https://www.amazon.co.jp/s?k={keyword}
+      extract top 5 results: title, price, points, shipping, image, ASIN
+      calculate effectivePrice per result
+  → show Amazon pick-list (5 tappable cards with effective prices)
+
+User taps Amazon card from Rakuten URL pick-list:
+  → selected Amazon product is the match (no LLM matching needed — user chose it)
+  → show comparison [rakutenSource, selectedAmazonProduct].sort(by effectivePrice)
 ```
 
 ## New Files
 
 | File | Responsibility |
 |---|---|
-| `src/lib/crawlers/rakuten.ts` | Crawl Rakuten search page, return `ProductResult[]` |
-| `src/lib/crawlers/amazon.ts` | Crawl Amazon search + product pages, return `ProductResult` / `ProductResult[]` |
-| `src/lib/llm/openrouter.ts` | OpenRouter client: `refineKeyword()` + `semanticMatch()` |
+| `src/lib/crawlers/rakuten.ts` | `crawlRakutenSearch(keyword)` + `crawlRakutenProduct(itemUrl)` |
+| `src/lib/crawlers/amazon.ts` | `crawlAmazonSearch(keyword)` + `crawlAmazonProduct(asin)` |
+| `src/lib/llm/openrouter.ts` | `refineKeyword(title, platform)` + `semanticMatch(source, candidates)` |
 
 ## Modified Files
 
 | File | Change |
 |---|---|
-| `src/app/api/search/route.ts` | Use `crawlRakutenSearch` instead of `searchRakuten` |
-| `src/app/api/find-amazon/route.ts` | LLM refine → crawl Amazon → LLM match |
-| `src/app/api/lookup/route.ts` | Crawl Amazon product page → LLM refine → crawl Rakuten → LLM match |
+| `src/app/api/search/route.ts` | `crawlRakutenSearch` instead of `searchRakuten` |
+| `src/app/api/find-amazon/route.ts` | LLM refine → `crawlAmazonSearch` → LLM match |
+| `src/app/api/lookup/route.ts` | Amazon URL → `crawlAmazonProduct` → LLM refine → `crawlRakutenSearch` → pick-list; Rakuten URL → `crawlRakutenProduct` → LLM refine → `crawlAmazonSearch` → pick-list |
 | `src/lib/matching/llm-match.ts` | Replace Anthropic client with OpenRouter |
 
 ## Unchanged
@@ -98,6 +119,24 @@ Accept-Language: ja-JP,ja;q=0.9
 Accept: text/html,application/xhtml+xml
 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ...
 ```
+
+### Rakuten item page (`src/lib/crawlers/rakuten.ts`)
+
+**URL:** `https://item.rakuten.co.jp/{shop}/{itemCode}/`
+
+Used only for the Rakuten URL paste flow — fetches a single product's full details.
+
+- **Price:** `span[itemprop="price"]` or `.price2` block
+- **Points earned:** `#point` block — actual points shown to buyer (includes SuperDEAL)
+- **Coupon:** `.coupon-block` discount amount if present → `couponDiscount`
+- **Shipping:** `#free-deliver` text → `shippingCost = 0`, else `490`
+- **Image:** `#rakutenLogo ~ img` or `#imageMain img`
+- **Title:** `h1[itemprop="name"]`
+- **Item URL:** the page URL itself
+
+**Effective price:** same formula as search page — `price - pointsEarned - couponDiscount + shippingCost`
+
+---
 
 ### Amazon search page (`src/lib/crawlers/amazon.ts`)
 
