@@ -37,4 +37,5 @@ export interface SearchResponse {
   results: ProductResult[]
   query: string
   cached: boolean
+  mode?: 'keyword-list' | 'comparison'
 }
