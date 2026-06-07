@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { searchAmazon } from '@/lib/platforms/amazon'
+import { semanticMatch } from '@/lib/llm/openrouter'
 import { ProductResult } from '@/lib/types'
 
 export async function POST(req: NextRequest): Promise<NextResponse<{ result: ProductResult | null }>> {
-  const body = await req.json() as { title?: string }
-  if (!body.title?.trim()) {
+  const body = await req.json() as { source?: ProductResult; candidates?: ProductResult[] }
+  if (!body.source || !body.candidates?.length) {
     return NextResponse.json({ result: null }, { status: 400 })
   }
-  const result = await searchAmazon(body.title.trim())
-    .then(items => items[0] ?? null)
-    .catch(() => null)
+  const idx = await semanticMatch(body.source, body.candidates).catch(() => 0)
+  const result = idx !== null ? body.candidates[idx] ?? null : null
   return NextResponse.json({ result })
 }
