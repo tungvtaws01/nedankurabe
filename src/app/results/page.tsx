@@ -2,7 +2,7 @@
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useEffect, useState, Suspense } from 'react'
 import { flushSync } from 'react-dom'
-import { ProductResult, UserToggles, DEFAULT_TOGGLES, SearchResponse } from '@/lib/types'
+import { ProductResult, UserToggles, DEFAULT_TOGGLES } from '@/lib/types'
 import { recalcWithToggles } from '@/lib/price/normalize'
 import ProductCard from '@/components/ProductCard'
 import TogglePanel from '@/components/TogglePanel'
@@ -122,22 +122,58 @@ function ResultsContent() {
         return
       }
 
-      // Keyword search: regular fetch
+      // Keyword search: SSE stream — Rakuten appears in ~1s, Amazon appends ~8s later
       try {
-        const res = await fetch('/api/search', {
+        const res = await fetch('/api/search/stream', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query }),
         })
-        const data = await res.json() as SearchResponse & { error?: string }
-        if (!res.ok) { setError(data.error ?? '検索中にエラーが発生しました。'); return }
-        setPickList(data.rakutenResults ?? [])
-        setAmazonPool(data.amazonResults ?? [])
-        setMode('keyword-list')
+        if (!res.ok || !res.body) {
+          const data = await res.json() as { error?: string }
+          setError(data.error ?? '検索中にエラーが発生しました。')
+          return
+        }
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() ?? ''
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue
+            try {
+              const event = JSON.parse(line.slice(6)) as {
+                type: string
+                results?: ProductResult[]
+                cached?: boolean
+              }
+              if (event.type === 'rakuten') {
+                flushSync(() => {
+                  setPickList(event.results ?? [])
+                  setMode('keyword-list')
+                  setLoading(false)
+                  if (!event.cached) setCrossSearching(true)
+                })
+              } else if (event.type === 'amazon') {
+                flushSync(() => {
+                  setAmazonPool(event.results ?? [])
+                  setCrossSearching(false)
+                })
+              } else if (event.type === 'done') {
+                setCrossSearching(false)
+              }
+            } catch { /* ignore malformed lines */ }
+          }
+        }
       } catch {
         setError('検索中にエラーが発生しました。もう一度お試しください。')
       } finally {
         setLoading(false)
+        setCrossSearching(false)
       }
     }
     if (query || url) load()
@@ -223,11 +259,18 @@ function ResultsContent() {
       )}
 
       {!loading && !error && mode === 'keyword-list' && (
-        <KeywordResultsList
-          results={[...pickList, ...amazonPool].sort((a, b) => a.salePrice - b.salePrice)}
-          query={query ?? ''}
-          onSelect={handlePickSelect}
-        />
+        <>
+          {crossSearching && (
+            <p className="text-center text-xs text-blue-500 animate-pulse mb-2">
+              ⟳ Amazonの商品も検索中… Searching Amazon
+            </p>
+          )}
+          <KeywordResultsList
+            results={[...pickList, ...amazonPool].sort((a, b) => a.salePrice - b.salePrice)}
+            query={query ?? ''}
+            onSelect={handlePickSelect}
+          />
+        </>
       )}
 
       {!loading && !error && mode === 'comparison' && ranked.length > 0 && (
