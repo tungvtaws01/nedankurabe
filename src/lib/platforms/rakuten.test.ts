@@ -131,8 +131,16 @@ describe('getGenreId', () => {
     expect(getGenreId('和光堂 ハイハイン 赤ちゃん用')).toBe('213980')
   })
 
-  it('maps マグ to baby tableware genre 207750', () => {
-    expect(getGenreId('ピジョン マグマグ ストローマグ')).toBe('207750')
+  it('maps ストローマグ to straw cup genre 207753', () => {
+    expect(getGenreId('ピジョン ストローマグ')).toBe('207753')
+  })
+
+  it('maps コップマグ to straw cup genre 207753', () => {
+    expect(getGenreId('ピジョン コップマグ')).toBe('207753')
+  })
+
+  it('maps マグマグ (no ストロー) to tableware genre 207750', () => {
+    expect(getGenreId('ピジョン マグマグ')).toBe('207750')
   })
 
   it('maps 抱っこ紐 to carrier genre 566089', () => {
@@ -193,7 +201,15 @@ describe('isTrialOrSamplePack — spare parts', () => {
     expect(isTrialOrSamplePack('日本育児 スマートゲイト2 手すりよけ拡張フレーム')).toBe(true)
   })
 
+  it('flags 専用プレートレイ tray accessory', () => {
+    expect(isTrialOrSamplePack('バンボ Bumbo ベビーソファ 専用プレートレイ')).toBe(true)
+  })
+
   it('does not flag full blender product', () => {
     expect(isTrialOrSamplePack('ブラウン ハンドブレンダー マルチクイック 離乳食 スムージー')).toBe(false)
+  })
+
+  it('does not flag full Bumbo seat', () => {
+    expect(isTrialOrSamplePack('バンボ マルチシート ベビーソファ 日本正規品')).toBe(false)
   })
 })
