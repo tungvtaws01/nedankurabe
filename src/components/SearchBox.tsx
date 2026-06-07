@@ -1,26 +1,81 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
 const POPULAR = ['パンパース テープ', '明治ほほえみ', 'エルゴ抱っこ紐', 'おしりふき', 'ベビーカー']
-// Matches Amazon/Rakuten URLs with or without protocol and with/without www
 const URL_RE = /^(https?:\/\/)?(www\.)?amazon\.co\.jp|^(https?:\/\/)?item\.rakuten\.co\.jp/
+
+interface Preview {
+  platform: 'amazon' | 'rakuten'
+  title: string
+  salePrice: number
+  imageUrl: string
+  shopName: string
+}
 
 export default function SearchBox() {
   const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [preview, setPreview] = useState<Preview | null>(null)
+  const [previewState, setPreviewState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const [navigating, setNavigating] = useState(false)
+  const abortRef = useRef<AbortController | null>(null)
   const router = useRouter()
+
+  const isUrl = URL_RE.test(input.trim())
+
+  // Fetch preview whenever input changes to a URL
+  useEffect(() => {
+    const v = input.trim()
+    if (!URL_RE.test(v)) {
+      setPreview(null)
+      setPreviewState('idle')
+      abortRef.current?.abort()
+      return
+    }
+
+    // Debounce 300ms to avoid fetching mid-paste
+    const timer = setTimeout(async () => {
+      abortRef.current?.abort()
+      const ctrl = new AbortController()
+      abortRef.current = ctrl
+      setPreview(null)
+      setPreviewState('loading')
+      try {
+        const res = await fetch('/api/preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: v }),
+          signal: ctrl.signal,
+        })
+        if (!res.ok) { setPreviewState('error'); return }
+        const data = await res.json() as Preview
+        if (!ctrl.signal.aborted) {
+          setPreview(data)
+          setPreviewState('ready')
+        }
+      } catch (e) {
+        if ((e as Error).name !== 'AbortError') setPreviewState('error')
+      }
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [input])
 
   function navigate(value: string) {
     const v = value.trim()
     if (!v) return
-    setLoading(true)
+    setNavigating(true)
     if (URL_RE.test(v)) {
       router.push(`/results?url=${encodeURIComponent(v)}`)
     } else {
       router.push(`/results?q=${encodeURIComponent(v)}`)
     }
   }
+
+  // For keyword input: button always enabled when there's text
+  // For URL input: button enabled only when preview is ready
+  const canCompare = isUrl ? previewState === 'ready' : !!input.trim()
+  const buttonLabel = navigating ? '...' : isUrl && previewState === 'loading' ? '確認中…' : '比較'
 
   return (
     <div className="w-full max-w-md mx-auto">
@@ -30,19 +85,66 @@ export default function SearchBox() {
             type="text"
             value={input}
             onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && navigate(input)}
+            onKeyDown={e => e.key === 'Enter' && canCompare && navigate(input)}
             placeholder="Amazon/楽天のURL、または商品名（例：パンパース Sサイズ）を入力"
             className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--cream)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ink)]"
           />
           <button
             onClick={() => navigate(input)}
-            disabled={loading || !input.trim()}
-            className="bg-[var(--ink)] text-white rounded-xl px-4 py-2.5 text-sm font-bold whitespace-nowrap disabled:opacity-40"
+            disabled={navigating || !canCompare}
+            className="bg-[var(--ink)] text-white rounded-xl px-4 py-2.5 text-sm font-bold whitespace-nowrap disabled:opacity-40 transition-opacity"
           >
-            {loading ? '...' : '比較'}
+            {buttonLabel}
           </button>
         </div>
-        <p className="text-[10px] text-[var(--ink-soft)] text-center">
+
+        {/* URL preview area */}
+        {isUrl && (
+          <div className="mt-3 rounded-xl border border-[var(--border)] overflow-hidden">
+            {previewState === 'loading' && (
+              <div className="flex items-center gap-3 p-3 bg-[var(--cream)]">
+                <div className="w-12 h-12 rounded-lg bg-gray-200 animate-pulse shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
+                  <div className="h-3 bg-gray-200 rounded animate-pulse w-1/2" />
+                  <div className="h-4 bg-gray-200 rounded animate-pulse w-1/4" />
+                </div>
+              </div>
+            )}
+            {previewState === 'error' && (
+              <div className="p-3 bg-red-50 text-xs text-red-600 text-center">
+                商品が見つかりませんでした。URLを確認してください。
+              </div>
+            )}
+            {previewState === 'ready' && preview && (
+              <div className="flex items-center gap-3 p-3 bg-[var(--cream)]">
+                {preview.imageUrl && (
+                  <img
+                    src={preview.imageUrl}
+                    alt={preview.title}
+                    className="w-12 h-12 object-contain rounded-lg border border-[var(--border)] bg-white shrink-0"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                      preview.platform === 'amazon'
+                        ? 'bg-[var(--amazon)] text-[var(--amazon-accent)]'
+                        : 'bg-[var(--red)] text-white'
+                    }`}>
+                      {preview.platform === 'amazon' ? 'Amazon' : '楽天'}
+                    </span>
+                    <span className="text-[10px] text-[var(--ink-soft)] truncate">{preview.shopName}</span>
+                  </div>
+                  <p className="text-xs font-semibold leading-snug line-clamp-2 mb-1">{preview.title}</p>
+                  <p className="text-sm font-black text-[var(--red)]">¥{preview.salePrice.toLocaleString()}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <p className="text-[10px] text-[var(--ink-soft)] text-center mt-2">
           URLを貼り付けるか、商品名で検索できます{' '}
           <span className="italic">Paste a URL or search by product name</span>
         </p>
