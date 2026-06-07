@@ -6,6 +6,7 @@ import { recalcWithToggles } from '@/lib/price/normalize'
 import ProductCard from '@/components/ProductCard'
 import TogglePanel from '@/components/TogglePanel'
 import KeywordResultsList from '@/components/KeywordResultsList'
+import PriceExplanation from '@/components/PriceExplanation'
 
 function loadToggles(): UserToggles {
   if (typeof window === 'undefined') return DEFAULT_TOGGLES
@@ -161,6 +162,9 @@ function ResultsContent() {
                 ? 'Amazonで同等商品が見つかりませんでした。 Amazon equivalent not found.'
                 : '楽天で同等商品が見つかりませんでした。 Rakuten equivalent not found.'}
             </div>
+          )}
+          {ranked.length === 2 && (
+            <PriceExplanation winner={ranked[0]} loser={ranked[1]} />
           )}
           {ranked.map((r, i) => (
             <ProductCard key={r.affiliateUrl} result={r} isWinner={i === 0} toggles={toggles} />
