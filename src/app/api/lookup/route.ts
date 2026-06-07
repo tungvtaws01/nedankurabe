@@ -22,13 +22,15 @@ function extractTitleFromAmazonUrl(url: string): string | null {
 
 function parseProductUrl(url: string): { platform: 'amazon' | 'rakuten'; id: string } | null {
   try {
-    const u = new URL(url)
+    // Normalize: add https:// if user pasted without protocol (e.g. amazon.co.jp/dp/...)
+    const normalized = /^https?:\/\//i.test(url) ? url : `https://${url}`
+    const u = new URL(normalized)
     if (u.hostname.includes('amazon.co.jp')) {
       const m = u.pathname.match(/\/(?:dp|gp\/product)\/([A-Z0-9]{10})/)
       if (m) return { platform: 'amazon', id: m[1] }
     }
     if (u.hostname.includes('rakuten.co.jp')) {
-      return { platform: 'rakuten', id: url }
+      return { platform: 'rakuten', id: normalized }
     }
   } catch { /* invalid URL */ }
   return null

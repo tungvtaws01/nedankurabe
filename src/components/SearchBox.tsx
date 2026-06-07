@@ -3,7 +3,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 const POPULAR = ['パンパース テープ', '明治ほほえみ', 'エルゴ抱っこ紐', 'おしりふき', 'ベビーカー']
-const URL_RE = /^https?:\/\/(www\.amazon\.co\.jp|item\.rakuten\.co\.jp)/
+// Matches Amazon/Rakuten URLs with or without protocol and with/without www
+const URL_RE = /^(https?:\/\/)?(www\.)?amazon\.co\.jp|^(https?:\/\/)?item\.rakuten\.co\.jp/
 
 export default function SearchBox() {
   const [input, setInput] = useState('')
