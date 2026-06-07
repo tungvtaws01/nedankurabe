@@ -35,8 +35,12 @@ export const DEFAULT_TOGGLES: UserToggles = {
 }
 
 export interface SearchResponse {
+  mode: 'keyword-list' | 'comparison'
+  // keyword-list mode: both platforms crawled in parallel
+  rakutenResults: ProductResult[]
+  amazonResults: ProductResult[]
+  // comparison mode: URL paste result (single pair)
   results: ProductResult[]
   query: string
   cached: boolean
-  mode?: 'keyword-list' | 'comparison'
 }
