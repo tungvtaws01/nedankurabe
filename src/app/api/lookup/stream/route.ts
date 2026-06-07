@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { crawlRakutenProduct, crawlRakutenProductLive, crawlRakutenSearch } from '@/lib/crawlers/rakuten'
+import { crawlRakutenProductFast, crawlRakutenProductLive, crawlRakutenSearch } from '@/lib/crawlers/rakuten'
 import { crawlAmazonProduct, crawlAmazonSearch } from '@/lib/crawlers/amazon'
 import { refineKeyword, semanticMatch } from '@/lib/llm/openrouter'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
@@ -94,24 +94,24 @@ export async function POST(req: NextRequest): Promise<Response> {
 
         if (parsed.platform === 'rakuten') {
           // ── Rakuten URL ──────────────────────────────────────────────────
-          // ScraperAPI call 1: static HTML only (~3-5s) — fast, no JS
-          send({ type: 'status', message: '楽天の商品ページを取得中…' })
-          const rakutenProduct = await crawlRakutenProduct(parsed.id).catch(() => null)
+          // Phase 1: Rakuten API lookup (~1-2s) — fast placeholder, no ScraperAPI
+          send({ type: 'status', message: '楽天の商品情報を取得中…' })
+          const rakutenProduct = await crawlRakutenProductFast(parsed.id).catch(() => null)
           if (!rakutenProduct) {
             send({ type: 'error', message: '商品が見つかりませんでした。' })
             controller.close()
             return
           }
 
-          // Phase 1: show source product immediately
+          // Stream placeholder immediately — user sees the card in ~1-2s
           send({ type: 'partial', results: [rakutenProduct] })
 
-          // Phase 2: Amazon search  AND  live-points in parallel
+          // Phase 2+3: Amazon search AND live-points (ScraperAPI render=true) in parallel
           let latestRakuten: ProductResult = rakutenProduct
           let basicResults: ProductResult[] = [rakutenProduct]
 
           await Promise.all([
-            // Amazon search chain
+            // Amazon search chain (LLM + crawl)
             (async () => {
               try {
                 send({ type: 'status', message: 'Amazonで同等商品を検索中…' })
@@ -127,7 +127,7 @@ export async function POST(req: NextRequest): Promise<Response> {
               send({ type: 'basic', results: basicResults })
             })(),
 
-            // Live points (render=true) — runs in parallel with Amazon search
+            // Live points via ScraperAPI render=true — updates SuperDEAL/coupon
             (async () => {
               const live = await crawlRakutenProductLive(
                 parsed.id,

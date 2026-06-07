@@ -72,56 +72,30 @@ function buildResult(
   }
 }
 
+// Always use Rakuten Search API directly — fast (~1-2s), no ScraperAPI overhead.
+// The previous ScraperAPI search-page crawl was slow (~10-15s) and unreliable.
 export async function crawlRakutenSearch(keyword: string): Promise<ProductResult[]> {
-  // Without ScraperAPI, Vercel's IPs are blocked — skip the 5s crawl timeout
-  // and go straight to the Rakuten Search API which always works.
-  if (!hasProxy()) return searchRakuten(keyword).catch(() => [])
+  return searchRakuten(keyword).catch(() => [])
+}
 
-  const encoded = encodeURIComponent(keyword)
+/**
+ * Fast Rakuten product lookup via API (~1-2s) for URL paste placeholder.
+ * Extracts item code from the URL and searches Rakuten API with it.
+ * The item code is often a JAN barcode which uniquely identifies the product.
+ * Falls back to ScraperAPI page crawl if API returns nothing.
+ */
+export async function crawlRakutenProductFast(itemUrl: string): Promise<ProductResult | null> {
+  const m = itemUrl.match(/item\.rakuten\.co\.jp\/([^/]+)\/([^/?]+)/)
+  if (!m) return null
+  const [, shopName, itemCode] = m
+
   try {
-    const res = await proxyFetch(
-      `https://search.rakuten.co.jp/search/mall/${encoded}/`,
-      { headers: HEADERS },
-    )
-    if (!res.ok) return searchRakuten(keyword).catch(() => [])
-    const html = await res.text()
-    const root = parse(html)
-    const results: ProductResult[] = []
-
-    // Rakuten embeds stable JSON-LD ItemList on search pages (used by Google SEO)
-    // This is more reliable than CSS class selectors which use hashed module names.
-    // Points are JavaScript-rendered and not in initial HTML — set to 0 for pick-list.
-    // Accurate points are fetched from the item page when user taps a card.
-    for (const script of root.querySelectorAll('script[type="application/ld+json"]')) {
-      try {
-        const data = JSON.parse(script.text) as Record<string, unknown>
-        if (data['@type'] !== 'ItemList') continue
-        const ldItems = (data['itemListElement'] as Array<Record<string, unknown>>) ?? []
-        for (const listItem of ldItems.slice(0, 10)) {
-          const product = listItem['item'] as Record<string, unknown>
-          if (!product) continue
-          const title = cleanRakutenTitle(product['name'] as string ?? '')
-          const rawUrl = (product['url'] as string ?? '').split('?')[0]
-          const offers = product['offers'] as Record<string, unknown> ?? {}
-          const salePrice = offers['price'] ? parseInt(String(offers['price']), 10) : 0
-          const imageArr = product['image']
-          const imageUrl = Array.isArray(imageArr) ? String(imageArr[0] ?? '') : String(imageArr ?? '')
-          if (!title || !rawUrl || !salePrice) continue
-          const shopMatch = rawUrl.match(/item\.rakuten\.co\.jp\/([^/]+)\//)
-          const shopName = shopMatch?.[1] ?? ''
-          // points = 0 on pick-list (JS-rendered, not in initial HTML)
-          const shippingCost = salePrice >= 3980 ? 0 : 490
-          results.push(buildResult(title, salePrice, 0, shippingCost, 0, imageUrl, rawUrl, shopName))
-        }
-        break // only one ItemList block expected
-      } catch { continue }
-    }
-    // Fall back to Rakuten Search API if crawl returned nothing
-    // (e.g. server IP blocked, JSON-LD absent, or Rakuten changed page structure)
-    if (results.length === 0) return searchRakuten(keyword).catch(() => [])
-    return results
+    const results = await searchRakuten(itemCode)
+    if (!results.length) return null
+    // Prefer result from the same shop; fall back to first result
+    return results.find(r => r.affiliateUrl.includes(shopName)) ?? results[0]
   } catch {
-    return searchRakuten(keyword).catch(() => [])
+    return null
   }
 }
 
