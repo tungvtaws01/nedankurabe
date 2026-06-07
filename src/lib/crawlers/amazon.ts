@@ -1,6 +1,7 @@
 import { parse } from 'node-html-parser'
 import { ProductResult } from '@/lib/types'
 import { calcAmazonEffectivePrice } from '@/lib/price/normalize'
+import { proxyFetch } from './proxy-fetch'
 
 const HEADERS = {
   'Accept-Language': 'ja-JP,ja;q=0.9',
@@ -55,7 +56,7 @@ function buildResult(
 export async function crawlAmazonSearch(keyword: string): Promise<ProductResult[]> {
   const encoded = encodeURIComponent(keyword)
   try {
-    const res = await fetch(
+    const res = await proxyFetch(
       `https://www.amazon.co.jp/s?k=${encoded}&i=baby`,
       { headers: HEADERS },
     )
@@ -91,7 +92,7 @@ export async function crawlAmazonSearch(keyword: string): Promise<ProductResult[
 
 export async function crawlAmazonProduct(asin: string): Promise<ProductResult | null> {
   try {
-    const res = await fetch(
+    const res = await proxyFetch(
       `https://www.amazon.co.jp/dp/${asin}`,
       { headers: HEADERS },
     )

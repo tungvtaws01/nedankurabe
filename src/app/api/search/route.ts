@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { crawlRakutenSearch } from '@/lib/crawlers/rakuten'
 import { crawlAmazonSearch } from '@/lib/crawlers/amazon'
+import { hasProxy } from '@/lib/crawlers/proxy-fetch'
 import { refineKeyword } from '@/lib/llm/openrouter'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult, SearchResponse } from '@/lib/types'
@@ -32,12 +33,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     } satisfies SearchResponse)
   }
 
-  // Crawl both platforms in parallel
-  const [rakutenResults, amazonKeyword] = await Promise.all([
+  // Crawl Rakuten + Amazon in parallel.
+  // Amazon crawl is skipped when no SCRAPER_API_KEY — without a proxy
+  // Vercel's server IPs are blocked by Amazon search pages, adding ~5s of
+  // wasted latency. The LLM keyword refinement also only runs when needed.
+  const [rakutenResults, amazonResults] = await Promise.all([
     crawlRakutenSearch(query).catch(() => [] as ProductResult[]),
-    refineKeyword(query, 'amazon').catch(() => query),
+    hasProxy()
+      ? refineKeyword(query, 'amazon').catch(() => query)
+          .then(kw => crawlAmazonSearch(kw).catch(() => [] as ProductResult[]))
+      : Promise.resolve([] as ProductResult[]),
   ])
-  const amazonResults = await crawlAmazonSearch(amazonKeyword).catch(() => [] as ProductResult[])
 
   if (rakutenResults.length > 0) {
     await setCached(cacheKey, { rakutenResults, amazonResults }).catch(() => {})
