@@ -78,8 +78,11 @@ export default function ProductCard({ result, isWinner, toggles }: {
 
       {!isAmazon && (
         <p className="text-[9px] text-[var(--ink-soft)] mb-2 leading-relaxed">
-          ※ スーパーDEAL・クーポン等の特典ポイントは含まれません
-          <span className="italic ml-1">Excl. SuperDEAL & coupon points</span>
+          ※ ポイントは基本1%のみ表示。スーパーDEAL・クーポンは含まれません。
+          <a href={result.affiliateUrl} target="_blank" rel="noopener noreferrer"
+            className="underline text-[var(--red)] ml-1 font-medium">
+            実際のポイントを確認 →
+          </a>
         </p>
       )}
 
