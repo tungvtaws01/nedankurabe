@@ -32,6 +32,15 @@ describe('refineKeyword', () => {
     const result = await refineKeyword('【送料無料】パンパース テープ Sサイズ 108枚', 'amazon')
     expect(result).toBe('パンパース テープ Sサイズ 108枚')
   })
+
+  it('falls back to bracket-stripped title when LLM returns empty content', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: '' } }] }),
+    })
+    const result = await refineKeyword('【キャンペーン】パンパース テープ Sサイズ', 'rakuten')
+    expect(result).toBe('パンパース テープ Sサイズ')
+  })
 })
 
 describe('semanticMatch', () => {
