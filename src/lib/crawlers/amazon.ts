@@ -95,35 +95,40 @@ export async function crawlAmazonSearch(keyword: string): Promise<ProductResult[
   }
 }
 
+function parseAmazonProductHtml(html: string, asin: string): ProductResult | null {
+  const root = parse(html)
+  const title = root.querySelector('#productTitle, #title')?.text.trim() ?? ''
+  if (!title) return null
+  const priceText = root.querySelector('.a-price-whole, #priceblock_ourprice')?.text ?? '0'
+  const salePrice = parsePrice(priceText)
+  if (!salePrice) return null
+  const pointText = root.querySelectorAll('.a-size-base.a-color-price').map(el => el.text).join(' ')
+  const pointsEarned = parsePoints(pointText)
+  const imageUrl = root.querySelector('#landingImage, #imgBlkFront')?.getAttribute('src') ?? ''
+  const bullets = root.querySelectorAll('#feature-bullets li span.a-list-item')
+    .slice(0, 3).map(el => el.text.trim()).filter(t => t.length > 5)
+  const description = bullets.join(' ').slice(0, 200) || undefined
+  return { ...buildResult(title, salePrice, pointsEarned, asin, imageUrl), description }
+}
+
 export async function crawlAmazonProduct(asin: string): Promise<ProductResult | null> {
-  try {
-    const res = await proxyFetch(
-      `https://www.amazon.co.jp/dp/${asin}`,
-      { headers: HEADERS },
-    )
-    if (!res.ok) return null
+  const url = `https://www.amazon.co.jp/dp/${asin}`
+  const attempt = async (res: Response): Promise<ProductResult> => {
+    if (!res.ok) throw new Error('bad status')
     const html = await res.text()
-    const root = parse(html)
-
-    const title = root.querySelector('#productTitle, #title')?.text.trim() ?? ''
-    if (!title) return null
-
-    const priceText = root.querySelector('.a-price-whole, #priceblock_ourprice')?.text ?? '0'
-    const salePrice = parsePrice(priceText)
-    if (!salePrice) return null
-
-    const pointText = root.querySelectorAll('.a-size-base.a-color-price')
-      .map(el => el.text).join(' ')
-    const pointsEarned = parsePoints(pointText)
-    const imageUrl = root.querySelector('#landingImage, #imgBlkFront')?.getAttribute('src') ?? ''
-
-    // Extract first 3 feature bullets as description context
-    const bullets = root.querySelectorAll('#feature-bullets li span.a-list-item')
-      .slice(0, 3).map(el => el.text.trim()).filter(t => t.length > 5)
-    const description = bullets.join(' ').slice(0, 200) || undefined
-
-    return { ...buildResult(title, salePrice, pointsEarned, asin, imageUrl), description }
+    const result = parseAmazonProductHtml(html, asin)
+    if (!result) throw new Error('parse failed')
+    return result
+  }
+  try {
+    return await Promise.any([
+      // Direct fetch (~2-5s from Tokyo edge)
+      fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(12000) }).then(attempt),
+      // ScraperAPI fallback with extended timeout for slow Amazon pages
+      proxyFetch(url, { headers: HEADERS }, { timeoutMs: 25000 }).then(attempt),
+    ])
   } catch {
     return null
   }
 }
+

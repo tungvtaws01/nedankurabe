@@ -165,7 +165,7 @@ export async function POST(req: NextRequest): Promise<Response> {
           send({ type: 'status', message: '楽天で同等商品を検索中…' })
           const rakutenKeyword = amazonProduct
             ? await refineKeyword(amazonProduct.title, 'rakuten').catch(() => amazonProduct.title)
-            : titleForSearch
+            : titleForSearch ?? ''
           const rakutenCandidates = await crawlRakutenSearch(rakutenKeyword).catch(() => [] as ProductResult[])
           if (!amazonProduct && !rakutenCandidates.length) {
             send({ type: 'error', message: '商品が見つかりませんでした。' })
