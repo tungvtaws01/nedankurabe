@@ -14,12 +14,15 @@ async function callLLM(messages: { role: string; content: string }[]): Promise<s
     body: JSON.stringify({
       model: process.env.OPENROUTER_MODEL ?? 'nvidia/nemotron-3-ultra-550b-a55b:free',
       messages,
-      max_tokens: 128,
+      // 1024 tokens supports reasoning models (e.g. DeepSeek) which generate
+      // chain-of-thought before the final answer. 128 was too low — the model
+      // exhausted tokens during reasoning and returned content: null.
+      max_tokens: 1024,
       temperature: 0,
     }),
   })
   if (!res.ok) throw new Error(`OpenRouter ${res.status}`)
-  const data = await res.json() as { choices: { message: { content: string } }[] }
+  const data = await res.json() as { choices: { message: { content: string | null } }[] }
   return data.choices[0]?.message?.content?.trim() ?? ''
 }
 
