@@ -217,3 +217,15 @@ describe('isTrialOrSamplePack — spare parts', () => {
     expect(isTrialOrSamplePack('【ふるさと納税】明治ほほえみ 2缶パック 780g×2缶')).toBe(true)
   })
 })
+
+describe('keyword shortening fallback', () => {
+  it('getGenreId still maps shortened keyword correctly', () => {
+    // "和光堂 ハイハイン" full → no results → retry "ハイハイン" → maps to 213980
+    expect(getGenreId('ハイハイン')).toBe('213980')
+  })
+
+  it('getGenreId maps stripped brand keyword', () => {
+    // "ピジョン ストローマグ" stripped → "ストローマグ" → maps to 207753
+    expect(getGenreId('ストローマグ')).toBe('207753')
+  })
+})

@@ -101,16 +101,46 @@ export function parseRakutenItem(
   };
 }
 
+async function searchRakutenKeyword(
+  kw: string,
+  appId: string,
+  accessKey: string,
+  affiliateId: string,
+  headers: Record<string, string>,
+): Promise<ProductResult[]> {
+  const specificGenre = getGenreId(kw);
+  const genreFallbacks = specificGenre === "100533"
+    ? ["100533", "0"]
+    : [specificGenre, "100533", "0"];
+
+  for (const genreId of genreFallbacks) {
+    const params = new URLSearchParams({
+      applicationId: appId,
+      accessKey,
+      keyword: kw,
+      genreId,
+      hits: "10",
+      sort: "standard",
+    });
+    const res = await fetch(`${SEARCH_URL}?${params}`, { headers });
+    const body = await res.text();
+    console.log("[rakuten:search] kw:", kw.slice(0, 20), "genre:", genreId, "status:", res.status, "body:", body.slice(0, 100));
+    if (!res.ok) continue;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = JSON.parse(body) as { Items: Array<{ Item: any }> };
+    const filtered = (data.Items ?? [])
+      .filter(({ Item }) => !isTrialOrSamplePack(Item.itemName ?? ""))
+      .map(({ Item }) => parseRakutenItem(Item, affiliateId));
+    if (filtered.length > 0) return filtered;
+  }
+  return [];
+}
+
 export async function searchRakuten(keyword: string): Promise<ProductResult[]> {
   const appId = process.env.RAKUTEN_APP_ID!;
   const accessKey = process.env.RAKUTEN_ACCESS_KEY!;
   const affiliateId = process.env.RAKUTEN_AFFILIATE_ID ?? "";
   const normalizedKeyword = keyword.replace(/【[^】]*】/g, " ").replace(/\s+/g, " ").trim();
-  const specificGenre = getGenreId(normalizedKeyword);
-  // Try specific genre first, fall back to baby category (100533), then all genres (0)
-  const genreFallbacks = specificGenre === "100533"
-    ? ["100533", "0"]
-    : [specificGenre, "100533", "0"];
 
   const HEADERS = {
     "Referer": "https://nedankurabe.vercel.app/",
@@ -121,24 +151,15 @@ export async function searchRakuten(keyword: string): Promise<ProductResult[]> {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
   };
 
-  for (const genreId of genreFallbacks) {
-    const params = new URLSearchParams({
-      applicationId: appId,
-      accessKey,
-      keyword: normalizedKeyword,
-      genreId,
-      hits: "10",
-      sort: "standard",
-    });
-    const res = await fetch(`${SEARCH_URL}?${params}`, { headers: HEADERS });
-    const body = await res.text();
-    console.log("[rakuten:search] genre:", genreId, "status:", res.status, "body:", body.slice(0, 150));
-    if (!res.ok) continue; // try next genre on error
-    const data = JSON.parse(body) as { Items: Array<{ Item: any }> };
-    const filtered = (data.Items ?? [])
-      .filter(({ Item }) => !isTrialOrSamplePack(Item.itemName ?? ""))
-      .map(({ Item }) => parseRakutenItem(Item, affiliateId));
-    if (filtered.length > 0) return filtered; // return first genre with results
+  // Try full keyword first; if no results, drop the first word (usually a mismatched brand)
+  // e.g. "和光堂 ハイハイン" → no results → retry "ハイハイン" → 10 results
+  const keywordCandidates: string[] = [normalizedKeyword];
+  const parts = normalizedKeyword.split(" ");
+  if (parts.length >= 2) keywordCandidates.push(parts.slice(1).join(" "));
+
+  for (const kw of keywordCandidates) {
+    const results = await searchRakutenKeyword(kw, appId, accessKey, affiliateId, HEADERS);
+    if (results.length > 0) return results;
   }
   return [];
 }
