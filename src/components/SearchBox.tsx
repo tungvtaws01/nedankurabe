@@ -24,16 +24,13 @@ export default function SearchBox() {
   return (
     <div className="w-full max-w-md mx-auto">
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-[var(--border)]">
-        <p className="text-xs text-[var(--ink-soft)] mb-2">
-          🔍 商品名で検索 <span className="italic">Search by product name</span>
-        </p>
         <div className="flex gap-2 mb-2">
           <input
             type="text"
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && navigate(input)}
-            placeholder="例：パンパース テープ Sサイズ"
+            placeholder="Amazon/楽天のURL、または商品名（例：パンパース Sサイズ）を入力"
             className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--cream)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ink)]"
           />
           <button
@@ -41,16 +38,13 @@ export default function SearchBox() {
             disabled={loading || !input.trim()}
             className="bg-[var(--ink)] text-white rounded-xl px-4 py-2.5 text-sm font-bold whitespace-nowrap disabled:opacity-40"
           >
-            {loading ? '...' : '最安値を調べる'}
+            {loading ? '...' : '比較'}
           </button>
         </div>
-        <div className="text-center text-xs text-[var(--ink-soft)] my-2">— または / or —</div>
-        <div className="border border-dashed border-[var(--border)] rounded-xl p-3 text-center text-xs text-[var(--ink-mid)]">
-          🔗 Amazon・楽天の商品URLを貼り付けると自動で比較します
-          <span className="block italic text-[10px] text-[var(--ink-soft)] mt-0.5">
-            Paste a product URL from Amazon or Rakuten to compare automatically
-          </span>
-        </div>
+        <p className="text-[10px] text-[var(--ink-soft)] text-center">
+          URLを貼り付けるか、商品名で検索できます{' '}
+          <span className="italic">Paste a URL or search by product name</span>
+        </p>
       </div>
 
       <div className="mt-5">
