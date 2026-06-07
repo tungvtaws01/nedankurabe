@@ -1,7 +1,7 @@
 import { parse } from 'node-html-parser'
 import { ProductResult } from '@/lib/types'
 import { searchRakuten } from '@/lib/platforms/rakuten'
-import { proxyFetch } from './proxy-fetch'
+import { proxyFetch, hasProxy } from './proxy-fetch'
 
 const HEADERS = {
   'Accept-Language': 'ja-JP,ja;q=0.9',
@@ -67,13 +67,17 @@ function buildResult(
 }
 
 export async function crawlRakutenSearch(keyword: string): Promise<ProductResult[]> {
+  // Without ScraperAPI, Vercel's IPs are blocked — skip the 5s crawl timeout
+  // and go straight to the Rakuten Search API which always works.
+  if (!hasProxy()) return searchRakuten(keyword).catch(() => [])
+
   const encoded = encodeURIComponent(keyword)
   try {
     const res = await proxyFetch(
       `https://search.rakuten.co.jp/search/mall/${encoded}/`,
       { headers: HEADERS },
     )
-    if (!res.ok) return []
+    if (!res.ok) return searchRakuten(keyword).catch(() => [])
     const html = await res.text()
     const root = parse(html)
     const results: ProductResult[] = []

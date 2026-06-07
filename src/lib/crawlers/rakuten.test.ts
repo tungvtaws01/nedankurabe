@@ -51,6 +51,8 @@ const ITEM_HTML = `
 
 beforeEach(() => {
   mockFetch.mockReset()
+  // Enable proxy path so crawlRakutenSearch exercises JSON-LD crawl logic
+  process.env.SCRAPER_API_KEY = 'test-key'
 })
 
 describe('crawlRakutenSearch', () => {
