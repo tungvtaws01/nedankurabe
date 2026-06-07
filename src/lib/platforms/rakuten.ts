@@ -125,7 +125,7 @@ export async function searchRakuten(keyword: string): Promise<ProductResult[]> {
       keyword: normalizedKeyword,
       genreId,
       hits: "10",
-      sort: "+itemPrice",
+      sort: "standard",
     });
     const res = await fetch(`${SEARCH_URL}?${params}`, { headers: HEADERS });
     const body = await res.text();
