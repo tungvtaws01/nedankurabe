@@ -26,12 +26,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const cacheKey = makeCacheKey(`kw:${query}`)
 
   const cached = await getCached<ProductResult[]>(cacheKey).catch(() => null)
-  if (cached) {
+  if (cached && cached.length > 0) {
     return NextResponse.json({ results: cached, query, cached: true, mode: 'keyword-list' } satisfies SearchResponse)
   }
 
   const results = await searchRakuten(query).catch(() => [] as ProductResult[])
 
-  await setCached(cacheKey, results).catch(() => {})
+  if (results.length > 0) await setCached(cacheKey, results).catch(() => {})
   return NextResponse.json({ results, query, cached: false, mode: 'keyword-list' } satisfies SearchResponse)
 }
