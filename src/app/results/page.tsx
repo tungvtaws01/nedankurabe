@@ -20,6 +20,7 @@ function ResultsContent() {
   const url = params.get('url')
 
   const [pickList, setPickList] = useState<ProductResult[]>([])
+  const [amazonPool, setAmazonPool] = useState<ProductResult[]>([])
   const [rawResults, setRawResults] = useState<ProductResult[]>([])
   const [mode, setMode] = useState<'keyword-list' | 'comparison' | null>(null)
   const [toggles, setToggles] = useState<UserToggles>(DEFAULT_TOGGLES)
@@ -30,7 +31,7 @@ function ResultsContent() {
 
   useEffect(() => {
     async function load() {
-      setLoading(true); setError(null); setPickList([]); setRawResults([])
+      setLoading(true); setError(null); setPickList([]); setRawResults([]); setAmazonPool([])
       try {
         const [endpoint, body] = url
           ? ['/api/lookup', { url }]
@@ -42,8 +43,10 @@ function ResultsContent() {
         })
         const data = await res.json() as SearchResponse & { error?: string }
         if (!res.ok) { setError(data.error ?? '検索中にエラーが発生しました。'); return }
+
         if (data.mode === 'keyword-list') {
-          setPickList(data.results ?? [])
+          setPickList(data.rakutenResults ?? [])
+          setAmazonPool(data.amazonResults ?? [])
           setMode('keyword-list')
         } else {
           setRawResults(data.results ?? [])
@@ -64,7 +67,7 @@ function ResultsContent() {
       const res = await fetch('/api/find-amazon', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: selected.title }),
+        body: JSON.stringify({ source: selected, candidates: amazonPool }),
       })
       const data = await res.json() as { result: ProductResult | null }
       const results = [selected, ...(data.result ? [data.result] : [])]
@@ -79,9 +82,7 @@ function ResultsContent() {
   }
 
   function handleBack() {
-    setMode('keyword-list')
-    setRawResults([])
-    setError(null)
+    setMode('keyword-list'); setRawResults([]); setError(null)
   }
 
   function handleToggles(t: UserToggles) {
@@ -121,11 +122,7 @@ function ResultsContent() {
       )}
 
       {!loading && !error && mode === 'keyword-list' && (
-        <KeywordResultsList
-          results={pickList}
-          query={query ?? ''}
-          onSelect={handlePickSelect}
-        />
+        <KeywordResultsList results={pickList} query={query ?? ''} onSelect={handlePickSelect} />
       )}
 
       {!loading && !error && mode === 'comparison' && ranked.length > 0 && (
@@ -141,9 +138,7 @@ function ResultsContent() {
           ))}
           <p className="text-center text-[9px] text-[var(--ink-soft)] mt-4 leading-relaxed">
             ※ 価格・ポイントは取得時点のものです<br />
-            <span className="italic">
-              Prices and points are as of retrieval time. Verify on each site before purchasing.
-            </span>
+            <span className="italic">Prices and points are as of retrieval time. Verify on each site before purchasing.</span>
           </p>
         </>
       )}
