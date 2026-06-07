@@ -27,15 +27,18 @@ function ResultsContent() {
   const [mode, setMode] = useState<'keyword-list' | 'comparison' | null>(null)
   const [toggles, setToggles] = useState<UserToggles>(DEFAULT_TOGGLES)
   const [loading, setLoading] = useState(true)
+  const [loadingMessage, setLoadingMessage] = useState('検索中…')
   const [livePointsLoading, setLivePointsLoading] = useState(false)
+  const [crossSearching, setCrossSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => { setToggles(loadToggles()) }, [])
 
   useEffect(() => {
     async function load() {
-      setLoading(true); setError(null); setPickList([]); setRawResults([]); setAmazonPool([])
-      setLivePointsLoading(false)
+      setLoading(true); setLoadingMessage('検索中…'); setError(null)
+      setPickList([]); setRawResults([]); setAmazonPool([])
+      setLivePointsLoading(false); setCrossSearching(false)
 
       // URL lookup: use SSE stream so basic results appear fast, live points follow
       if (url) {
@@ -69,25 +72,42 @@ function ResultsContent() {
                   cached?: boolean
                   message?: string
                 }
-                if (event.type === 'basic') {
-                  const hasRakuten = (event.results ?? []).some(r => r.platform === 'rakuten')
+                if (event.type === 'partial') {
+                  const results = event.results ?? []
+                  const hasRakuten = results.some(r => r.platform === 'rakuten')
                   flushSync(() => {
-                    setRawResults(event.results ?? [])
+                    setRawResults(results)
                     setMode('comparison')
                     setLoading(false)
+                    setCrossSearching(true)
+                    if (hasRakuten) setLivePointsLoading(true)
+                  })
+                } else if (event.type === 'basic') {
+                  const results = event.results ?? []
+                  const hasRakuten = results.some(r => r.platform === 'rakuten')
+                  flushSync(() => {
+                    setRawResults(results)
+                    setMode('comparison')
+                    setLoading(false)
+                    setCrossSearching(false)
                     if (hasRakuten && !event.cached) setLivePointsLoading(true)
+                    else if (event.cached) setLivePointsLoading(false)
                   })
                 } else if (event.type === 'live-points' && event.result) {
                   flushSync(() => {
                     setRawResults(prev => prev.map(r => r.platform === 'rakuten' ? event.result! : r))
                     setLivePointsLoading(false)
                   })
+                } else if (event.type === 'status') {
+                  setLoadingMessage(event.message ?? '検索中…')
                 } else if (event.type === 'done') {
+                  setCrossSearching(false)
                   setLivePointsLoading(false)
                 } else if (event.type === 'error') {
                   flushSync(() => {
                     setError(event.message ?? 'エラーが発生しました。')
                     setLoading(false)
+                    setCrossSearching(false)
                   })
                 }
               } catch { /* ignore malformed lines */ }
@@ -192,9 +212,10 @@ function ResultsContent() {
       </div>
 
       {loading && (
-        <p className="text-center py-20 text-sm text-[var(--ink-soft)]">
-          検索中… <span className="italic">Searching...</span>
-        </p>
+        <div className="text-center py-20">
+          <p className="text-sm text-[var(--ink-soft)] animate-pulse">{loadingMessage}</p>
+          <p className="text-xs text-[var(--ink-soft)] mt-1 italic opacity-60">Searching…</p>
+        </div>
       )}
 
       {error && (
@@ -217,7 +238,14 @@ function ResultsContent() {
             amazonSubscribeAvailable={rawResults.some(r => r.platform === 'amazon' && r.subscribeAvailable)}
             rakutenSubscribeAvailable={rawResults.some(r => r.platform === 'rakuten' && r.subscribeAvailable)}
           />
-          {ranked.length === 1 && (
+          {ranked.length === 1 && crossSearching && (
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-3 text-xs text-blue-600 text-center animate-pulse">
+              {ranked[0].platform === 'rakuten'
+                ? '⟳ Amazonで同等商品を検索中… Searching Amazon'
+                : '⟳ 楽天で同等商品を検索中… Searching Rakuten'}
+            </div>
+          )}
+          {ranked.length === 1 && !crossSearching && (
             <div className="bg-[var(--cream)] border border-[var(--border)] rounded-xl p-3 mb-3 text-xs text-[var(--ink-soft)] text-center">
               {ranked[0].platform === 'rakuten'
                 ? 'Amazonで同等商品が見つかりませんでした。 Amazon equivalent not found.'

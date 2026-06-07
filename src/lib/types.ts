@@ -3,6 +3,7 @@ export type Platform = 'amazon' | 'rakuten'
 export interface ProductResult {
   platform: Platform
   title: string
+  description?: string          // brief product description for LLM matching context
   imageUrl: string
   shopName: string
   salePrice: number            // displayed price, tax included (yen)

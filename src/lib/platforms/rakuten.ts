@@ -104,9 +104,14 @@ export function parseRakutenItem(
     ? `https://hb.afl.rakuten.co.jp/hgc/${affiliateId}/?pc=${encodeURIComponent(itemUrl)}`
     : itemUrl;
 
+  // itemCaption is the seller's product description — truncated to 200 chars for LLM context
+  const rawCaption: string = item.itemCaption ?? ''
+  const description = rawCaption.replace(/\s+/g, ' ').trim().slice(0, 200) || undefined
+
   return {
     platform: "rakuten",
     title: cleanRakutenTitle(item.itemName ?? ""),
+    description,
     imageUrl,
     shopName: item.shopName ?? "",
     salePrice: price,

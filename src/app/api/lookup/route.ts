@@ -2,9 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { crawlRakutenSearch, crawlRakutenProduct } from '@/lib/crawlers/rakuten'
 import { crawlAmazonSearch, crawlAmazonProduct } from '@/lib/crawlers/amazon'
 import { refineKeyword, semanticMatch } from '@/lib/llm/openrouter'
+import { lookupRakuten } from '@/lib/platforms/rakuten'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult, SearchResponse } from '@/lib/types'
 import { MOCK_RESULTS } from '@/lib/mock-data'
+
+async function getRakutenProduct(itemUrl: string): Promise<ProductResult | null> {
+  const m = itemUrl.match(/item\.rakuten\.co\.jp\/([^/]+)\/([^/?]+)/)
+  if (m) {
+    const via_api = await lookupRakuten(`${m[1]}:${m[2]}`).catch(() => null)
+    if (via_api) return via_api
+  }
+  return crawlRakutenProduct(itemUrl).catch(() => null)
+}
 
 function extractTitleFromAmazonUrl(url: string): string | null {
   try {
@@ -87,7 +97,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     results = [...(amazonProduct ? [amazonProduct] : []), ...(rakutenMatch ? [rakutenMatch] : [])].sort((a, b) => a.effectivePrice - b.effectivePrice)
 
   } else {
-    const rakutenProduct = await crawlRakutenProduct(parsed.id).catch(() => null)
+    const rakutenProduct = await getRakutenProduct(parsed.id)
     if (!rakutenProduct) {
       return NextResponse.json({ error: '商品が見つかりませんでした。' }, { status: 404 })
     }

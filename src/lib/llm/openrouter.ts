@@ -52,22 +52,26 @@ export async function semanticMatch(
 ): Promise<number | null> {
   if (!candidates.length) return null
   try {
-    const candidateList = candidates
-      .map((c, i) => `${i}: ${c.title} ¥${c.salePrice.toLocaleString()}`)
-      .join('\n')
+    const fmt = (p: ProductResult, i?: number) => {
+      const prefix = i !== undefined ? `${i}: ` : 'Source: '
+      const desc = p.description ? `\n   説明: ${p.description}` : ''
+      return `${prefix}${p.title} ¥${p.salePrice.toLocaleString()}${desc}`
+    }
+    const candidateList = candidates.map((c, i) => fmt(c, i)).join('\n')
     const result = await callLLM([{
       role: 'user',
       content: `You are matching Japanese baby products across e-commerce platforms.
-Source: ${source.title} ¥${source.salePrice.toLocaleString()}
+${fmt(source)}
 Candidates:
 ${candidateList}
 
 Apply these rules IN ORDER — all must pass:
 1. BRAND: If the source has a brand name (パンパース/ムーニー/ピジョン/メリーズ/エルゴ/コンビ etc.),
    the candidate MUST have the exact same brand. A different brand is NOT a match.
-2. PRODUCT TYPE: Must be the same type (e.g. おしりふき ≠ おてふき; 詰替え ≠ 蓋付き; テープ ≠ パンツ; 缶 ≠ キューブ ≠ 液体).
+2. PRODUCT TYPE: Must be the same type (e.g. おしりふき ≠ おてふき; 詰替え ≠ 蓋付き; テープ ≠ パンツ; 缶 ≠ キューブ ≠ 液体; セット品 ≠ 単品).
 3. TARGET USER: Source is a baby/child product — adult (大人用/介護用) or pet products are NOT a match.
 4. QUANTITY: Count/volume can differ up to 2× but not more.
+Use the 説明 (description) fields when available to verify type, variant (詰替/本体/缶/キューブ), and target user.
 
 Return {"match": N} for the best matching candidate index, or {"match": null} if none qualify.
 Return JSON only.`,

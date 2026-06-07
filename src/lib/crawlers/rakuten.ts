@@ -154,10 +154,14 @@ export async function crawlRakutenProduct(itemUrl: string): Promise<ProductResul
     const shippingCost = salePrice >= 3980 ? 0 : 490
     const imageUrl = root.querySelector('meta[property="og:image"]')?.getAttribute('content') ?? ''
 
+    const rawDesc = root.querySelector('meta[property="og:description"]')?.getAttribute('content') ?? ''
+    const description = rawDesc.replace(/\s+/g, ' ').trim().slice(0, 200) || undefined
+
     const shopMatch = itemUrl.match(/item\.rakuten\.co\.jp\/([^/]+)\//)
     const shopName = shopMatch?.[1] ?? ''
 
-    return buildResult(title, salePrice, 0, shippingCost, 0, imageUrl, itemUrl, shopName)
+    const result = buildResult(title, salePrice, 0, shippingCost, 0, imageUrl, itemUrl, shopName)
+    return { ...result, description }
   } catch {
     return null
   }

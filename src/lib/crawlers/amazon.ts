@@ -82,7 +82,12 @@ export async function crawlAmazonSearch(keyword: string): Promise<ProductResult[
       const pointsEarned = parsePoints(pointText)
       const imageUrl = card.querySelector('img.s-image')?.getAttribute('src') ?? ''
 
-      results.push(buildResult(title, salePrice, pointsEarned, asin, imageUrl))
+      // Extract short feature/subtitle text visible on the search card
+      const descText = card.querySelectorAll('.a-size-base-plus, .a-size-base.a-color-secondary')
+        .map(el => el.text.trim()).filter(t => t.length > 3 && t.length < 120).join(' ')
+      const description = descText.slice(0, 200) || undefined
+
+      results.push({ ...buildResult(title, salePrice, pointsEarned, asin, imageUrl), description })
     }
     return results
   } catch {
@@ -112,7 +117,12 @@ export async function crawlAmazonProduct(asin: string): Promise<ProductResult | 
     const pointsEarned = parsePoints(pointText)
     const imageUrl = root.querySelector('#landingImage, #imgBlkFront')?.getAttribute('src') ?? ''
 
-    return buildResult(title, salePrice, pointsEarned, asin, imageUrl)
+    // Extract first 3 feature bullets as description context
+    const bullets = root.querySelectorAll('#feature-bullets li span.a-list-item')
+      .slice(0, 3).map(el => el.text.trim()).filter(t => t.length > 5)
+    const description = bullets.join(' ').slice(0, 200) || undefined
+
+    return { ...buildResult(title, salePrice, pointsEarned, asin, imageUrl), description }
   } catch {
     return null
   }

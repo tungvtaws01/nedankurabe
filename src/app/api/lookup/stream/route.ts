@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { crawlRakutenProduct, crawlRakutenProductLive, crawlRakutenSearch } from '@/lib/crawlers/rakuten'
 import { crawlAmazonProduct, crawlAmazonSearch } from '@/lib/crawlers/amazon'
 import { refineKeyword, semanticMatch } from '@/lib/llm/openrouter'
+import { lookupRakuten } from '@/lib/platforms/rakuten'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult } from '@/lib/types'
 
@@ -20,7 +21,6 @@ function parseProductUrl(url: string): { platform: 'amazon' | 'rakuten'; id: str
   return null
 }
 
-// Decode the original item URL from an affiliate link
 function extractItemUrl(affiliateUrl: string): string {
   try {
     const u = new URL(affiliateUrl)
@@ -30,6 +30,23 @@ function extractItemUrl(affiliateUrl: string): string {
     }
   } catch {}
   return affiliateUrl
+}
+
+/**
+ * Fast path for Rakuten item URLs: try the API lookup first (~1-2s, no proxy).
+ * Falls back to page crawl (~15s via ScraperAPI) if API returns nothing.
+ * API lookup uses itemCode extracted from the URL path.
+ */
+async function getRakutenProduct(itemUrl: string): Promise<ProductResult | null> {
+  // Extract shopName:itemCode from https://item.rakuten.co.jp/{shop}/{code}/
+  const m = itemUrl.match(/item\.rakuten\.co\.jp\/([^/]+)\/([^/?]+)/)
+  if (m) {
+    const itemCode = `${m[1]}:${m[2]}`
+    const via_api = await lookupRakuten(itemCode).catch(() => null)
+    if (via_api) return via_api
+  }
+  // Fallback: crawl the item page via ScraperAPI
+  return crawlRakutenProduct(itemUrl).catch(() => null)
 }
 
 function extractTitleFromAmazonUrl(url: string): string | null {
@@ -44,6 +61,19 @@ function extractTitleFromAmazonUrl(url: string): string | null {
     const parts = [...sizesWithWord, ...jpWords].slice(0, 4)
     return parts.join(' ').trim() || null
   } catch { return null }
+}
+
+function applyLivePoints(
+  base: ProductResult,
+  live: { pointRate: number; pointsEarned: number; couponDiscount: number },
+): ProductResult {
+  return {
+    ...base,
+    pointRate: live.pointRate,
+    pointsEarned: live.pointsEarned,
+    couponDiscount: live.couponDiscount,
+    effectivePrice: base.salePrice + base.shippingCost - live.couponDiscount - live.pointsEarned,
+  }
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
@@ -70,7 +100,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       }
 
       try {
-        // Cache hit: stream immediately, skip live-points fetch
+        // Cache hit: stream full results immediately
         const cached = await getCached<ProductResult[]>(cacheKey).catch(() => null)
         if (cached && cached.length > 0) {
           send({ type: 'basic', results: cached, cached: true })
@@ -79,10 +109,62 @@ export async function POST(req: NextRequest): Promise<Response> {
           return
         }
 
-        let results: ProductResult[] = []
-        let rakutenItemUrl: string | null = null
+        let finalResults: ProductResult[] = []
 
-        if (parsed.platform === 'amazon') {
+        if (parsed.platform === 'rakuten') {
+          // ── Rakuten URL ──────────────────────────────────────────────────
+          send({ type: 'status', message: '楽天の商品ページを取得中…' })
+          const rakutenProduct = await getRakutenProduct(parsed.id)
+          if (!rakutenProduct) {
+            send({ type: 'error', message: '商品が見つかりませんでした。' })
+            controller.close()
+            return
+          }
+
+          // Phase 1: show source product immediately
+          send({ type: 'partial', results: [rakutenProduct] })
+
+          // Phase 2: Amazon search  AND  live-points in parallel
+          let latestRakuten: ProductResult = rakutenProduct
+          let basicResults: ProductResult[] = [rakutenProduct]
+
+          await Promise.all([
+            // Amazon search chain
+            (async () => {
+              try {
+                send({ type: 'status', message: 'Amazonで同等商品を検索中…' })
+                const kw = await refineKeyword(rakutenProduct.title, 'amazon').catch(() => rakutenProduct.title)
+                const candidates = await crawlAmazonSearch(kw).catch(() => [] as ProductResult[])
+                const idx = await semanticMatch(rakutenProduct, candidates).catch(() => null)
+                const amazonMatch = idx !== null ? candidates[idx] ?? null : null
+                basicResults = [latestRakuten, ...(amazonMatch ? [amazonMatch] : [])]
+                  .sort((a, b) => a.effectivePrice - b.effectivePrice)
+              } catch {
+                basicResults = [latestRakuten]
+              }
+              send({ type: 'basic', results: basicResults })
+            })(),
+
+            // Live points (render=true) — runs in parallel with Amazon search
+            (async () => {
+              const live = await crawlRakutenProductLive(
+                parsed.id,
+                rakutenProduct.salePrice,
+                rakutenProduct.taxRate,
+              ).catch(() => null)
+              if (live) {
+                latestRakuten = applyLivePoints(rakutenProduct, live)
+                send({ type: 'live-points', result: latestRakuten })
+                basicResults = basicResults.map(r => r.platform === 'rakuten' ? latestRakuten : r)
+              }
+            })(),
+          ])
+
+          finalResults = basicResults
+
+        } else {
+          // ── Amazon URL ───────────────────────────────────────────────────
+          send({ type: 'status', message: 'Amazonの商品ページを取得中…' })
           const amazonProduct = await crawlAmazonProduct(parsed.id).catch(() => null)
           const titleForSearch = amazonProduct?.title ?? extractTitleFromAmazonUrl(url)
           if (!titleForSearch) {
@@ -90,6 +172,12 @@ export async function POST(req: NextRequest): Promise<Response> {
             controller.close()
             return
           }
+
+          // Phase 1: show Amazon product immediately
+          if (amazonProduct) send({ type: 'partial', results: [amazonProduct] })
+
+          // Phase 2: Rakuten search
+          send({ type: 'status', message: '楽天で同等商品を検索中…' })
           const rakutenKeyword = amazonProduct
             ? await refineKeyword(amazonProduct.title, 'rakuten').catch(() => amazonProduct.title)
             : titleForSearch
@@ -103,54 +191,29 @@ export async function POST(req: NextRequest): Promise<Response> {
             ? await semanticMatch(amazonProduct, rakutenCandidates).catch(() => null)
             : null
           const rakutenMatch = matchIdx !== null ? rakutenCandidates[matchIdx] ?? null : null
-          results = [...(amazonProduct ? [amazonProduct] : []), ...(rakutenMatch ? [rakutenMatch] : [])]
+          let results: ProductResult[] = [...(amazonProduct ? [amazonProduct] : []), ...(rakutenMatch ? [rakutenMatch] : [])]
             .sort((a, b) => a.effectivePrice - b.effectivePrice)
-          if (rakutenMatch) rakutenItemUrl = extractItemUrl(rakutenMatch.affiliateUrl)
+          send({ type: 'basic', results })
 
-        } else {
-          const rakutenProduct = await crawlRakutenProduct(parsed.id).catch(() => null)
-          if (!rakutenProduct) {
-            send({ type: 'error', message: '商品が見つかりませんでした。' })
-            controller.close()
-            return
-          }
-          const amazonKeyword = await refineKeyword(rakutenProduct.title, 'amazon').catch(() => rakutenProduct.title)
-          const amazonCandidates = await crawlAmazonSearch(amazonKeyword).catch(() => [] as ProductResult[])
-          const matchIdx = await semanticMatch(rakutenProduct, amazonCandidates).catch(() => null)
-          const amazonMatch = matchIdx !== null ? amazonCandidates[matchIdx] ?? null : null
-          results = [rakutenProduct, ...(amazonMatch ? [amazonMatch] : [])]
-            .sort((a, b) => a.effectivePrice - b.effectivePrice)
-          rakutenItemUrl = parsed.id
-        }
-
-        // Stream basic results immediately — UI unblocks here
-        send({ type: 'basic', results, cached: false })
-
-        // Fetch live Rakuten points via JS rendering
-        const rakutenItem = results.find(r => r.platform === 'rakuten')
-        if (rakutenItemUrl && rakutenItem) {
-          const live = await crawlRakutenProductLive(
-            rakutenItemUrl,
-            rakutenItem.salePrice,
-            rakutenItem.taxRate,
-          ).catch(() => null)
-
-          if (live) {
-            const updated: ProductResult = {
-              ...rakutenItem,
-              pointRate: live.pointRate,
-              pointsEarned: live.pointsEarned,
-              couponDiscount: live.couponDiscount,
-              effectivePrice: rakutenItem.salePrice + rakutenItem.shippingCost
-                - live.couponDiscount - live.pointsEarned,
+          // Phase 3: live points for Rakuten match (sequential — need URL from match)
+          if (rakutenMatch) {
+            const rakutenItemUrl = extractItemUrl(rakutenMatch.affiliateUrl)
+            const live = await crawlRakutenProductLive(
+              rakutenItemUrl,
+              rakutenMatch.salePrice,
+              rakutenMatch.taxRate,
+            ).catch(() => null)
+            if (live) {
+              const updated = applyLivePoints(rakutenMatch, live)
+              send({ type: 'live-points', result: updated })
+              results = results.map(r => r.platform === 'rakuten' ? updated : r)
             }
-            send({ type: 'live-points', result: updated })
-            results = results.map(r => r.platform === 'rakuten' ? updated : r)
           }
+
+          finalResults = results
         }
 
-        // Cache the final (live-points-enhanced) results
-        if (results.length > 0) await setCached(cacheKey, results).catch(() => {})
+        if (finalResults.length > 0) await setCached(cacheKey, finalResults).catch(() => {})
         send({ type: 'done' })
         controller.close()
       } catch (err) {
