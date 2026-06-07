@@ -1,5 +1,7 @@
-jest.mock('@anthropic-ai/sdk')
-import Anthropic from '@anthropic-ai/sdk'
+jest.mock('@/lib/llm/openrouter', () => ({
+  semanticMatch: jest.fn(),
+}))
+import { semanticMatch } from '@/lib/llm/openrouter'
 import { findBestMatch } from './llm-match'
 import { ProductResult } from '@/lib/types'
 
@@ -15,33 +17,18 @@ const candidates: ProductResult[] = [
   { ...base, platform: 'rakuten', title: 'GOO.N テープ S 72枚', salePrice: 1200, effectivePrice: 1100, affiliateUrl: 'https://r2' },
 ]
 
-function mockCreate(responseText: string) {
-  const mockMessages = {
-    create: jest.fn().mockResolvedValue({ content: [{ type: 'text', text: responseText }] }),
-  }
-  ;(Anthropic as jest.MockedClass<typeof Anthropic>).mockImplementation(
-    () => ({ messages: mockMessages } as unknown as Anthropic)
-  )
-}
-
 describe('findBestMatch', () => {
   beforeEach(() => jest.clearAllMocks())
 
-  it('returns candidate at index returned by Claude', async () => {
-    mockCreate(JSON.stringify({ index: 0, confidence: 'high' }))
+  it('returns candidate at index returned by semanticMatch', async () => {
+    (semanticMatch as jest.Mock).mockResolvedValue(0)
     const result = await findBestMatch(base, candidates)
     expect(result?.affiliateUrl).toBe('https://r1')
   })
 
-  it('returns null when Claude returns index -1', async () => {
-    mockCreate(JSON.stringify({ index: -1, confidence: 'low' }))
+  it('returns null when semanticMatch returns null', async () => {
+    (semanticMatch as jest.Mock).mockResolvedValue(null)
     expect(await findBestMatch(base, candidates)).toBeNull()
-  })
-
-  it('prefixes title with 似た商品 when confidence is low', async () => {
-    mockCreate(JSON.stringify({ index: 0, confidence: 'low' }))
-    const result = await findBestMatch(base, candidates)
-    expect(result?.title).toMatch(/^似た商品/)
   })
 
   it('returns null for empty candidates list', async () => {
