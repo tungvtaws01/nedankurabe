@@ -51,6 +51,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       results: MOCK_RESULTS,
       query: body.url.trim(),
       cached: false,
+      mode: 'comparison',
     } satisfies SearchResponse)
   }
 
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const cacheKey = makeCacheKey(url)
   const cached = await getCached<ProductResult[]>(cacheKey).catch(() => null)
   if (cached) {
-    return NextResponse.json({ results: cached, query: url, cached: true } satisfies SearchResponse)
+    return NextResponse.json({ results: cached, query: url, cached: true, mode: 'comparison' } satisfies SearchResponse)
   }
 
   let source: ProductResult | null = null
@@ -104,5 +105,5 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   await setCached(cacheKey, results).catch(() => {})
-  return NextResponse.json({ results, query: url, cached: false } satisfies SearchResponse)
+  return NextResponse.json({ results, query: url, cached: false, mode: 'comparison' } satisfies SearchResponse)
 }
