@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { searchRakuten } from '@/lib/platforms/rakuten'
+import { crawlRakutenSearch } from '@/lib/crawlers/rakuten'
+import { crawlAmazonSearch } from '@/lib/crawlers/amazon'
+import { refineKeyword } from '@/lib/llm/openrouter'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult, SearchResponse } from '@/lib/types'
 import { MOCK_RESULTS } from '@/lib/mock-data'
@@ -7,31 +9,46 @@ import { MOCK_RESULTS } from '@/lib/mock-data'
 export async function POST(req: NextRequest): Promise<NextResponse> {
   if (process.env.STAGE === 'local') {
     const body = await req.json() as { query?: string }
-    if (!body.query?.trim()) {
-      return NextResponse.json({ error: 'query required' }, { status: 400 })
-    }
+    if (!body.query?.trim()) return NextResponse.json({ error: 'query required' }, { status: 400 })
     return NextResponse.json({
-      results: MOCK_RESULTS,
+      mode: 'keyword-list',
+      rakutenResults: MOCK_RESULTS.filter(r => r.platform === 'rakuten'),
+      amazonResults: MOCK_RESULTS.filter(r => r.platform === 'amazon'),
+      results: [],
       query: body.query.trim(),
       cached: false,
-      mode: 'keyword-list',
     } satisfies SearchResponse)
   }
 
   const body = await req.json() as { query?: string }
-  if (!body.query?.trim()) {
-    return NextResponse.json({ error: 'query required' }, { status: 400 })
-  }
+  if (!body.query?.trim()) return NextResponse.json({ error: 'query required' }, { status: 400 })
   const query = body.query.trim()
-  const cacheKey = makeCacheKey(`kw:${query}`)
+  const cacheKey = makeCacheKey(`kw2:${query}`)
 
-  const cached = await getCached<ProductResult[]>(cacheKey).catch(() => null)
-  if (cached && cached.length > 0) {
-    return NextResponse.json({ results: cached, query, cached: true, mode: 'keyword-list' } satisfies SearchResponse)
+  const cached = await getCached<{ rakutenResults: ProductResult[]; amazonResults: ProductResult[] }>(cacheKey).catch(() => null)
+  if (cached && cached.rakutenResults.length > 0) {
+    return NextResponse.json({
+      mode: 'keyword-list', ...cached, results: [], query, cached: true,
+    } satisfies SearchResponse)
   }
 
-  const results = await searchRakuten(query).catch(() => [] as ProductResult[])
+  // Crawl both platforms in parallel
+  const [rakutenResults, amazonKeyword] = await Promise.all([
+    crawlRakutenSearch(query).catch(() => [] as ProductResult[]),
+    refineKeyword(query, 'amazon').catch(() => query),
+  ])
+  const amazonResults = await crawlAmazonSearch(amazonKeyword).catch(() => [] as ProductResult[])
 
-  if (results.length > 0) await setCached(cacheKey, results).catch(() => {})
-  return NextResponse.json({ results, query, cached: false, mode: 'keyword-list' } satisfies SearchResponse)
+  if (rakutenResults.length > 0) {
+    await setCached(cacheKey, { rakutenResults, amazonResults }).catch(() => {})
+  }
+
+  return NextResponse.json({
+    mode: 'keyword-list',
+    rakutenResults,
+    amazonResults,
+    results: [],
+    query,
+    cached: false,
+  } satisfies SearchResponse)
 }
