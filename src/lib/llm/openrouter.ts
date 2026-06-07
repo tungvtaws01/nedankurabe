@@ -49,7 +49,7 @@ export async function semanticMatch(
       .join('\n')
     const result = await callLLM([{
       role: 'user',
-      content: `You are matching products across Japanese e-commerce platforms.\nSource: ${source.title} ¥${source.salePrice.toLocaleString()}\nCandidates:\n${candidateList}\n\nWhich candidate is the SAME product (same brand, type, size/count)?\nAccessories, replacement parts, and different sizes are NOT a match.\nReturn JSON only: {"match": 0} or {"match": null}`,
+      content: `You are matching products across Japanese e-commerce platforms.\nSource: ${source.title} ¥${source.salePrice.toLocaleString()}\nCandidates:\n${candidateList}\n\nWhich candidate is the SAME product?\nRules:\n- Must match: brand, product line, AND physical format (e.g. 缶/can ≠ キューブ/cube sachets ≠ 液体/liquid; テープ ≠ パンツ)\n- Size/count can differ slightly but not by more than 2x\n- Return null if no candidate matches all rules\nReturn JSON only: {"match": 0} or {"match": null}`,
     }])
     const parsed = JSON.parse(result) as { match: number | null }
     if (parsed.match === null || parsed.match === undefined) return null
