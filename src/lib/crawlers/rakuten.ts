@@ -2,6 +2,7 @@ import { parse } from 'node-html-parser'
 import { ProductResult } from '@/lib/types'
 import { searchRakuten } from '@/lib/platforms/rakuten'
 import { proxyFetch, hasProxy } from './proxy-fetch'
+import { cleanRakutenTitle } from '@/lib/platforms/rakuten'
 
 const HEADERS = {
   'Accept-Language': 'ja-JP,ja;q=0.9',
@@ -94,7 +95,7 @@ export async function crawlRakutenSearch(keyword: string): Promise<ProductResult
         for (const listItem of ldItems.slice(0, 10)) {
           const product = listItem['item'] as Record<string, unknown>
           if (!product) continue
-          const title = (product['name'] as string ?? '').trim()
+          const title = cleanRakutenTitle(product['name'] as string ?? '')
           const rawUrl = (product['url'] as string ?? '').split('?')[0]
           const offers = product['offers'] as Record<string, unknown> ?? {}
           const salePrice = offers['price'] ? parseInt(String(offers['price']), 10) : 0
@@ -121,7 +122,8 @@ export async function crawlRakutenSearch(keyword: string): Promise<ProductResult
 
 export async function crawlRakutenProduct(itemUrl: string): Promise<ProductResult | null> {
   try {
-    const res = await proxyFetch(itemUrl, { headers: HEADERS })
+    // render:true so ScraperAPI executes JavaScript — Rakuten points are JS-rendered
+    const res = await proxyFetch(itemUrl, { headers: HEADERS }, { render: true })
     if (!res.ok) return null
     const html = await res.text()
     const root = parse(html)

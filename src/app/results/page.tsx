@@ -64,16 +64,31 @@ function ResultsContent() {
   async function handlePickSelect(selected: ProductResult) {
     setLoading(true); setError(null)
     try {
-      // If user tapped a Rakuten card → match against Amazon pool
-      // If user tapped an Amazon card → match against Rakuten pick-list
-      const candidates = selected.platform === 'rakuten' ? amazonPool : pickList
-      const res = await fetch('/api/find-amazon', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: selected, candidates }),
-      })
-      const data = await res.json() as { result: ProductResult | null }
-      const results = [selected, ...(data.result ? [data.result] : [])]
+      let enrichedSource = selected
+      let matchResult: ProductResult | null = null
+
+      if (selected.platform === 'rakuten') {
+        // Rakuten tap: crawl item page for live points, then match Amazon pool
+        const res = await fetch('/api/enrich-compare', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source: selected, candidates: amazonPool }),
+        })
+        const data = await res.json() as { source: ProductResult; result: ProductResult | null }
+        enrichedSource = data.source ?? selected
+        matchResult = data.result
+      } else {
+        // Amazon tap: match against Rakuten pick-list
+        const res = await fetch('/api/find-amazon', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source: selected, candidates: pickList }),
+        })
+        const data = await res.json() as { result: ProductResult | null }
+        matchResult = data.result
+      }
+
+      const results = [enrichedSource, ...(matchResult ? [matchResult] : [])]
         .sort((a, b) => a.effectivePrice - b.effectivePrice)
       setRawResults(results)
       setMode('comparison')
@@ -140,6 +155,13 @@ function ResultsContent() {
             amazonSubscribeAvailable={rawResults.some(r => r.platform === 'amazon' && r.subscribeAvailable)}
             rakutenSubscribeAvailable={rawResults.some(r => r.platform === 'rakuten' && r.subscribeAvailable)}
           />
+          {ranked.length === 1 && (
+            <div className="bg-[var(--cream)] border border-[var(--border)] rounded-xl p-3 mb-3 text-xs text-[var(--ink-soft)] text-center">
+              {ranked[0].platform === 'rakuten'
+                ? 'Amazonで同等商品が見つかりませんでした。 Amazon equivalent not found.'
+                : '楽天で同等商品が見つかりませんでした。 Rakuten equivalent not found.'}
+            </div>
+          )}
           {ranked.map((r, i) => (
             <ProductCard key={r.affiliateUrl} result={r} isWinner={i === 0} toggles={toggles} />
           ))}

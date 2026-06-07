@@ -1,6 +1,17 @@
 import { ProductResult } from "@/lib/types";
 import { calcRakutenEffectivePrice } from "@/lib/price/normalize";
 
+export function cleanRakutenTitle(title: string): string {
+  return title
+    .replace(/＼[^／]*／/g, '')
+    .replace(/【[^】]*】/g, '')
+    .replace(/\[[^\]]*\]/g, '')
+    .replace(/✨[^✨]*✨/g, '')
+    .replace(/★[^★]*★/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 const EXCLUDE_KEYWORDS = [
   // Trial / sample
   "お試し", "バラ売り", "試供品", "サンプル", "ポイント消化", "お試しセット",
@@ -95,7 +106,7 @@ export function parseRakutenItem(
 
   return {
     platform: "rakuten",
-    title: item.itemName ?? "",
+    title: cleanRakutenTitle(item.itemName ?? ""),
     imageUrl,
     shopName: item.shopName ?? "",
     salePrice: price,
