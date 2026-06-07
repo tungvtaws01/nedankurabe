@@ -5,6 +5,8 @@ import { refineKeyword, semanticMatch } from '@/lib/llm/openrouter'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult } from '@/lib/types'
 
+export const preferredRegion = 'nrt1'
+
 function parseProductUrl(url: string): { platform: 'amazon' | 'rakuten'; id: string } | null {
   try {
     const normalized = /^https?:\/\//i.test(url) ? url : `https://${url}`

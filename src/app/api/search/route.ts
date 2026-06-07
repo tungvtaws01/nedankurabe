@@ -7,6 +7,8 @@ import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult, SearchResponse } from '@/lib/types'
 import { MOCK_RESULTS } from '@/lib/mock-data'
 
+export const preferredRegion = 'nrt1'
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   if (process.env.STAGE === 'local') {
     const body = await req.json() as { query?: string }

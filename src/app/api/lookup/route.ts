@@ -6,6 +6,8 @@ import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult, SearchResponse } from '@/lib/types'
 import { MOCK_RESULTS } from '@/lib/mock-data'
 
+export const preferredRegion = 'nrt1'
+
 function extractTitleFromAmazonUrl(url: string): string | null {
   try {
     const u = new URL(url)
