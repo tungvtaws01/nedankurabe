@@ -12,7 +12,7 @@ async function callLLM(messages: { role: string; content: string }[]): Promise<s
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: process.env.OPENROUTER_MODEL ?? 'nvidia/nemotron-3-ultra-550b-a55b:free',
+      model: process.env.OPENROUTER_MODEL ?? 'openai/gpt-oss-120b:free',
       messages,
       // 32768 tokens for DeepSeek reasoning model — long chain-of-thought before answer.
       max_tokens: 32768,
@@ -31,7 +31,7 @@ export async function refineKeyword(
   try {
     const result = await callLLM([{
       role: 'user',
-      content: `Search keyword for ${targetPlatform}. Keep brand+product type+model. Remove colors/codes. Max 5 words.\nTitle: ${title}`,
+      content: `Search keyword for ${targetPlatform} Japan. Keep: brand name, product type, model series. Remove: colors, Amazon codes like EBC/B0xxx/CREGBCZ, promotional text, adjectives. Output plain text, max 5 words.\nTitle: ${title}`,
     }])
     return result || stripBrackets(title)
   } catch {
