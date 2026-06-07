@@ -151,11 +151,16 @@ export async function searchRakuten(keyword: string): Promise<ProductResult[]> {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
   };
 
-  // Try full keyword first; if no results, drop the first word (usually a mismatched brand)
-  // e.g. "和光堂 ハイハイン" → no results → retry "ハイハイン" → 10 results
-  const keywordCandidates: string[] = [normalizedKeyword];
+  // If full keyword returns nothing, retry with first word dropped, then last word dropped.
+  // Handles wrong-brand prefix ("和光堂 ハイハイン" → "ハイハイン")
+  // and wrong-brand suffix ("ハイハイン 和光堂" → "ハイハイン").
+  // Deduplicates: single-word keywords only tried once.
   const parts = normalizedKeyword.split(" ");
-  if (parts.length >= 2) keywordCandidates.push(parts.slice(1).join(" "));
+  const keywordCandidates = [...new Set([
+    normalizedKeyword,
+    ...(parts.length >= 2 ? [parts.slice(1).join(" ")] : []),
+    ...(parts.length >= 2 ? [parts.slice(0, -1).join(" ")] : []),
+  ])];
 
   for (const kw of keywordCandidates) {
     const results = await searchRakutenKeyword(kw, appId, accessKey, affiliateId, HEADERS);

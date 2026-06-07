@@ -219,13 +219,21 @@ describe('isTrialOrSamplePack — spare parts', () => {
 })
 
 describe('keyword shortening fallback', () => {
-  it('getGenreId still maps shortened keyword correctly', () => {
-    // "和光堂 ハイハイン" full → no results → retry "ハイハイン" → maps to 213980
+  it('getGenreId maps drop-first result: "ハイハイン" (from "和光堂 ハイハイン")', () => {
     expect(getGenreId('ハイハイン')).toBe('213980')
   })
 
-  it('getGenreId maps stripped brand keyword', () => {
-    // "ピジョン ストローマグ" stripped → "ストローマグ" → maps to 207753
+  it('getGenreId maps drop-last result: "ハイハイン" (from "ハイハイン 和光堂")', () => {
+    // drop-first gives "和光堂" (no match) → drop-last gives "ハイハイン" → 213980
+    expect(getGenreId('ハイハイン')).toBe('213980')
+  })
+
+  it('getGenreId maps drop-first result: "ストローマグ" (from "ピジョン ストローマグ")', () => {
     expect(getGenreId('ストローマグ')).toBe('207753')
+  })
+
+  it('getGenreId maps drop-last result: "ピジョン" falls back to 100533', () => {
+    // "ストローマグ ピジョン" → drop-first "ピジョン" no genre match → 100533
+    expect(getGenreId('ピジョン')).toBe('100533')
   })
 })
