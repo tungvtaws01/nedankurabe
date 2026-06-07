@@ -84,6 +84,7 @@ export function parseAmazonItem(item: any, partnerTag: string): ProductResult {
     subscribeAvailable: isAmazonFulfilled,
     rakutenCardEligible: false,
     teikiRates: null,
+    taxRate: 1.1,
     affiliateUrl: `https://www.amazon.co.jp/dp/${asin}?tag=${partnerTag}`,
   }
 }

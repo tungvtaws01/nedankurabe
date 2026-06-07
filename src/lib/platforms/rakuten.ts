@@ -25,6 +25,10 @@ export function isTrialOrSamplePack(itemName: string): boolean {
 const SEARCH_URL =
   "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401";
 
+// Baby food/formula genres use Japan's reduced 8% consumption tax (軽減税率).
+// Points are calculated on tax-excluded price, so divisor must be 1.08 for these.
+const FOOD_GENRE_IDS = new Set(["401171", "568293", "213980", "204417"]);
+
 // Maps keyword patterns to Rakuten genreId (verified via IchibaGenre/Search API)
 const GENRE_MAP: Array<[RegExp, string]> = [
   [/おむつ|オムツ|紙おむつ/,                                              "205197"], // おむつ
@@ -68,8 +72,11 @@ export function parseRakutenItem(
   const pointRate: number = item.pointRate ?? 1;
   const imageUrl: string = item.smallImageUrls?.[0]?.imageUrl ?? "";
   const itemUrl: string = item.itemUrl ?? "";
+  // Food items (baby formula, baby food, snacks) use Japan's reduced 8% consumption tax.
+  // Rakuten calculates points on the tax-excluded price, so the divisor must match.
+  const taxRate: 1.08 | 1.1 = FOOD_GENRE_IDS.has(String(item.genreId)) ? 1.08 : 1.1;
 
-  const taxExcludedPrice = Math.floor(price / 1.1);
+  const taxExcludedPrice = Math.floor(price / taxRate);
   const pointsEarned = Math.floor((taxExcludedPrice * pointRate) / 100);
   const effectivePrice = calcRakutenEffectivePrice(
     price,
@@ -80,6 +87,7 @@ export function parseRakutenItem(
     false,
     "off",
     null,
+    taxRate,
   );
   const affiliateUrl = affiliateId
     ? `https://hb.afl.rakuten.co.jp/hgc/${affiliateId}/?pc=${encodeURIComponent(itemUrl)}`
@@ -99,6 +107,7 @@ export function parseRakutenItem(
     subscribeAvailable: false,
     rakutenCardEligible: true,
     teikiRates: null,
+    taxRate,
     affiliateUrl,
   };
 }

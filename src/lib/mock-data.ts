@@ -29,6 +29,7 @@ export const MOCK_RESULTS: ProductResult[] = [
     subscribeAvailable: true,
     rakutenCardEligible: false,
     teikiRates: null,
+    taxRate: 1.1,
     affiliateUrl: 'https://www.amazon.co.jp/dp/B0CCJ3KBN3?tag=mock-22',
   },
   {
@@ -48,6 +49,7 @@ export const MOCK_RESULTS: ProductResult[] = [
     subscribeAvailable: false,
     rakutenCardEligible: true,
     teikiRates: null,
+    taxRate: 1.1,
     affiliateUrl: 'https://item.rakuten.co.jp/rakuten24/4987176206206/',
   },
 ]

@@ -7,7 +7,7 @@ const base: ProductResult = {
   platform: 'amazon', title: 'パンパース テープ S 82枚', imageUrl: '', shopName: 'Amazon',
   salePrice: 2178, shippingCost: 0, couponDiscount: 0, pointRate: 1, pointsEarned: 22,
   effectivePrice: 2156, subscribeAvailable: false, rakutenCardEligible: false,
-  teikiRates: null, affiliateUrl: '',
+  teikiRates: null, taxRate: 1.1, affiliateUrl: '',
 }
 
 const candidates: ProductResult[] = [

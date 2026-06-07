@@ -14,6 +14,7 @@ export interface ProductResult {
   subscribeAvailable: boolean  // Amazon: Subscribe & Save eligible; Rakuten: 定期購入 eligible
   rakutenCardEligible: boolean // Rakuten Card bonus applies (true for virtually all Rakuten items)
   teikiRates: { first: number; recurring: number } | null  // Rakuten only
+  taxRate: 1.08 | 1.1                                      // 1.08 for food (軽減税率), 1.1 otherwise
   affiliateUrl: string
 }
 

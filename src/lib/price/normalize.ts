@@ -21,12 +21,13 @@ export function calcRakutenEffectivePrice(
   rakutenCard: boolean,
   teiki: 'off' | 'first' | 'recurring',
   teikiRates: { first: number; recurring: number } | null,
+  taxRate: 1.08 | 1.1 = 1.1,
 ): number {
   const teikiRate =
     teiki === 'first' ? (teikiRates?.first ?? 0.10) :
     teiki === 'recurring' ? (teikiRates?.recurring ?? 0.05) : 0
   const subscriptionDiscount = teiki !== 'off' ? Math.round(itemPrice * teikiRate) : 0
-  const taxExcludedPrice = Math.floor((itemPrice - subscriptionDiscount) / 1.1)
+  const taxExcludedPrice = Math.floor((itemPrice - subscriptionDiscount) / taxRate)
   const cardBonus = rakutenCard ? 2 : 0
   const effectivePointRate = teiki !== 'off' ? 0 : pointRate + (spuMultiplier - 1) + cardBonus
   const pointsEarned = Math.floor(taxExcludedPrice * effectivePointRate / 100)
@@ -53,6 +54,7 @@ export function recalcWithToggles(results: ProductResult[], toggles: UserToggles
               toggles.rakutenCard && r.rakutenCardEligible,
               r.subscribeAvailable ? toggles.rakutenTeiki : 'off',
               r.teikiRates,
+              r.taxRate,
             )
       return { ...r, effectivePrice }
     })

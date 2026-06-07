@@ -24,7 +24,7 @@ function buildRows(r: ProductResult, t: UserToggles): Row[] {
     }
     const cardBonus = t.rakutenCard ? 2 : 0
     const effectiveRate = r.pointRate + (t.rakutenSPU - 1) + cardBonus
-    const pts = Math.floor(Math.floor(r.salePrice / 1.1) * effectiveRate / 100)
+    const pts = Math.floor(Math.floor(r.salePrice / r.taxRate) * effectiveRate / 100)
     rows.push({ labelJP: `ポイント還元(${effectiveRate}%)`, labelEN: 'Points earned', value: `－¥${pts.toLocaleString()}`, negative: true })
   }
   return rows

@@ -92,8 +92,8 @@ describe('recalcWithToggles', () => {
     affiliateUrl: '',
   }
 
-  const amazon: ProductResult = { ...base, platform: 'amazon', salePrice: 6780, pointRate: 1, pointsEarned: 68, effectivePrice: 6712 }
-  const rakuten: ProductResult = { ...base, platform: 'rakuten', salePrice: 3980, pointRate: 30, pointsEarned: 1085, effectivePrice: 2895 }
+  const amazon: ProductResult = { ...base, platform: 'amazon', salePrice: 6780, pointRate: 1, pointsEarned: 68, effectivePrice: 6712, taxRate: 1.1 }
+  const rakuten: ProductResult = { ...base, platform: 'rakuten', salePrice: 3980, pointRate: 30, pointsEarned: 1085, effectivePrice: 2895, taxRate: 1.1 }
 
   it('sorts by recalculated effectivePrice ascending', () => {
     const ranked = recalcWithToggles([amazon, rakuten], DEFAULT_TOGGLES)

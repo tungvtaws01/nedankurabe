@@ -36,9 +36,25 @@ describe('parseRakutenItem', () => {
     expect(parseRakutenItem(MOCK, 'id').pointRate).toBe(30)
   })
 
-  it('pointsEarned = floor(taxExcluded × pointRate / 100)', () => {
+  it('pointsEarned uses 10% tax (non-food genre)', () => {
+    // MOCK genreId=undefined → not in FOOD_GENRE_IDS → taxRate=1.1
     // floor(3980/1.1)=3618; floor(3618×30/100)=1085
     expect(parseRakutenItem(MOCK, 'id').pointsEarned).toBe(1085)
+  })
+
+  it('pointsEarned uses 8% tax for food genre (粉ミルク=401171)', () => {
+    // floor(5979/1.08)=5536; floor(5536×1/100)=55 (not 54 with 10% tax)
+    const foodItem = { ...MOCK, itemPrice: 5979, pointRate: 1, postageFlag: 0, genreId: '401171' }
+    expect(parseRakutenItem(foodItem, '').pointsEarned).toBe(55)
+  })
+
+  it('taxRate is 1.08 for food genre', () => {
+    const foodItem = { ...MOCK, genreId: '401171' }
+    expect(parseRakutenItem(foodItem, '').taxRate).toBe(1.08)
+  })
+
+  it('taxRate is 1.1 for non-food genre', () => {
+    expect(parseRakutenItem(MOCK, '').taxRate).toBe(1.1)
   })
 
   it('effectivePrice = salePrice - points at defaults (free shipping)', () => {
