@@ -64,11 +64,11 @@ describe('crawlRakutenSearch', () => {
     expect(results).toHaveLength(2)
     expect(results[0].title).toBe('明治ほほえみ 780g×2缶入')
     expect(results[0].salePrice).toBe(5979)
-    // Points are JS-rendered on search page — set to 0, accurate on item page tap
-    expect(results[0].pointsEarned).toBe(0)
+    // Points estimated from 1% base rate: floor(floor(5979/1.1)/100) = 54
+    expect(results[0].pointsEarned).toBe(54)
     // price >= 3980 → free shipping heuristic
     expect(results[0].shippingCost).toBe(0)
-    expect(results[0].effectivePrice).toBe(5979)
+    expect(results[0].effectivePrice).toBe(5979 - 54)
     expect(results[0].platform).toBe('rakuten')
     // tracking params stripped from URL
     expect(results[0].affiliateUrl).not.toContain('?scid=')
@@ -78,8 +78,9 @@ describe('crawlRakutenSearch', () => {
     mockFetch.mockResolvedValue({ ok: true, text: async () => SEARCH_HTML })
     const results = await crawlRakutenSearch('パンパース')
     // item2 has price 880 < 3980 → shipping 490
+    // points estimated: floor(floor(880/1.1)/100) = floor(799/100) = 7
     expect(results[1].shippingCost).toBe(490)
-    expect(results[1].effectivePrice).toBe(880 + 490)
+    expect(results[1].effectivePrice).toBe(880 + 490 - 7)
   })
 
   it('returns empty array when fetch fails', async () => {
@@ -110,8 +111,8 @@ describe('crawlRakutenProduct', () => {
     // og:title "明治ほほえみ(780g×2缶入)：楽天24 ベビー館" → split on "：" → first part
     expect(result!.title).toBe('明治ほほえみ(780g×2缶入)')
     expect(result!.salePrice).toBe(5979)
-    // Points are JS-rendered — static HTML cannot provide them
-    expect(result!.pointsEarned).toBe(0)
+    // Points estimated from 1% base rate: floor(floor(5979/1.1)/100) = 54
+    expect(result!.pointsEarned).toBe(54)
     // price >= 3980 → free shipping heuristic
     expect(result!.shippingCost).toBe(0)
   })

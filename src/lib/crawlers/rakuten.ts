@@ -48,6 +48,11 @@ function buildResult(
   shopName: string,
 ): ProductResult {
   const taxRate = inferTaxRate(title)
+  // When pointsEarned=0 (JS-rendered, not available from static HTML),
+  // estimate base points from the standard 1% rate so effectivePrice is not overstated.
+  const basePoints = pointsEarned > 0
+    ? pointsEarned
+    : Math.floor(Math.floor(salePrice / taxRate) / 100)
   return {
     platform: 'rakuten',
     title,
@@ -57,8 +62,8 @@ function buildResult(
     shippingCost,
     couponDiscount,
     pointRate: 1,
-    pointsEarned,
-    effectivePrice: salePrice + shippingCost - couponDiscount - pointsEarned,
+    pointsEarned: basePoints,
+    effectivePrice: salePrice + shippingCost - couponDiscount - basePoints,
     subscribeAvailable: false,
     rakutenCardEligible: true,
     teikiRates: null,

@@ -52,7 +52,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Amazon または楽天の商品URLを入力してください。' }, { status: 400 })
   }
 
-  const cacheKey = makeCacheKey(`lookup2:${url}`)
+  const cacheKey = makeCacheKey(`lookup3:${url}`)
   const cached = await getCached<ProductResult[]>(cacheKey).catch(() => null)
   if (cached && cached.length > 0) {
     return NextResponse.json({
