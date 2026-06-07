@@ -76,6 +76,13 @@ export default function ProductCard({ result, isWinner, toggles }: {
 
       <PriceBreakdown rows={buildRows(result, toggles)} total={result.effectivePrice} />
 
+      {!isAmazon && (
+        <p className="text-[9px] text-[var(--ink-soft)] mb-2 leading-relaxed">
+          ※ スーパーDEAL・クーポン等の特典ポイントは含まれません
+          <span className="italic ml-1">Excl. SuperDEAL & coupon points</span>
+        </p>
+      )}
+
       <a href={result.affiliateUrl} target="_blank" rel="noopener noreferrer"
         className={`block w-full text-center py-3 rounded-xl text-xs font-bold ${isAmazon
           ? 'bg-[var(--amazon)] text-[var(--amazon-accent)]'

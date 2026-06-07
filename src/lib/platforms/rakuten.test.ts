@@ -23,8 +23,13 @@ describe('parseRakutenItem', () => {
     expect(parseRakutenItem(MOCK, 'id').shippingCost).toBe(0)
   })
 
-  it('shippingCost is 490 when postageFlag=1', () => {
-    expect(parseRakutenItem({ ...MOCK, postageFlag: 1 }, 'id').shippingCost).toBe(490)
+  it('shippingCost is 0 when postageFlag=1 but price >= 3980 (meets free-shipping threshold)', () => {
+    // MOCK.itemPrice = 3980 — at the threshold, so shipping is free despite postageFlag=1
+    expect(parseRakutenItem({ ...MOCK, postageFlag: 1 }, 'id').shippingCost).toBe(0)
+  })
+
+  it('shippingCost is 490 when postageFlag=1 and price < 3980', () => {
+    expect(parseRakutenItem({ ...MOCK, postageFlag: 1, itemPrice: 980 }, 'id').shippingCost).toBe(490)
   })
 
   it('pointRate matches API field', () => {

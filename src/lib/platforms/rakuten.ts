@@ -62,7 +62,9 @@ export function parseRakutenItem(
   affiliateId: string,
 ): ProductResult {
   const price: number = item.itemPrice;
-  const shippingCost: number = item.postageFlag === 0 ? 0 : 490;
+  // postageFlag=0: always free. postageFlag=1: shop charges shipping unless item
+  // meets their free-shipping threshold. ¥3,980 is the Rakuten standard threshold.
+  const shippingCost: number = (item.postageFlag === 0 || price >= 3980) ? 0 : 490;
   const pointRate: number = item.pointRate ?? 1;
   const imageUrl: string = item.smallImageUrls?.[0]?.imageUrl ?? "";
   const itemUrl: string = item.itemUrl ?? "";
