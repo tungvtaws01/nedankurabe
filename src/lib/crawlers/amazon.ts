@@ -111,8 +111,9 @@ function parseAmazonProductHtml(html: string, asin: string): ProductResult | nul
   return { ...buildResult(title, salePrice, pointsEarned, asin, imageUrl), description }
 }
 
-export async function crawlAmazonProduct(asin: string): Promise<ProductResult | null> {
-  const url = `https://www.amazon.co.jp/dp/${asin}`
+export async function crawlAmazonProduct(asin: string, productUrl?: string): Promise<ProductResult | null> {
+  // Preserve variant params (?th=1 etc.) from the original URL so we crawl the correct variant.
+  const url = productUrl ?? `https://www.amazon.co.jp/dp/${asin}`
   const attempt = async (res: Response): Promise<ProductResult> => {
     if (!res.ok) throw new Error('bad status')
     const html = await res.text()

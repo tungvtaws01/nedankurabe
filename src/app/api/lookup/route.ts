@@ -67,7 +67,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (parsed.platform === 'amazon') {
     // Try crawling the Amazon product page first.
     // Falls back to slug-based title extraction when crawl is blocked (e.g. Vercel IPs).
-    const amazonProduct = await crawlAmazonProduct(parsed.id).catch(() => null)
+    const amazonProduct = await crawlAmazonProduct(parsed.id, url).catch(() => null)
     const titleForSearch = amazonProduct?.title ?? extractTitleFromAmazonUrl(url)
     if (!titleForSearch) {
       return NextResponse.json({ error: '商品が見つかりませんでした。' }, { status: 404 })

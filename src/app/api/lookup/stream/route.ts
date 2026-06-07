@@ -147,7 +147,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         } else {
           // ── Amazon URL ───────────────────────────────────────────────────
           send({ type: 'status', message: 'Amazonの商品ページを取得中…' })
-          const amazonProduct = await crawlAmazonProduct(parsed.id).catch(() => null)
+          const amazonProduct = await crawlAmazonProduct(parsed.id, url).catch(() => null)
           const titleForSearch = amazonProduct?.title ?? extractTitleFromAmazonUrl(url)
           if (!titleForSearch) {
             send({ type: 'error', message: '商品が見つかりませんでした。' })
