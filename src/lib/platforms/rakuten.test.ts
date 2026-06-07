@@ -212,4 +212,8 @@ describe('isTrialOrSamplePack — spare parts', () => {
   it('does not flag full Bumbo seat', () => {
     expect(isTrialOrSamplePack('バンボ マルチシート ベビーソファ 日本正規品')).toBe(false)
   })
+
+  it('flags ふるさと納税 tax donation bundles', () => {
+    expect(isTrialOrSamplePack('【ふるさと納税】明治ほほえみ 2缶パック 780g×2缶')).toBe(true)
+  })
 })

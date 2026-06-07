@@ -14,6 +14,8 @@ const EXCLUDE_KEYWORDS = [
   "替えストロー", "替え ストロー", "専用底板", "底板", "フードセット", "キャップ・フード", "専用プレートレイ",
   // Rental / lease products
   "レンタル", "レンタル延長",
+  // ふるさと納税 bundles — tax donation scheme, not regular retail
+  "ふるさと納税",
 ];
 
 export function isTrialOrSamplePack(itemName: string): boolean {
