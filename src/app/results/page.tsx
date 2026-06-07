@@ -1,6 +1,7 @@
 'use client'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useEffect, useState, Suspense } from 'react'
+import { flushSync } from 'react-dom'
 import { ProductResult, UserToggles, DEFAULT_TOGGLES, SearchResponse } from '@/lib/types'
 import { recalcWithToggles } from '@/lib/price/normalize'
 import ProductCard from '@/components/ProductCard'
@@ -26,6 +27,7 @@ function ResultsContent() {
   const [mode, setMode] = useState<'keyword-list' | 'comparison' | null>(null)
   const [toggles, setToggles] = useState<UserToggles>(DEFAULT_TOGGLES)
   const [loading, setLoading] = useState(true)
+  const [livePointsLoading, setLivePointsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => { setToggles(loadToggles()) }, [])
@@ -33,26 +35,85 @@ function ResultsContent() {
   useEffect(() => {
     async function load() {
       setLoading(true); setError(null); setPickList([]); setRawResults([]); setAmazonPool([])
+      setLivePointsLoading(false)
+
+      // URL lookup: use SSE stream so basic results appear fast, live points follow
+      if (url) {
+        try {
+          const res = await fetch('/api/lookup/stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+          })
+          if (!res.ok || !res.body) {
+            const data = await res.json() as { error?: string }
+            setError(data.error ?? '検索中にエラーが発生しました。')
+            return
+          }
+          const reader = res.body.getReader()
+          const decoder = new TextDecoder()
+          let buffer = ''
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            buffer += decoder.decode(value, { stream: true })
+            const lines = buffer.split('\n')
+            buffer = lines.pop() ?? ''
+            for (const line of lines) {
+              if (!line.startsWith('data: ')) continue
+              try {
+                const event = JSON.parse(line.slice(6)) as {
+                  type: string
+                  results?: ProductResult[]
+                  result?: ProductResult
+                  cached?: boolean
+                  message?: string
+                }
+                if (event.type === 'basic') {
+                  const hasRakuten = (event.results ?? []).some(r => r.platform === 'rakuten')
+                  flushSync(() => {
+                    setRawResults(event.results ?? [])
+                    setMode('comparison')
+                    setLoading(false)
+                    if (hasRakuten && !event.cached) setLivePointsLoading(true)
+                  })
+                } else if (event.type === 'live-points' && event.result) {
+                  flushSync(() => {
+                    setRawResults(prev => prev.map(r => r.platform === 'rakuten' ? event.result! : r))
+                    setLivePointsLoading(false)
+                  })
+                } else if (event.type === 'done') {
+                  setLivePointsLoading(false)
+                } else if (event.type === 'error') {
+                  flushSync(() => {
+                    setError(event.message ?? 'エラーが発生しました。')
+                    setLoading(false)
+                  })
+                }
+              } catch { /* ignore malformed lines */ }
+            }
+          }
+        } catch {
+          setError('検索中にエラーが発生しました。もう一度お試しください。')
+        } finally {
+          setLoading(false)
+          setLivePointsLoading(false)
+        }
+        return
+      }
+
+      // Keyword search: regular fetch
       try {
-        const [endpoint, body] = url
-          ? ['/api/lookup', { url }]
-          : ['/api/search', { query }]
-        const res = await fetch(endpoint, {
+        const res = await fetch('/api/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
+          body: JSON.stringify({ query }),
         })
         const data = await res.json() as SearchResponse & { error?: string }
         if (!res.ok) { setError(data.error ?? '検索中にエラーが発生しました。'); return }
-
-        if (data.mode === 'keyword-list') {
-          setPickList(data.rakutenResults ?? [])
-          setAmazonPool(data.amazonResults ?? [])
-          setMode('keyword-list')
-        } else {
-          setRawResults(data.results ?? [])
-          setMode('comparison')
-        }
+        setPickList(data.rakutenResults ?? [])
+        setAmazonPool(data.amazonResults ?? [])
+        setMode('keyword-list')
       } catch {
         setError('検索中にエラーが発生しました。もう一度お試しください。')
       } finally {
@@ -167,7 +228,13 @@ function ResultsContent() {
             <PriceExplanation winner={ranked[0]} loser={ranked[1]} />
           )}
           {ranked.map((r, i) => (
-            <ProductCard key={r.affiliateUrl} result={r} isWinner={i === 0} toggles={toggles} />
+            <ProductCard
+              key={r.affiliateUrl}
+              result={r}
+              isWinner={i === 0}
+              toggles={toggles}
+              pointsLoading={livePointsLoading && r.platform === 'rakuten'}
+            />
           ))}
           <p className="text-center text-[9px] text-[var(--ink-soft)] mt-4 leading-relaxed">
             ※ 価格・ポイントは取得時点のものです<br />

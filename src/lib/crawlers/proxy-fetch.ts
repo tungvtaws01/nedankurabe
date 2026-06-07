@@ -2,7 +2,8 @@ const DIRECT_TIMEOUT_MS = 5000
 const PROXY_TIMEOUT_MS = 20000  // ScraperAPI needs more time (3-8s avg)
 
 export interface ProxyOptions {
-  render?: boolean  // true = enable JS rendering (uses 5x credits, needed for JS-only content)
+  render?: boolean     // true = enable JS rendering (uses 5x credits, needed for JS-only content)
+  timeoutMs?: number  // override default timeout (default: 20s; use 40s+ for render=true)
 }
 
 /**
@@ -20,7 +21,7 @@ export async function proxyFetch(
   const key = process.env.SCRAPER_API_KEY
 
   if (key) {
-    const signal = AbortSignal.timeout(PROXY_TIMEOUT_MS)
+    const signal = AbortSignal.timeout(options?.timeoutMs ?? PROXY_TIMEOUT_MS)
     let proxyUrl = `https://api.scraperapi.com?api_key=${key}&url=${encodeURIComponent(url)}&country_code=jp`
     if (options?.render) proxyUrl += '&render=true'
     // Do NOT pass custom headers — ScraperAPI handles browser emulation internally.

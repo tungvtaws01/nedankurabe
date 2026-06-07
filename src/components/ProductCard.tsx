@@ -1,7 +1,7 @@
 import { ProductResult, UserToggles } from '@/lib/types'
 import PriceBreakdown, { Row } from './PriceBreakdown'
 
-function buildRows(r: ProductResult, t: UserToggles): Row[] {
+function buildRows(r: ProductResult, t: UserToggles, pointsLoading: boolean): Row[] {
   const rows: Row[] = [{ labelJP: '定価', labelEN: 'List price', value: `¥${r.salePrice.toLocaleString()}` }]
 
   if (r.platform === 'amazon') {
@@ -22,16 +22,20 @@ function buildRows(r: ProductResult, t: UserToggles): Row[] {
     if (r.couponDiscount > 0) {
       rows.push({ labelJP: 'クーポン', labelEN: 'Coupon', value: `－¥${r.couponDiscount.toLocaleString()}`, negative: true })
     }
-    const cardBonus = t.rakutenCard ? 2 : 0
-    const effectiveRate = r.pointRate + (t.rakutenSPU - 1) + cardBonus
-    const pts = Math.floor(Math.floor(r.salePrice / r.taxRate) * effectiveRate / 100)
-    rows.push({ labelJP: `ポイント還元(${effectiveRate}%)`, labelEN: 'Points earned', value: `－¥${pts.toLocaleString()}`, negative: true })
+    if (pointsLoading) {
+      rows.push({ labelJP: 'ポイント還元', labelEN: 'Points (live)', value: '', negative: true, loading: true })
+    } else {
+      const cardBonus = t.rakutenCard ? 2 : 0
+      const effectiveRate = r.pointRate + (t.rakutenSPU - 1) + cardBonus
+      const pts = Math.floor(Math.floor(r.salePrice / r.taxRate) * effectiveRate / 100)
+      rows.push({ labelJP: `ポイント還元(${effectiveRate}%)`, labelEN: 'Points earned', value: `－¥${pts.toLocaleString()}`, negative: true })
+    }
   }
   return rows
 }
 
-export default function ProductCard({ result, isWinner, toggles }: {
-  result: ProductResult; isWinner: boolean; toggles: UserToggles
+export default function ProductCard({ result, isWinner, toggles, pointsLoading }: {
+  result: ProductResult; isWinner: boolean; toggles: UserToggles; pointsLoading?: boolean
 }) {
   const isAmazon = result.platform === 'amazon'
 
@@ -74,15 +78,20 @@ export default function ProductCard({ result, isWinner, toggles }: {
         </span>
       </div>
 
-      <PriceBreakdown rows={buildRows(result, toggles)} total={result.effectivePrice} />
+      <PriceBreakdown rows={buildRows(result, toggles, !isAmazon && !!pointsLoading)} total={result.effectivePrice} />
 
-      {!isAmazon && (
+      {!isAmazon && !pointsLoading && result.pointRate <= 1 && result.couponDiscount === 0 && (
         <p className="text-[9px] text-[var(--ink-soft)] mb-2 leading-relaxed">
           ※ ポイントは基本1%のみ表示。スーパーDEAL・クーポンは含まれません。
           <a href={result.affiliateUrl} target="_blank" rel="noopener noreferrer"
             className="underline text-[var(--red)] ml-1 font-medium">
             実際のポイントを確認 →
           </a>
+        </p>
+      )}
+      {!isAmazon && pointsLoading && (
+        <p className="text-[9px] text-blue-500 mb-2 leading-relaxed animate-pulse">
+          ⟳ スーパーDEAL・クーポン情報を取得中… Fetching live points
         </p>
       )}
 

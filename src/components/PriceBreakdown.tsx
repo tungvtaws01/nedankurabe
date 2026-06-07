@@ -1,4 +1,4 @@
-export interface Row { labelJP: string; labelEN: string; value: string; negative?: boolean }
+export interface Row { labelJP: string; labelEN: string; value: string; negative?: boolean; loading?: boolean }
 interface Props { rows: Row[]; total: number }
 
 export default function PriceBreakdown({ rows, total }: Props) {
@@ -9,9 +9,12 @@ export default function PriceBreakdown({ rows, total }: Props) {
           <span className="text-[var(--ink-soft)]">
             {row.labelJP} <span className="italic text-[9px]">{row.labelEN}</span>
           </span>
-          <span className={`font-semibold ${row.negative ? 'text-[var(--red)]' : 'text-[var(--ink-mid)]'}`}>
-            {row.value}
-          </span>
+          {row.loading
+            ? <span className="text-[var(--ink-soft)] animate-pulse">取得中…</span>
+            : <span className={`font-semibold ${row.negative ? 'text-[var(--red)]' : 'text-[var(--ink-mid)]'}`}>
+                {row.value}
+              </span>
+          }
         </div>
       ))}
       <div className="flex justify-between items-baseline border-t border-black/10 pt-1">

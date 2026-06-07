@@ -81,9 +81,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: '商品が見つかりませんでした。' }, { status: 404 })
     }
     const matchIdx = amazonProduct
-      ? await semanticMatch(amazonProduct, rakutenCandidates).catch(() => 0)
+      ? await semanticMatch(amazonProduct, rakutenCandidates).catch(() => null)
       : null
-    const rakutenMatch = matchIdx !== null ? rakutenCandidates[matchIdx] ?? rakutenCandidates[0] ?? null : rakutenCandidates[0] ?? null
+    const rakutenMatch = matchIdx !== null ? rakutenCandidates[matchIdx] ?? null : null
     results = [...(amazonProduct ? [amazonProduct] : []), ...(rakutenMatch ? [rakutenMatch] : [])].sort((a, b) => a.effectivePrice - b.effectivePrice)
 
   } else {

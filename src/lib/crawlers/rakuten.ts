@@ -162,3 +162,59 @@ export async function crawlRakutenProduct(itemUrl: string): Promise<ProductResul
     return null
   }
 }
+
+/**
+ * Re-crawls a Rakuten item page with JS rendering to extract live SuperDEAL
+ * percentage and coupon discounts (unavailable in static HTML).
+ * Uses render=true which costs ~10-15s — call after streaming basic results.
+ */
+export async function crawlRakutenProductLive(
+  itemUrl: string,
+  salePrice: number,
+  taxRate: 1.08 | 1.1,
+): Promise<{ pointRate: number; pointsEarned: number; couponDiscount: number } | null> {
+  if (!hasProxy()) return null
+  try {
+    const res = await proxyFetch(itemUrl, {}, { render: true, timeoutMs: 40000 })
+    if (!res.ok) return null
+    const html = await res.text()
+
+    // SuperDEAL: look for percentage near スーパーDEAL or ポイントバック keywords
+    let superDealRate = 0
+    const sdPatterns = [
+      /スーパーDEAL[^<>]{0,80}?(\d+)%ポイントバック/,
+      /(\d+)%ポイントバック[^<>]{0,80}?スーパーDEAL/,
+      /sdeal[^>]*>[^<]*?(\d+)%/i,
+      /super.?deal[^<>]{0,80}?(\d+)%/i,
+      /ポイントバック[^<>]{0,20}?(\d+)%/,
+    ]
+    for (const re of sdPatterns) {
+      const m = html.match(re)
+      if (!m) continue
+      const rate = parseInt(m[1], 10)
+      if (rate >= 1 && rate <= 50) { superDealRate = rate; break }
+    }
+
+    // Coupon: look for yen amount near coupon/OFF text
+    let couponDiscount = 0
+    const cpPatterns = [
+      /(\d[\d,]+)円OFF/,
+      /(\d[\d,]+)円引き/,
+      /クーポン[^<>]{0,30}(\d[\d,]+)円/,
+    ]
+    for (const re of cpPatterns) {
+      const m = html.match(re)
+      if (!m) continue
+      const val = parseInt(m[1].replace(/,/g, ''), 10)
+      if (val >= 100 && val <= 50000) { couponDiscount = val; break }
+    }
+
+    if (superDealRate === 0 && couponDiscount === 0) return null
+
+    const effectiveRate = superDealRate || 1
+    const pointsEarned = Math.floor(Math.floor(salePrice / taxRate) * effectiveRate / 100)
+    return { pointRate: effectiveRate, pointsEarned, couponDiscount }
+  } catch {
+    return null
+  }
+}
