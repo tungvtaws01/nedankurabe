@@ -1,5 +1,4 @@
 {
-  "regions": ["nrt1"],
   "functions": {
     "src/app/api/search/route.ts": { "maxDuration": 30 },
     "src/app/api/lookup/route.ts": { "maxDuration": 30 },

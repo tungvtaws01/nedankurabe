@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { crawlRakutenProduct } from '@/lib/crawlers/rakuten'
 import { semanticMatch } from '@/lib/llm/openrouter'
 import { ProductResult } from '@/lib/types'
-
-export const preferredRegion = 'nrt1'
-
 // Called when user taps a Rakuten card from the keyword pick-list.
 // 1. Crawls the Rakuten item page to get real live points (JS-rendered via ScraperAPI)
 // 2. Runs LLM semantic match against the Amazon candidate pool

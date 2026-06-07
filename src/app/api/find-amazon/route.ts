@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { semanticMatch } from '@/lib/llm/openrouter'
 import { ProductResult } from '@/lib/types'
-
-export const preferredRegion = 'nrt1'
-
 export async function POST(req: NextRequest): Promise<NextResponse<{ result: ProductResult | null }>> {
   const body = await req.json() as { source?: ProductResult; candidates?: ProductResult[] }
   if (!body.source || !body.candidates?.length) {
