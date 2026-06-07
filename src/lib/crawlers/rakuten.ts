@@ -1,5 +1,6 @@
 import { parse } from 'node-html-parser'
 import { ProductResult } from '@/lib/types'
+import { searchRakuten } from '@/lib/platforms/rakuten'
 
 const HEADERS = {
   'Accept-Language': 'ja-JP,ja;q=0.9',
@@ -104,9 +105,12 @@ export async function crawlRakutenSearch(keyword: string): Promise<ProductResult
         break // only one ItemList block expected
       } catch { continue }
     }
+    // Fall back to Rakuten Search API if crawl returned nothing
+    // (e.g. server IP blocked, JSON-LD absent, or Rakuten changed page structure)
+    if (results.length === 0) return searchRakuten(keyword).catch(() => [])
     return results
   } catch {
-    return []
+    return searchRakuten(keyword).catch(() => [])
   }
 }
 
