@@ -74,27 +74,35 @@ export async function crawlRakutenSearch(keyword: string): Promise<ProductResult
     if (!res.ok) return []
     const html = await res.text()
     const root = parse(html)
-    const cards = root.querySelectorAll('.searchresultitem')
     const results: ProductResult[] = []
 
-    for (const card of cards.slice(0, 10)) {
-      const anchor = card.querySelector('h2.title a, .item-name a, h2 a')
-      const title = anchor?.text.trim() ?? ''
-      const itemUrl = anchor?.getAttribute('href') ?? ''
-      if (!title || !itemUrl) continue
-
-      const priceText = card.querySelector('.important, [class*="price"]')?.text ?? '0'
-      const salePrice = parsePrice(priceText)
-      if (!salePrice) continue
-
-      const pointsEarned = parsePoints(card.querySelector('.point, [class*="point"]'))
-      const shippingCost = isFreeShipping(card) ? 0 : 490
-      const imageUrl = card.querySelector('img')?.getAttribute('src') ?? ''
-
-      const shopMatch = itemUrl.match(/item\.rakuten\.co\.jp\/([^/]+)\//)
-      const shopName = shopMatch?.[1] ?? ''
-
-      results.push(buildResult(title, salePrice, pointsEarned, shippingCost, 0, imageUrl, itemUrl, shopName))
+    // Rakuten embeds stable JSON-LD ItemList on search pages (used by Google SEO)
+    // This is more reliable than CSS class selectors which use hashed module names.
+    // Points are JavaScript-rendered and not in initial HTML — set to 0 for pick-list.
+    // Accurate points are fetched from the item page when user taps a card.
+    for (const script of root.querySelectorAll('script[type="application/ld+json"]')) {
+      try {
+        const data = JSON.parse(script.text) as Record<string, unknown>
+        if (data['@type'] !== 'ItemList') continue
+        const ldItems = (data['itemListElement'] as Array<Record<string, unknown>>) ?? []
+        for (const listItem of ldItems.slice(0, 10)) {
+          const product = listItem['item'] as Record<string, unknown>
+          if (!product) continue
+          const title = (product['name'] as string ?? '').trim()
+          const rawUrl = (product['url'] as string ?? '').split('?')[0]
+          const offers = product['offers'] as Record<string, unknown> ?? {}
+          const salePrice = offers['price'] ? parseInt(String(offers['price']), 10) : 0
+          const imageArr = product['image']
+          const imageUrl = Array.isArray(imageArr) ? String(imageArr[0] ?? '') : String(imageArr ?? '')
+          if (!title || !rawUrl || !salePrice) continue
+          const shopMatch = rawUrl.match(/item\.rakuten\.co\.jp\/([^/]+)\//)
+          const shopName = shopMatch?.[1] ?? ''
+          // points = 0 on pick-list (JS-rendered, not in initial HTML)
+          const shippingCost = salePrice >= 3980 ? 0 : 490
+          results.push(buildResult(title, salePrice, 0, shippingCost, 0, imageUrl, rawUrl, shopName))
+        }
+        break // only one ItemList block expected
+      } catch { continue }
     }
     return results
   } catch {
