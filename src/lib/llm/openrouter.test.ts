@@ -150,4 +150,16 @@ describe('refineKeyword dispatch', () => {
     const result = await refineKeyword('和光堂 グーグーキッチン 12ヶ月頃から', 'rakuten')
     expect(result).toBe('和光堂 グーグーキッチン 12ヶ月')
   })
+
+  it('sends the classify prompt on the first call and the refine prompt on the second', async () => {
+    mockFetch
+      .mockResolvedValueOnce(llmReply('diapers'))
+      .mockResolvedValueOnce(llmReply('パンパース テープ 新生児'))
+    await refineKeyword('パンパース テープ 新生児 84枚', 'amazon')
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    const body0 = JSON.parse(mockFetch.mock.calls[0][1].body)
+    const body1 = JSON.parse(mockFetch.mock.calls[1][1].body)
+    expect(body0.messages[0].content).toContain('Classify this Japanese baby product')
+    expect(body1.messages[0].content).toContain('Extract a search keyword')
+  })
 })

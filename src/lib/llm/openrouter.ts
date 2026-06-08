@@ -25,22 +25,14 @@ async function callLLM(messages: { role: string; content: string }[]): Promise<s
 }
 
 // Category taxonomy — discovered from Amazon JP + Rakuten (scripts/taxonomy.md).
-export type Category =
-  | 'diapers'
-  | 'wipes'
-  | 'formula'
-  | 'bottles'
-  | 'baby_food'
-  | 'carriers'
-  | 'strollers'
-  | 'car_seats'
-  | 'skincare'
-  | 'bath'
-
-const CATEGORIES: readonly Category[] = [
+// CATEGORIES is the single source of truth; Category is derived from it so the
+// runtime list and the type can never drift apart.
+const CATEGORIES = [
   'diapers', 'wipes', 'formula', 'bottles', 'baby_food',
   'carriers', 'strollers', 'car_seats', 'skincare', 'bath',
-]
+] as const
+
+export type Category = typeof CATEGORIES[number]
 
 type PromptBuilder = (platform: string, title: string) => string
 
