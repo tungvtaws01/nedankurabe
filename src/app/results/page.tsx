@@ -205,7 +205,13 @@ function ResultsContent() {
   async function handlePickSelect(selected: ProductResult) {
     sseAbortRef.current?.abort()
     const opId = ++opIdRef.current
-    setLoading(true); setError(null)
+    setError(null)
+
+    // Show tapped item immediately — comparison screen appears without waiting for API
+    setRawResults([selected])
+    setCrossSearching(true)
+    setMode('comparison')
+
     try {
       let enrichedSource = selected
       let matchResult: ProductResult | null = null
@@ -237,13 +243,11 @@ function ResultsContent() {
         .sort((a, b) => a.effectivePrice - b.effectivePrice)
       setRawResults(results)
       setCrossSearching(false)
-      setMode('comparison')
     } catch {
       if (opIdRef.current === opId) {
+        setCrossSearching(false)
         setError('比較中にエラーが発生しました。もう一度お試しください。')
       }
-    } finally {
-      if (opIdRef.current === opId) setLoading(false)
     }
   }
 
