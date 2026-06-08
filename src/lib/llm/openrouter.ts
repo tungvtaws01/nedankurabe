@@ -28,21 +28,28 @@ export async function refineKeyword(
   title: string,
   targetPlatform: 'amazon' | 'rakuten',
 ): Promise<string> {
+  // Strip supplementary bracket annotations before LLM sees the title.
+  // Amazon appends usage context in [brackets] (e.g. [0ヵ月~1歳頃 固形タイプの粉ミルク])
+  // that are not part of the searchable product name and mislead keyword generation.
+  const cleanTitle = title.replace(/\[([^\]]{0,60})\]/g, '').replace(/\s+/g, ' ').trim()
   try {
     const result = await callLLM([{
       role: 'user',
       content: `Extract a search keyword for ${targetPlatform} Japan.
 Keep in this priority order:
-1. Brand name (e.g. パンパース, メリーズ, Ergobaby)
-2. Product line / series name — highest priority after brand (e.g. さらさらケア, はじめての肌へのいちばん, OMNI Breeze, エアフィット) — this distinguishes product tiers, never drop it
-3. Product type (e.g. テープ, パンツ, 抱っこひも)
-4. Size or weight range (e.g. 新生児, Sサイズ, 5kgまで) — size is critical, keep it
-5. Count or volume if space allows (e.g. 84枚)
+1. Brand name (e.g. パンパース, メリーズ, Ergobaby, 明治ほほえみ — keep full brand name)
+2. Product line / model name — highest priority after brand, never drop it
+   (e.g. さらさらケア, OMNI Breeze, らくらくキューブ, ハイハイン, ADAPT)
+3. Product type (e.g. テープ, パンツ, 抱っこひも, 粉ミルク, 離乳食)
+4. Size / weight / volume from the product name — critical, always keep
+   (e.g. 新生児, Sサイズ, 5kgまで, 800g, 540g, 60袋)
+   Do NOT invent stage/age from context — only use what is in the title itself.
+5. Count only if it distinguishes the product (e.g. 84枚, 20袋)
 
-Remove: promotional text, colors, order codes (B0xxx, CREGBCZ, EBC, ASIN), shop names, adjectives like 送料無料/期間限定.
+Remove: colors, promotional text, order codes (B0xxx, CREGBCZ, ASIN), shop names, adjectives like 送料無料/新作/おすすめ/期間限定.
 Output plain text only, max 8 words.
 
-Title: ${title}`,
+Title: ${cleanTitle}`,
     }])
     return result || stripBrackets(title)
   } catch {
@@ -73,14 +80,24 @@ List ALL candidates that satisfy ALL HIGH criteria below. The caller will pick t
 HIGH (all must match):
 - Brand: same brand including JP/EN equivalents
   Pampers=パンパース, Merries=メリーズ, Moony=ムーニー, Goon=グーン,
-  Pigeon=ピジョン, Combi=コンビ, Aprica=アップリカ, Ergobaby=エルゴベビー
-- Product line / tier: must be the same line within the brand
-  (e.g. さらさらケア ≠ はじめての肌へのいちばん — different tiers even within Pampers)
-- Product type: must be the same (e.g. tape≠pants, carrier≠stroller)
-- Size / weight range: must match (e.g. 新生児/5kg ≠ Sサイズ/6-11kg)
+  Pigeon=ピジョン, Combi=コンビ, Aprica=アップリカ, Ergobaby=エルゴベビー,
+  Meiji=明治, Morinaga=森永, Snow Brand=雪印, Wakodo=和光堂, Kao=花王
+- Product line / model: must be the same line or model within the brand
+  · Diapers: さらさらケア ≠ はじめての肌へのいちばん (different tiers)
+  · Formula: らくらくキューブ ≠ 缶タイプ (different form); ほほえみ ≠ ステップ (different stage)
+  · Carriers: OMNI Breeze ≠ ADAPT ≠ EMBRACE (different models)
+  · Baby food: ハイハイン ≠ グーグーキッチン (different product lines)
+- Product type: must be the same (tape≠pants, cube≠powder, carrier≠stroller, liquid≠solid)
+- Size / stage / volume: must match — interpretation depends on category:
+  · Diapers: weight range (新生児/5kg ≠ Sサイズ/6-11kg)
+  · Formula / baby food: age stage (0ヶ月 ≠ 6ヶ月頃) AND can/pack size (400g ≠ 800g)
+  · Carriers: supported weight range (newborn ≠ toddler) if specified
+  · General: treat any size or stage difference as a mismatch
 
 MEDIUM (minor difference is acceptable):
-- Count / volume (e.g. 82枚 vs 84枚 ok; 84枚 vs 200枚 not ok)
+- Count / sheet count (e.g. 82枚 vs 84枚 ok; 84枚 vs 200枚 not ok)
+- Pack format for same volume (e.g. 1 box of 60 bags vs 2 boxes of 30 bags)
+- N/A for products with no count dimension (carriers, strollers, single-unit items)
 
 LOW (may differ freely):
 - Colors, pack design, promotional bundles
