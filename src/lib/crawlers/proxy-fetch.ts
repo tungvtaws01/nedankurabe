@@ -1,31 +1,28 @@
 const DIRECT_TIMEOUT_MS = 5000
-const PROXY_TIMEOUT_MS = 20000  // ScraperAPI needs more time (3-8s avg)
+const PROXY_TIMEOUT_MS = 25000  // scrape.do typically responds in 5-15s
 
 export interface ProxyOptions {
-  render?: boolean     // true = enable JS rendering (uses 5x credits, needed for JS-only content)
-  timeoutMs?: number  // override default timeout (default: 20s; use 40s+ for render=true)
+  render?: boolean     // true = enable JS rendering (needed for Super DEAL, coupons)
+  timeoutMs?: number  // override default timeout (default: 25s; use 40s+ for render=true)
 }
 
 /**
- * Fetches a URL through ScraperAPI when SCRAPER_API_KEY is set.
- * - Strips custom browser headers when proxying (ScraperAPI handles emulation internally)
- * - Uses country_code=jp for Japanese e-commerce sites
- * - Uses 20s timeout (ScraperAPI typically responds in 3-8s)
- * Falls back to direct fetch with 5s timeout when no key.
+ * Fetches a URL through scrape.do when SCRAPEDO_TOKEN is set.
+ * - render=true enables headless browser rendering, bypassing Rakuten's Akamai bot protection
+ * - Only charges for successful responses (no wasted credits on blocks/timeouts)
+ * - Falls back to direct fetch when no token is configured
  */
 export async function proxyFetch(
   url: string,
   init?: RequestInit,
   options?: ProxyOptions,
 ): Promise<Response> {
-  const key = process.env.SCRAPER_API_KEY
+  const token = process.env.SCRAPEDO_TOKEN
 
-  if (key) {
+  if (token) {
     const signal = AbortSignal.timeout(options?.timeoutMs ?? PROXY_TIMEOUT_MS)
-    let proxyUrl = `https://api.scraperapi.com?api_key=${key}&url=${encodeURIComponent(url)}&country_code=jp`
+    let proxyUrl = `https://api.scrape.do?token=${token}&url=${encodeURIComponent(url)}`
     if (options?.render) proxyUrl += '&render=true'
-    // Do NOT pass custom headers — ScraperAPI handles browser emulation internally.
-    // Passing conflicting headers causes request failures.
     return fetch(proxyUrl, { signal })
   }
 
@@ -34,5 +31,5 @@ export async function proxyFetch(
 }
 
 export function hasProxy(): boolean {
-  return !!process.env.SCRAPER_API_KEY
+  return !!process.env.SCRAPEDO_TOKEN
 }
