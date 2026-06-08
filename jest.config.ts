@@ -5,6 +5,7 @@ const config: Config = {
   testEnvironment: 'node',
   moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1' },
   testMatch: ['**/*.test.ts', '**/*.test.tsx'],
+  testPathIgnorePatterns: ['/node_modules/', '/scripts/'],
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { tsconfig: { module: 'commonjs' } }],
   },

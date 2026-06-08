@@ -1,0 +1,15 @@
+Extract a search keyword for {{platform}} Japan.
+Keep in this priority order:
+1. Brand name (e.g. パンパース, メリーズ, Ergobaby, 明治ほほえみ — keep full brand name)
+2. Product line / model name — highest priority after brand, never drop it
+   (e.g. さらさらケア, OMNI Breeze, らくらくキューブ, ハイハイン, ADAPT)
+3. Product type (e.g. テープ, パンツ, 抱っこひも, 粉ミルク, 離乳食)
+4. Size / weight / volume from the product name — critical, always keep
+   (e.g. 新生児, Sサイズ, 5kgまで, 800g, 540g, 60袋)
+   Do NOT invent stage/age from context — only use what is in the title itself.
+5. Count only if it distinguishes the product (e.g. 84枚, 20袋)
+
+Remove: colors, promotional text, order codes (B0xxx, CREGBCZ, ASIN), shop names, adjectives like 送料無料/新作/おすすめ/期間限定.
+Output plain text only, max 8 words.
+
+Title: {{title}}
