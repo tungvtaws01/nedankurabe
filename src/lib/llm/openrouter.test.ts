@@ -47,7 +47,7 @@ describe('semanticMatch', () => {
   it('returns candidate index from LLM response', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ choices: [{ message: { content: '{"match":1}' } }] }),
+      json: async () => ({ choices: [{ message: { content: '{"matches":[1]}' } }] }),
     })
     const source = mockProduct('パンパース テープ S 108枚', 3980)
     const candidates = [
@@ -58,10 +58,25 @@ describe('semanticMatch', () => {
     expect(idx).toBe(1)
   })
 
+  it('returns the cheapest among multiple valid matches', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: '{"matches":[0,2]}' } }] }),
+    })
+    const source = mockProduct('パンパース さらさらケア テープ 新生児', 2000)
+    const candidates = [
+      mockProduct('パンパース さらさらケア テープ 新生児 84枚 (高い店)', 2640),  // index 0
+      mockProduct('GOO.N テープ S 90枚', 1200),                                  // index 1 — wrong brand
+      mockProduct('パンパース さらさらケア テープ 新生児 82枚 (安い店)', 1800),  // index 2
+    ]
+    const idx = await semanticMatch(source, candidates)
+    expect(idx).toBe(2) // picks cheapest valid match
+  })
+
   it('returns null when LLM says no match', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ choices: [{ message: { content: '{"match":null}' } }] }),
+      json: async () => ({ choices: [{ message: { content: '{"matches":[]}' } }] }),
     })
     const idx = await semanticMatch(mockProduct('A', 100), [mockProduct('B', 200)])
     expect(idx).toBeNull()
@@ -74,6 +89,16 @@ describe('semanticMatch', () => {
     })
     const idx = await semanticMatch(mockProduct('A', 100), [mockProduct('B', 200)])
     expect(idx).toBeNull()
+  })
+
+  it('parses JSON wrapped in markdown fences', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: '```json\n{"matches":[0]}\n```' } }] }),
+    })
+    const source = mockProduct('パンパース さらさらケア テープ 新生児', 1980)
+    const idx = await semanticMatch(source, [mockProduct('パンパース さらさらケア テープ 新生児 82枚', 1950)])
+    expect(idx).toBe(0)
   })
 
   it('returns null when candidates is empty', async () => {

@@ -46,14 +46,16 @@ function extractTitleFromAmazonUrl(url: string): string | null {
 
 function applyLivePoints(
   base: ProductResult,
-  live: { pointRate: number; pointsEarned: number; couponDiscount: number },
+  live: { pointRate: number; pointsEarned: number; couponDiscount: number; shippingCost: number | null },
 ): ProductResult {
+  const shipping = live.shippingCost !== null ? live.shippingCost : base.shippingCost
   return {
     ...base,
     pointRate: live.pointRate,
     pointsEarned: live.pointsEarned,
     couponDiscount: live.couponDiscount,
-    effectivePrice: base.salePrice + base.shippingCost - live.couponDiscount - live.pointsEarned,
+    shippingCost: shipping,
+    effectivePrice: base.salePrice + shipping - live.couponDiscount - live.pointsEarned,
   }
 }
 

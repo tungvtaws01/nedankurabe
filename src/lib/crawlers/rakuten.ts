@@ -26,6 +26,19 @@ function isFreeShipping(card: ReturnType<typeof parse>): boolean {
   return !!card.querySelector('.free-delivery, .shipping_free, [class*="freeShip"]')
 }
 
+// Extracts actual shipping cost from Rakuten page HTML or live-rendered HTML.
+// Tries explicit 送料NNN円 patterns first; falls back to ¥700 estimate.
+function parseShippingFromHtml(html: string, salePrice: number): number {
+  if (/送料無料/.test(html)) return 0
+  if (salePrice >= 3980) return 0
+  const m = html.match(/送料[:：\s]*(\d[\d,]+)円/)
+  if (m) {
+    const val = parseInt(m[1].replace(/,/g, ''), 10)
+    if (val >= 100 && val <= 3000) return val
+  }
+  return 700 // conservative estimate; corrected by live crawl when available
+}
+
 function guessAffiliateUrl(itemUrl: string): string {
   const affiliateId = process.env.RAKUTEN_AFFILIATE_ID
   if (!affiliateId) return itemUrl
@@ -107,7 +120,7 @@ function parseRakutenItemHtml(html: string, itemUrl: string): ProductResult | nu
   const priceAttr = root.querySelector('[itemprop="price"]')?.getAttribute('content')
   const salePrice = priceAttr ? parseInt(priceAttr, 10) : 0
   if (!salePrice) return null
-  const shippingCost = salePrice >= 3980 ? 0 : 490
+  const shippingCost = parseShippingFromHtml(html, salePrice)
   const imageUrl = root.querySelector('meta[property="og:image"]')?.getAttribute('content') ?? ''
   const rawDesc = root.querySelector('meta[property="og:description"]')?.getAttribute('content') ?? ''
   const description = rawDesc.replace(/\s+/g, ' ').trim().slice(0, 200) || undefined
@@ -154,7 +167,7 @@ export async function crawlRakutenProductLive(
   itemUrl: string,
   salePrice: number,
   taxRate: 1.08 | 1.1,
-): Promise<{ pointRate: number; pointsEarned: number; couponDiscount: number } | null> {
+): Promise<{ pointRate: number; pointsEarned: number; couponDiscount: number; shippingCost: number | null } | null> {
   if (!hasProxy()) return null
   try {
     const res = await proxyFetch(itemUrl, {}, { render: true, timeoutMs: 40000 })
@@ -191,11 +204,14 @@ export async function crawlRakutenProductLive(
       if (val >= 100 && val <= 50000) { couponDiscount = val; break }
     }
 
-    if (superDealRate === 0 && couponDiscount === 0) return null
+    // Extract actual shipping cost from the rendered page
+    const shippingCost = parseShippingFromHtml(html, salePrice)
+
+    if (superDealRate === 0 && couponDiscount === 0 && shippingCost === 700) return null
 
     const effectiveRate = superDealRate || 1
     const pointsEarned = Math.floor(Math.floor(salePrice / taxRate) * effectiveRate / 100)
-    return { pointRate: effectiveRate, pointsEarned, couponDiscount }
+    return { pointRate: effectiveRate, pointsEarned, couponDiscount, shippingCost }
   } catch {
     return null
   }
