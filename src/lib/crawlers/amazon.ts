@@ -22,6 +22,9 @@ function parsePoints(text: string): number {
 
 function buildAmazonUrl(asin: string): string {
   const tag = process.env.AMAZON_PARTNER_TAG
+  if (!tag) {
+    console.warn('[amazon] AMAZON_PARTNER_TAG is not set — affiliate links will be untagged')
+  }
   return tag
     ? `https://www.amazon.co.jp/dp/${asin}?tag=${tag}`
     : `https://www.amazon.co.jp/dp/${asin}`
