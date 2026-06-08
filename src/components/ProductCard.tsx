@@ -75,19 +75,27 @@ export default function ProductCard({ result, isWinner, toggles, pointsLoading }
         </span>
         <span className="text-[10px] text-[var(--ink-soft)]">
           実質価格 <span className="italic">Effective price</span>
+          {!isAmazon && !pointsLoading && result.pointRate <= 1 && result.couponDiscount === 0 && (
+            <span className="ml-1 text-amber-600 font-medium not-italic">(キャンペーン除く)</span>
+          )}
         </span>
       </div>
 
       <PriceBreakdown rows={buildRows(result, toggles, !isAmazon && !!pointsLoading)} total={result.effectivePrice} />
 
       {!isAmazon && !pointsLoading && result.pointRate <= 1 && result.couponDiscount === 0 && (
-        <p className="text-[9px] text-[var(--ink-soft)] mb-2 leading-relaxed">
-          ※ ポイントは基本1%のみ表示。スーパーDEAL・クーポンは含まれません。
-          <a href={result.affiliateUrl} target="_blank" rel="noopener noreferrer"
-            className="underline text-[var(--red)] ml-1 font-medium">
-            実際のポイントを確認 →
-          </a>
-        </p>
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2">
+          <p className="text-[10px] text-amber-800 leading-relaxed font-medium">
+            ⚠️ スーパーDEAL・クーポン未反映
+          </p>
+          <p className="text-[10px] text-amber-700 leading-relaxed mt-0.5">
+            実質価格はキャンペーンポイント(例: 10%バック)を含みません。
+            <a href={result.affiliateUrl} target="_blank" rel="noopener noreferrer"
+              className="underline text-[var(--red)] ml-1 font-medium">
+              楽天で実際のポイントを確認 →
+            </a>
+          </p>
+        </div>
       )}
       {!isAmazon && pointsLoading && (
         <p className="text-[9px] text-blue-500 mb-2 leading-relaxed animate-pulse">
