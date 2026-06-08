@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Noto_Sans_JP } from 'next/font/google'
+import Footer from '@/components/Footer'
 import './globals.css'
 
 const noto = Noto_Sans_JP({
@@ -22,7 +23,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className={`${noto.variable} font-sans antialiased`}>{children}</body>
+      <body className={`${noto.variable} font-sans antialiased`}>
+        {children}
+        <Footer />
+      </body>
     </html>
   )
 }
