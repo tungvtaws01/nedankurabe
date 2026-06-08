@@ -53,10 +53,36 @@ Output plain text only, max 8 words.
 
 Title: ${title}`
 
+// Empirically tuned diapers (おむつ) prompt — see scripts/taxonomy.md "diapers tuning"
+// (validated end-to-end 10/10 via scripts/probe-keyword.ts). Body mirrors
+// scripts/prompts/diapers.txt with {{platform}}→${platform} and {{title}}→${title}.
+const DIAPERS_PROMPT: PromptBuilder = (platform, title) => `Extract a search keyword for ${platform} Japan for this DIAPER (おむつ) product.
+
+Output Japanese keywords in this exact priority order, space-separated:
+1. Brand (Japanese): パンパース / メリーズ / ムーニー / ムーニーマン / グーン / マミーポコ / ゲンキ / ナチュラルムーニー
+   (English to JP: Pampers=パンパース, Merries/Merys/Melys=メリーズ, Moony=ムーニー, Moonyman/Moony Man=ムーニーマン, Goo.n/Goon=グーン, Mamy Poko=マミーポコ, Genki=ゲンキ)
+2. Product line / tier (Japanese) — NEVER drop, NEVER generalize. Map English to JP:
+   - Pampers "Smooth Care"/"Sarasara"=さらさらケア ; "First Skin"/"Baby's First Skin"=はじめての肌へのいちばん ; "Silky Touch"=さらさらケア
+   - Merries "First Premium"=ファーストプレミアム ; "Air Through"/"Sarasara Air Through"=エアスルー
+   - Moony "Marshmallow Skin"=マシュマロ肌ごこち ; "Natural Moony"/"Organic Cotton"=ナチュラルムーニー
+   - Goon "Super Absorbent"/"Gungun"=ぐんぐん吸収
+   さらさらケア and はじめての肌へのいちばん are DIFFERENT tiers — keep whichever appears.
+3. Type: テープ (tape) or パンツ (pants). Always include.
+4. Size/weight — write letter sizes in FULL form with サイズ, never a bare letter:
+   新生児 / Sサイズ / Mサイズ / Lサイズ / ビッグサイズ (NOT bare "S"/"M"/"L" — Rakuten shop titles use the サイズ suffix and a bare letter returns nothing).
+   If there is no letter size, use the kg range as written (e.g. 5kgまで, 6-11kg).
+   Use ONLY what is in the title. Do NOT invent.
+
+Do NOT include: count (枚/枚数/袋), pack/case wording, ウルトラジャンボ/UJ/大容量/ケース品/まとめ買い, colors, Disney/character names, order codes (B0xxx/ASIN), shop names, 送料無料/限定/Amazon.co.jp.
+
+Output plain Japanese keywords only, no English, max 6 words.
+
+Title: ${title}`
+
 // Per-category prompts. Each starts as UNIVERSAL_PROMPT and is replaced with a
 // tuned builder during empirical tuning (later task). Keys MUST match CATEGORIES.
 const CATEGORY_PROMPTS: Record<Category, PromptBuilder> = {
-  diapers: UNIVERSAL_PROMPT,
+  diapers: DIAPERS_PROMPT,
   wipes: UNIVERSAL_PROMPT,
   formula: UNIVERSAL_PROMPT,
   bottles: UNIVERSAL_PROMPT,
