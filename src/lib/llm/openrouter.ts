@@ -24,18 +24,28 @@ async function callLLM(messages: { role: string; content: string }[]): Promise<s
   return data.choices[0]?.message?.content?.trim() ?? ''
 }
 
-export async function refineKeyword(
-  title: string,
-  targetPlatform: 'amazon' | 'rakuten',
-): Promise<string> {
-  // Strip supplementary bracket annotations before LLM sees the title.
-  // Amazon appends usage context in [brackets] (e.g. [0ヵ月~1歳頃 固形タイプの粉ミルク])
-  // that are not part of the searchable product name and mislead keyword generation.
-  const cleanTitle = title.replace(/\[([^\]]{0,60})\]/g, '').replace(/\s+/g, ' ').trim()
-  try {
-    const result = await callLLM([{
-      role: 'user',
-      content: `Extract a search keyword for ${targetPlatform} Japan.
+// Category taxonomy — discovered from Amazon JP + Rakuten (scripts/taxonomy.md).
+export type Category =
+  | 'diapers'
+  | 'wipes'
+  | 'formula'
+  | 'bottles'
+  | 'baby_food'
+  | 'carriers'
+  | 'strollers'
+  | 'car_seats'
+  | 'skincare'
+  | 'bath'
+
+const CATEGORIES: readonly Category[] = [
+  'diapers', 'wipes', 'formula', 'bottles', 'baby_food',
+  'carriers', 'strollers', 'car_seats', 'skincare', 'bath',
+]
+
+type PromptBuilder = (platform: string, title: string) => string
+
+// Today's prompt, preserved verbatim as the fallback for unknown/low-confidence titles.
+const UNIVERSAL_PROMPT: PromptBuilder = (platform, title) => `Extract a search keyword for ${platform} Japan.
 Keep in this priority order:
 1. Brand name (e.g. パンパース, メリーズ, Ergobaby, 明治ほほえみ — keep full brand name)
 2. Product line / model name — highest priority after brand, never drop it
@@ -49,8 +59,52 @@ Keep in this priority order:
 Remove: colors, promotional text, order codes (B0xxx, CREGBCZ, ASIN), shop names, adjectives like 送料無料/新作/おすすめ/期間限定.
 Output plain text only, max 8 words.
 
-Title: ${cleanTitle}`,
+Title: ${title}`
+
+// Per-category prompts. Each starts as UNIVERSAL_PROMPT and is replaced with a
+// tuned builder during empirical tuning (later task). Keys MUST match CATEGORIES.
+const CATEGORY_PROMPTS: Record<Category, PromptBuilder> = {
+  diapers: UNIVERSAL_PROMPT,
+  wipes: UNIVERSAL_PROMPT,
+  formula: UNIVERSAL_PROMPT,
+  bottles: UNIVERSAL_PROMPT,
+  baby_food: UNIVERSAL_PROMPT,
+  carriers: UNIVERSAL_PROMPT,
+  strollers: UNIVERSAL_PROMPT,
+  car_seats: UNIVERSAL_PROMPT,
+  skincare: UNIVERSAL_PROMPT,
+  bath: UNIVERSAL_PROMPT,
+}
+
+export async function classifyCategory(title: string): Promise<Category | 'unknown'> {
+  try {
+    const result = await callLLM([{
+      role: 'user',
+      content: `Classify this Japanese baby product into exactly one category id.
+Category ids: ${CATEGORIES.join(', ')}
+Output ONLY the id, or "unknown" if none fit. No other text.
+
+Title: ${title}`,
     }])
+    const id = result.trim().toLowerCase()
+    return (CATEGORIES as readonly string[]).includes(id) ? (id as Category) : 'unknown'
+  } catch {
+    return 'unknown'
+  }
+}
+
+export async function refineKeyword(
+  title: string,
+  targetPlatform: 'amazon' | 'rakuten',
+): Promise<string> {
+  // Strip supplementary bracket annotations before LLM sees the title.
+  // Amazon appends usage context in [brackets] (e.g. [0ヵ月~1歳頃 固形タイプの粉ミルク])
+  // that are not part of the searchable product name and mislead keyword generation.
+  const cleanTitle = title.replace(/\[([^\]]{0,60})\]/g, '').replace(/\s+/g, ' ').trim()
+  const category = await classifyCategory(cleanTitle)
+  const buildPrompt = category === 'unknown' ? UNIVERSAL_PROMPT : CATEGORY_PROMPTS[category]
+  try {
+    const result = await callLLM([{ role: 'user', content: buildPrompt(targetPlatform, cleanTitle) }])
     return result || stripBrackets(title)
   } catch {
     return stripBrackets(title)

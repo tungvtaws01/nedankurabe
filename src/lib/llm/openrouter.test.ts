@@ -1,8 +1,13 @@
 const mockFetch = jest.fn()
 global.fetch = mockFetch
 
-import { refineKeyword, semanticMatch } from './openrouter'
+import { refineKeyword, semanticMatch, classifyCategory } from './openrouter'
 import { ProductResult } from '@/lib/types'
+
+const llmReply = (content: string) => ({
+  ok: true,
+  json: async () => ({ choices: [{ message: { content } }] }),
+})
 
 const mockProduct = (title: string, price: number): ProductResult => ({
   platform: 'rakuten', title, imageUrl: '', shopName: '', salePrice: price,
@@ -104,5 +109,45 @@ describe('semanticMatch', () => {
   it('returns null when candidates is empty', async () => {
     const idx = await semanticMatch(mockProduct('A', 100), [])
     expect(idx).toBeNull()
+  })
+})
+
+describe('classifyCategory', () => {
+  it('returns a known category id when the LLM names one', async () => {
+    mockFetch.mockResolvedValue(llmReply('diapers'))
+    expect(await classifyCategory('パンパース テープ Sサイズ 108枚')).toBe('diapers')
+  })
+
+  it('is case-insensitive and trims the LLM reply', async () => {
+    mockFetch.mockResolvedValue(llmReply('  Formula  '))
+    expect(await classifyCategory('明治ほほえみ らくらくキューブ')).toBe('formula')
+  })
+
+  it('returns "unknown" when the LLM names a non-category', async () => {
+    mockFetch.mockResolvedValue(llmReply('something-else'))
+    expect(await classifyCategory('謎の商品')).toBe('unknown')
+  })
+
+  it('returns "unknown" when the LLM call fails', async () => {
+    mockFetch.mockRejectedValue(new Error('network'))
+    expect(await classifyCategory('パンパース テープ')).toBe('unknown')
+  })
+})
+
+describe('refineKeyword dispatch', () => {
+  it('uses the classified category prompt, returning the refine reply', async () => {
+    mockFetch
+      .mockResolvedValueOnce(llmReply('diapers'))
+      .mockResolvedValueOnce(llmReply('パンパース さらさらケア テープ 新生児'))
+    const result = await refineKeyword('【送料無料】パンパース さらさらケア テープ 新生児 84枚', 'amazon')
+    expect(result).toBe('パンパース さらさらケア テープ 新生児')
+  })
+
+  it('falls back to universal prompt when category is unknown (still returns refine reply)', async () => {
+    mockFetch
+      .mockResolvedValueOnce(llmReply('unknown'))
+      .mockResolvedValueOnce(llmReply('和光堂 グーグーキッチン 12ヶ月'))
+    const result = await refineKeyword('和光堂 グーグーキッチン 12ヶ月頃から', 'rakuten')
+    expect(result).toBe('和光堂 グーグーキッチン 12ヶ月')
   })
 })
