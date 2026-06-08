@@ -32,11 +32,15 @@ function ResultsContent() {
   const [crossSearching, setCrossSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const sseAbortRef = useRef<{ abort: () => void } | null>(null)
+  // Incremented on every handleBack() or new load(); async callbacks check this
+  // before applying results so stale responses can't flip the UI back.
+  const opIdRef = useRef(0)
 
   useEffect(() => { setToggles(loadToggles()) }, [])
 
   useEffect(() => {
     async function load() {
+      const opId = ++opIdRef.current
       setLoading(true); setLoadingMessage('検索中…'); setError(null)
       setPickList([]); setRawResults([]); setAmazonPool([])
       setLivePointsLoading(false); setCrossSearching(false)
@@ -60,6 +64,7 @@ function ResultsContent() {
           while (true) {
             const { done, value } = await reader.read()
             if (done) break
+            if (opIdRef.current !== opId) { reader.cancel(); break }
             buffer += decoder.decode(value, { stream: true })
             const lines = buffer.split('\n')
             buffer = lines.pop() ?? ''
@@ -73,6 +78,7 @@ function ResultsContent() {
                   cached?: boolean
                   message?: string
                 }
+                if (opIdRef.current !== opId) break
                 if (event.type === 'partial') {
                   const results = event.results ?? []
                   const hasRakuten = results.some(r => r.platform === 'rakuten')
@@ -115,10 +121,14 @@ function ResultsContent() {
             }
           }
         } catch {
-          setError('検索中にエラーが発生しました。もう一度お試しください。')
+          if (opIdRef.current === opId) {
+            setError('検索中にエラーが発生しました。もう一度お試しください。')
+          }
         } finally {
-          setLoading(false)
-          setLivePointsLoading(false)
+          if (opIdRef.current === opId) {
+            setLoading(false)
+            setLivePointsLoading(false)
+          }
         }
         return
       }
@@ -194,6 +204,7 @@ function ResultsContent() {
 
   async function handlePickSelect(selected: ProductResult) {
     sseAbortRef.current?.abort()
+    const opId = ++opIdRef.current
     setLoading(true); setError(null)
     try {
       let enrichedSource = selected
@@ -220,18 +231,24 @@ function ResultsContent() {
         matchResult = data.result
       }
 
+      // User may have navigated back while the API call was in flight — discard stale result
+      if (opIdRef.current !== opId) return
       const results = [enrichedSource, ...(matchResult ? [matchResult] : [])]
         .sort((a, b) => a.effectivePrice - b.effectivePrice)
       setRawResults(results)
+      setCrossSearching(false)
       setMode('comparison')
     } catch {
-      setError('比較中にエラーが発生しました。もう一度お試しください。')
+      if (opIdRef.current === opId) {
+        setError('比較中にエラーが発生しました。もう一度お試しください。')
+      }
     } finally {
-      setLoading(false)
+      if (opIdRef.current === opId) setLoading(false)
     }
   }
 
   function handleBack() {
+    opIdRef.current++
     setMode('keyword-list'); setRawResults([]); setError(null)
   }
 
