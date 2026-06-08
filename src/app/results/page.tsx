@@ -1,6 +1,6 @@
 'use client'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import { flushSync } from 'react-dom'
 import { ProductResult, UserToggles, DEFAULT_TOGGLES } from '@/lib/types'
 import { recalcWithToggles } from '@/lib/price/normalize'
@@ -31,6 +31,7 @@ function ResultsContent() {
   const [livePointsLoading, setLivePointsLoading] = useState(false)
   const [crossSearching, setCrossSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const sseAbortRef = useRef<{ abort: () => void } | null>(null)
 
   useEffect(() => { setToggles(loadToggles()) }, [])
 
@@ -123,11 +124,17 @@ function ResultsContent() {
       }
 
       // Keyword search: SSE stream — Rakuten appears in ~1s, Amazon appends ~8s later
+      let abortedByUser = false
+      const controller = new AbortController()
+      sseAbortRef.current = {
+        abort: () => { abortedByUser = true; controller.abort() },
+      }
       try {
         const res = await fetch('/api/search/stream', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query }),
+          signal: controller.signal,
         })
         if (!res.ok || !res.body) {
           const data = await res.json() as { error?: string }
@@ -169,17 +176,24 @@ function ResultsContent() {
             } catch { /* ignore malformed lines */ }
           }
         }
-      } catch {
-        setError('検索中にエラーが発生しました。もう一度お試しください。')
+      } catch (e) {
+        if (abortedByUser) return
+        if ((e as { name?: string })?.name !== 'AbortError') {
+          setError('検索中にエラーが発生しました。もう一度お試しください。')
+        }
       } finally {
-        setLoading(false)
-        setCrossSearching(false)
+        sseAbortRef.current = null
+        if (!abortedByUser) {
+          setLoading(false)
+          setCrossSearching(false)
+        }
       }
     }
     if (query || url) load()
   }, [query, url])
 
   async function handlePickSelect(selected: ProductResult) {
+    sseAbortRef.current?.abort()
     setLoading(true); setError(null)
     try {
       let enrichedSource = selected
