@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { crawlRakutenSearch, crawlRakutenProduct } from '@/lib/crawlers/rakuten'
-import { crawlAmazonSearch, crawlAmazonProduct } from '@/lib/crawlers/amazon'
-import { refineKeyword, semanticMatch } from '@/lib/llm/openrouter'
+import { crawlAmazonProduct } from '@/lib/crawlers/amazon'
+import { findEquivalent } from '@/lib/matching/find-equivalent'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult, SearchResponse } from '@/lib/types'
 import { MOCK_RESULTS } from '@/lib/mock-data'
@@ -72,28 +72,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (!titleForSearch) {
       return NextResponse.json({ error: '商品が見つかりませんでした。' }, { status: 404 })
     }
-    const rakutenKeyword = amazonProduct
-      ? await refineKeyword(amazonProduct.title, 'rakuten').catch(() => amazonProduct.title)
-      : titleForSearch
-    const rakutenCandidates = await crawlRakutenSearch(rakutenKeyword).catch(() => [] as ProductResult[])
-    if (!amazonProduct && !rakutenCandidates.length) {
-      return NextResponse.json({ error: '商品が見つかりませんでした。' }, { status: 404 })
+    if (amazonProduct) {
+      const rakutenMatch = await findEquivalent(amazonProduct, 'rakuten').catch(() => null)
+      results = [amazonProduct, ...(rakutenMatch ? [rakutenMatch] : [])].sort((a, b) => a.effectivePrice - b.effectivePrice)
+    } else {
+      // Product-page crawl was blocked (e.g. Vercel IP). Without a reliable source
+      // ProductResult we can't run a semantic match — confirm the product exists
+      // via a best-effort Rakuten search, otherwise 404.
+      const rakutenCandidates = await crawlRakutenSearch(titleForSearch).catch(() => [] as ProductResult[])
+      if (!rakutenCandidates.length) {
+        return NextResponse.json({ error: '商品が見つかりませんでした。' }, { status: 404 })
+      }
+      results = []
     }
-    const matchIdx = amazonProduct
-      ? await semanticMatch(amazonProduct, rakutenCandidates).catch(() => null)
-      : null
-    const rakutenMatch = matchIdx !== null ? rakutenCandidates[matchIdx] ?? null : null
-    results = [...(amazonProduct ? [amazonProduct] : []), ...(rakutenMatch ? [rakutenMatch] : [])].sort((a, b) => a.effectivePrice - b.effectivePrice)
 
   } else {
     const rakutenProduct = await crawlRakutenProduct(parsed.id).catch(() => null)
     if (!rakutenProduct) {
       return NextResponse.json({ error: '商品が見つかりませんでした。' }, { status: 404 })
     }
-    const amazonKeyword = await refineKeyword(rakutenProduct.title, 'amazon').catch(() => rakutenProduct.title)
-    const amazonCandidates = await crawlAmazonSearch(amazonKeyword).catch(() => [] as ProductResult[])
-    const matchIdx = await semanticMatch(rakutenProduct, amazonCandidates).catch(() => null)
-    const amazonMatch = matchIdx !== null ? amazonCandidates[matchIdx] ?? null : null
+    const amazonMatch = await findEquivalent(rakutenProduct, 'amazon').catch(() => null)
     results = [rakutenProduct, ...(amazonMatch ? [amazonMatch] : [])].sort((a, b) => a.effectivePrice - b.effectivePrice)
   }
 

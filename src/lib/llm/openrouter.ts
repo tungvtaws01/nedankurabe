@@ -63,8 +63,9 @@ export async function semanticMatch(
 ): Promise<number | null> {
   if (!candidates.length) return null
   try {
-    // Limit to top 5 — reasoning models exhaust tokens on long candidate lists
-    const pool = candidates.slice(0, 5)
+    // Limit to top 8 — reasoning models exhaust tokens on long candidate lists.
+    // Callers should pre-rank (see matching/rank.ts) so the true match is in this window.
+    const pool = candidates.slice(0, 8)
     const fmt = (p: ProductResult, i?: number) => {
       const prefix = i !== undefined ? `${i}: ` : 'Source: '
       const desc = p.description ? ` [${p.description.slice(0, 120)}]` : ''

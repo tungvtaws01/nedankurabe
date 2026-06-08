@@ -69,7 +69,7 @@ export async function crawlAmazonSearch(keyword: string): Promise<ProductResult[
     const cards = root.querySelectorAll('[data-asin][data-component-type="s-search-result"]')
     const results: ProductResult[] = []
 
-    for (const card of cards.slice(0, 5)) {
+    for (const card of cards.slice(0, 10)) {
       const asin = card.getAttribute('data-asin') ?? ''
       if (!asin) continue
 
