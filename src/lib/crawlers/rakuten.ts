@@ -170,9 +170,18 @@ export async function crawlRakutenProductLive(
 ): Promise<{ pointRate: number; pointsEarned: number; couponDiscount: number; shippingCost: number | null } | null> {
   if (!hasProxy()) return null
   try {
-    const res = await proxyFetch(itemUrl, {}, { render: true, timeoutMs: 40000 })
-    if (!res.ok) return null
-    const html = await res.text()
+    // scrape.do with super=true (residential proxies) occasionally gets ROTATION_FAILED on Rakuten.
+    // Retry up to 3 times — scrape.do does not charge for failed requests.
+    let html = ''
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const res = await proxyFetch(itemUrl, {}, { render: true, timeoutMs: 40000 })
+      if (!res.ok) break
+      const text = await res.text()
+      // scrape.do returns a JSON error body ({"ErrorCode":90,...}) with HTTP 200 on rotation failure.
+      // A real HTML page never starts with '{'.
+      if (!text.trimStart().startsWith('{')) { html = text; break }
+    }
+    if (!html) return null
 
     // SuperDEAL: look for percentage near スーパーDEAL or ポイントバック keywords
     let superDealRate = 0

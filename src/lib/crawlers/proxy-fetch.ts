@@ -22,7 +22,9 @@ export async function proxyFetch(
   if (token) {
     const signal = AbortSignal.timeout(options?.timeoutMs ?? PROXY_TIMEOUT_MS)
     let proxyUrl = `https://api.scrape.do?token=${token}&url=${encodeURIComponent(url)}`
-    if (options?.render) proxyUrl += '&render=true'
+    // super=true routes through residential/mobile proxies — required for Rakuten's Akamai protection.
+    // Without it, scrape.do uses datacenter IPs which Rakuten blocks with ROTATION_FAILED.
+    if (options?.render) proxyUrl += '&render=true&super=true'
     return fetch(proxyUrl, { signal })
   }
 
