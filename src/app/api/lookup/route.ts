@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { crawlRakutenSearch, crawlRakutenProduct } from '@/lib/crawlers/rakuten'
-import { crawlAmazonProduct } from '@/lib/crawlers/amazon'
+import { crawlAmazonProduct, resolveAmazonShortLink } from '@/lib/crawlers/amazon'
 import { findEquivalent } from '@/lib/matching/find-equivalent'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult, SearchResponse } from '@/lib/types'
@@ -50,7 +50,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const body = await req.json() as { url?: string }
   if (!body.url?.trim()) return NextResponse.json({ error: 'url required' }, { status: 400 })
   const url = body.url.trim()
-  const parsed = parseProductUrl(url)
+  // Amazon mobile-share links (amzn.asia/…) carry no ASIN; resolve to the
+  // canonical /dp/<ASIN> URL before parsing so they don't break the flow.
+  const resolvedUrl = await resolveAmazonShortLink(url)
+  const parsed = parseProductUrl(resolvedUrl)
   if (!parsed) {
     return NextResponse.json({ error: 'Amazon または楽天の商品URLを入力してください。' }, { status: 400 })
   }
@@ -69,8 +72,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (parsed.platform === 'amazon') {
     // Try crawling the Amazon product page first.
     // Falls back to slug-based title extraction when crawl is blocked (e.g. Vercel IPs).
-    const amazonProduct = await crawlAmazonProduct(parsed.id, url).catch(() => null)
-    const titleForSearch = amazonProduct?.title ?? extractTitleFromAmazonUrl(url)
+    const amazonProduct = await crawlAmazonProduct(parsed.id, resolvedUrl).catch(() => null)
+    const titleForSearch = amazonProduct?.title ?? extractTitleFromAmazonUrl(resolvedUrl)
     if (!titleForSearch) {
       return NextResponse.json({ error: '商品が見つかりませんでした。' }, { status: 404 })
     }

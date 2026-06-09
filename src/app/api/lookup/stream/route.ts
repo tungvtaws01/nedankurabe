@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { crawlRakutenProductFast, crawlRakutenProductLive, crawlRakutenSearch } from '@/lib/crawlers/rakuten'
-import { crawlAmazonProduct, crawlAmazonSearch } from '@/lib/crawlers/amazon'
+import { crawlAmazonProduct, crawlAmazonSearch, resolveAmazonShortLink } from '@/lib/crawlers/amazon'
 import { refineKeyword, semanticMatch, explainPriceDifference } from '@/lib/llm/openrouter'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult } from '@/lib/types'
@@ -66,7 +66,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     return new Response(JSON.stringify({ error: 'url required' }), { status: 400 })
   }
   const url = body.url.trim()
-  const parsed = parseProductUrl(url)
+  // Amazon mobile-share links (amzn.asia/…) carry no ASIN; resolve to the
+  // canonical /dp/<ASIN> URL before parsing so they don't break the flow.
+  const resolvedUrl = await resolveAmazonShortLink(url)
+  const parsed = parseProductUrl(resolvedUrl)
   if (!parsed) {
     return new Response(
       JSON.stringify({ error: 'Amazon または楽天の商品URLを入力してください。' }),
@@ -155,8 +158,8 @@ export async function POST(req: NextRequest): Promise<Response> {
         } else {
           // ── Amazon URL ───────────────────────────────────────────────────
           send({ type: 'status', message: 'Amazonの商品ページを取得中…' })
-          const amazonProduct = await crawlAmazonProduct(parsed.id, url).catch(() => null)
-          const titleForSearch = amazonProduct?.title ?? extractTitleFromAmazonUrl(url)
+          const amazonProduct = await crawlAmazonProduct(parsed.id, resolvedUrl).catch(() => null)
+          const titleForSearch = amazonProduct?.title ?? extractTitleFromAmazonUrl(resolvedUrl)
           if (!titleForSearch) {
             send({ type: 'error', message: '商品が見つかりませんでした。' })
             controller.close()

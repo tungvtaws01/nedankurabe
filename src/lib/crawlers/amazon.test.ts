@@ -1,7 +1,7 @@
 const mockFetch = jest.fn()
 global.fetch = mockFetch
 
-import { crawlAmazonSearch, crawlAmazonProduct } from './amazon'
+import { crawlAmazonSearch, crawlAmazonProduct, resolveAmazonShortLink, isAmazonShortLink } from './amazon'
 
 const SEARCH_HTML = `
 <html><body>
@@ -71,5 +71,56 @@ describe('crawlAmazonProduct', () => {
   it('returns null when fetch fails', async () => {
     mockFetch.mockRejectedValue(new Error('network'))
     expect(await crawlAmazonProduct('BADASIN')).toBeNull()
+  })
+})
+
+describe('isAmazonShortLink', () => {
+  it('recognizes Amazon mobile-share short hosts', () => {
+    expect(isAmazonShortLink('https://amzn.asia/d/0hw5G7DL')).toBe(true)
+    expect(isAmazonShortLink('https://amzn.to/abc123')).toBe(true)
+    expect(isAmazonShortLink('amzn.asia/d/0hw5G7DL')).toBe(true) // no protocol
+    expect(isAmazonShortLink('https://a.co/d/xyz')).toBe(true)
+  })
+
+  it('does not treat full Amazon or Rakuten URLs as short links', () => {
+    expect(isAmazonShortLink('https://www.amazon.co.jp/dp/B0C7GQGGXK')).toBe(false)
+    expect(isAmazonShortLink('https://item.rakuten.co.jp/shop/123/')).toBe(false)
+    expect(isAmazonShortLink('not a url')).toBe(false)
+  })
+})
+
+describe('resolveAmazonShortLink', () => {
+  it('resolves a short link to its canonical /dp/<ASIN> URL via the redirect Location', async () => {
+    const canonical = 'https://www.amazon.co.jp/dp/B0C7GQGGXK?ref=cm_sw_r_cp_ud_dp_X&social_share=Y'
+    mockFetch.mockResolvedValue({
+      headers: { get: (h: string) => (h.toLowerCase() === 'location' ? canonical : null) },
+    })
+    const resolved = await resolveAmazonShortLink('https://amzn.asia/d/0hw5G7DL')
+    expect(resolved).toBe(canonical)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch.mock.calls[0][1].redirect).toBe('manual')
+  })
+
+  it('returns non-short URLs unchanged without fetching', async () => {
+    const full = 'https://www.amazon.co.jp/dp/B0C7GQGGXK'
+    const resolved = await resolveAmazonShortLink(full)
+    expect(resolved).toBe(full)
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the followed final URL when no Location header is present', async () => {
+    const canonical = 'https://www.amazon.co.jp/dp/B0C7GQGGXK'
+    mockFetch
+      .mockResolvedValueOnce({ headers: { get: () => null } })       // manual redirect: no Location
+      .mockResolvedValueOnce({ url: canonical, headers: { get: () => null } }) // follow: final url
+    const resolved = await resolveAmazonShortLink('https://amzn.to/abc123')
+    expect(resolved).toBe(canonical)
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('returns the original URL when resolution throws', async () => {
+    mockFetch.mockRejectedValue(new Error('network'))
+    const short = 'https://amzn.asia/d/0hw5G7DL'
+    expect(await resolveAmazonShortLink(short)).toBe(short)
   })
 })

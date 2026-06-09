@@ -9,6 +9,54 @@ const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
 }
 
+// Amazon's mobile "share" button produces shortened links (amzn.asia/d/XXXX,
+// amzn.to/XXXX, a.co/d/XXXX) that contain NO ASIN — they 301-redirect to the
+// canonical /dp/<ASIN> URL. The app's URL parser only recognizes amazon.co.jp,
+// so these must be resolved to the canonical URL before parsing.
+const AMAZON_SHORT_HOSTS = ['amzn.asia', 'amzn.to', 'amzn.eu', 'amzn.com', 'a.co']
+
+export function isAmazonShortLink(url: string): boolean {
+  try {
+    const u = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`)
+    return AMAZON_SHORT_HOSTS.includes(u.hostname.replace(/^www\./, ''))
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Resolves an Amazon mobile-share short link to its canonical /dp/<ASIN> URL.
+ * Non-short URLs (and unparseable input) are returned unchanged. On any network
+ * failure the original URL is returned, so the caller degrades to its normal
+ * "invalid URL" handling rather than breaking.
+ */
+export async function resolveAmazonShortLink(url: string): Promise<string> {
+  if (!isAmazonShortLink(url)) return url
+  const target = /^https?:\/\//i.test(url) ? url : `https://${url}`
+  try {
+    // The short-link host issues a 301 to the canonical URL. redirect:'manual'
+    // lets us read the Location header without loading the heavy, bot-protected
+    // product page.
+    const res = await fetch(target, {
+      redirect: 'manual',
+      headers: HEADERS,
+      signal: AbortSignal.timeout(8000),
+    })
+    const location = res.headers.get('location')
+    if (location) return location
+    // Some environments transparently follow the redirect; fall back to the
+    // final resolved URL.
+    const followed = await fetch(target, {
+      redirect: 'follow',
+      headers: HEADERS,
+      signal: AbortSignal.timeout(10000),
+    })
+    return followed.url || url
+  } catch {
+    return url
+  }
+}
+
 function parsePrice(text: string): number {
   const n = parseInt(text.replace(/[^0-9]/g, ''), 10)
   return isNaN(n) ? 0 : n
