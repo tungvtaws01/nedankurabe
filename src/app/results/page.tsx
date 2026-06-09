@@ -31,6 +31,7 @@ function ResultsContent() {
   const [livePointsLoading, setLivePointsLoading] = useState(false)
   const [crossSearching, setCrossSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [explanation, setExplanation] = useState<string | null>(null)
   const sseAbortRef = useRef<{ abort: () => void } | null>(null)
   // Incremented on every handleBack() or new load(); async callbacks check this
   // before applying results so stale responses can't flip the UI back.
@@ -44,6 +45,7 @@ function ResultsContent() {
       setLoading(true); setLoadingMessage('検索中…'); setError(null)
       setPickList([]); setRawResults([]); setAmazonPool([])
       setLivePointsLoading(false); setCrossSearching(false)
+      setExplanation(null)
 
       // URL lookup: use SSE stream so basic results appear fast, live points follow
       if (url) {
@@ -77,6 +79,7 @@ function ResultsContent() {
                   result?: ProductResult
                   cached?: boolean
                   message?: string
+                  text?: string
                 }
                 if (opIdRef.current !== opId) break
                 if (event.type === 'partial') {
@@ -105,6 +108,8 @@ function ResultsContent() {
                     setRawResults(prev => prev.map(r => r.platform === 'rakuten' ? event.result! : r))
                     setLivePointsLoading(false)
                   })
+                } else if (event.type === 'explanation') {
+                  setExplanation(event.text ?? null)
                 } else if (event.type === 'status') {
                   setLoadingMessage(event.message ?? '検索中…')
                 } else if (event.type === 'done') {
@@ -206,6 +211,7 @@ function ResultsContent() {
     sseAbortRef.current?.abort()
     const opId = ++opIdRef.current
     setError(null)
+    setExplanation(null)
 
     // Show tapped item immediately — comparison screen appears without waiting for API
     setRawResults([selected])
@@ -215,6 +221,7 @@ function ResultsContent() {
     try {
       let enrichedSource = selected
       let matchResult: ProductResult | null = null
+      let explanationText: string | null = null
 
       if (selected.platform === 'rakuten') {
         // Rakuten tap: crawl item page for live points, then match Amazon pool
@@ -223,9 +230,10 @@ function ResultsContent() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ source: selected, candidates: amazonPool }),
         })
-        const data = await res.json() as { source: ProductResult; result: ProductResult | null }
+        const data = await res.json() as { source: ProductResult; result: ProductResult | null; explanation?: string | null }
         enrichedSource = data.source ?? selected
         matchResult = data.result
+        explanationText = data.explanation ?? null
       } else {
         // Amazon tap: match against Rakuten pick-list
         const res = await fetch('/api/find-amazon', {
@@ -233,8 +241,9 @@ function ResultsContent() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ source: selected, candidates: pickList }),
         })
-        const data = await res.json() as { result: ProductResult | null }
+        const data = await res.json() as { result: ProductResult | null; explanation?: string | null }
         matchResult = data.result
+        explanationText = data.explanation ?? null
       }
 
       // User may have navigated back while the API call was in flight — discard stale result
@@ -242,6 +251,7 @@ function ResultsContent() {
       const results = [enrichedSource, ...(matchResult ? [matchResult] : [])]
         .sort((a, b) => a.effectivePrice - b.effectivePrice)
       setRawResults(results)
+      setExplanation(explanationText)
       setCrossSearching(false)
     } catch {
       if (opIdRef.current === opId) {
@@ -254,6 +264,7 @@ function ResultsContent() {
   function handleBack() {
     opIdRef.current++
     setMode('keyword-list'); setRawResults([]); setError(null)
+    setExplanation(null)
   }
 
   function handleToggles(t: UserToggles) {
@@ -262,6 +273,15 @@ function ResultsContent() {
   }
 
   const ranked = recalcWithToggles(rawResults, toggles)
+  // The bundled sentence reflects DEFAULT toggle settings. If a toggle changes the
+  // winner or the gap, the sentence's numbers would be stale → fall back to bullets.
+  const defaultRanked = recalcWithToggles(rawResults, DEFAULT_TOGGLES)
+  const winnerUnchanged =
+    ranked.length === 2 && defaultRanked.length === 2 &&
+    ranked[0].affiliateUrl === defaultRanked[0].affiliateUrl
+  const defaultGap = defaultRanked.length === 2 ? defaultRanked[1].effectivePrice - defaultRanked[0].effectivePrice : null
+  const currentGap = ranked.length === 2 ? ranked[1].effectivePrice - ranked[0].effectivePrice : null
+  const showSentence = !!explanation && winnerUnchanged && defaultGap === currentGap
 
   return (
     <main className="min-h-screen px-4 py-8 max-w-lg mx-auto">
@@ -331,7 +351,11 @@ function ResultsContent() {
             </div>
           )}
           {ranked.length === 2 && (
-            <PriceExplanation winner={ranked[0]} loser={ranked[1]} />
+            <PriceExplanation
+              winner={ranked[0]}
+              loser={ranked[1]}
+              explanation={showSentence && explanation ? explanation : undefined}
+            />
           )}
           {ranked.map((r, i) => (
             <ProductCard
