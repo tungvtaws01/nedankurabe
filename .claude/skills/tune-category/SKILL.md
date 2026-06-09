@@ -48,8 +48,10 @@ reviewed commit afterward.
 
 ## Guardrails / lessons
 
-- Amazon JP titles come back **English-translated** → put an English→Japanese brand/line/model
-  map *inside* the prompt so the keyword is Japanese.
+- Amazon JP now returns **Japanese** titles (since the `proxyFetch` fix forwarding
+  `Accept-Language: ja` to scrape.do). The English→JP maps in the existing 10 prompts are now
+  redundant safety — new prompts should assume Japanese Amazon titles. If English Amazon titles
+  reappear, header forwarding in `src/lib/crawlers/proxy-fetch.ts` regressed.
 - Rakuten **zeros out on over-specification** → keep the keyword tight (brand + line/model +
   type + size); drop counts/marketing/colors; write sizes in full form (`Mサイズ`, not `M`).
 - **Know when it's not the keyword.** If the keyword already ranks the correct product #1 but

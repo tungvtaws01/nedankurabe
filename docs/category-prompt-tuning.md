@@ -78,8 +78,12 @@ source is *from*; it searches the other one.
 
 ## Reusable lessons
 
-- **Amazon JP titles come back English-translated** — put an English→Japanese
-  brand / line / model map *inside* the prompt so the keyword comes out Japanese.
+- **Amazon JP returns Japanese titles** (since the `proxyFetch` fix forwarding
+  `Accept-Language: ja` to scrape.do — before that Amazon localized to English and the
+  prompts needed English→Japanese maps to compensate). The English→JP maps still in the
+  10 tuned prompts are now redundant safety, not load-bearing — new prompts should assume
+  Japanese Amazon titles. If English Amazon titles reappear, the header forwarding in
+  [`src/lib/crawlers/proxy-fetch.ts`](../src/lib/crawlers/proxy-fetch.ts) has regressed.
 - **Rakuten zeros out on over-specification** — keep the keyword tight
   (brand + line/model + type + size). Drop counts, marketing, colors. Write letter
   sizes in full form (`Mサイズ`, not bare `M`).
