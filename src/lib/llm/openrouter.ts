@@ -99,8 +99,12 @@ HIGH (all must match):
   · General: treat any size or stage difference as a mismatch
 
 MEDIUM (minor difference is acceptable):
-- Count / sheet count (e.g. 82枚 vs 84枚 ok; 84枚 vs 200枚 not ok)
-- Pack format for same volume (e.g. 1 box of 60 bags vs 2 boxes of 30 bags)
+- Count: compare the TOTAL pieces = per-unit count × number of packs/boxes.
+  · Minor differences are fine (82枚 vs 84枚; 264 vs 248).
+  · Same total in a different pack format is fine (1 box of 60 vs 2 boxes of 30 = 60 total).
+  · But a LARGE total mismatch is a MISMATCH: a single box (e.g. 52枚, 66枚) is NOT
+    equivalent to a multi-pack case (e.g. 264枚 = 66枚×4パック / ケース品 / "Case Product").
+    Reject when the totals differ by more than ~1.5×.
 - N/A for products with no count dimension (carriers, strollers, single-unit items)
 
 LOW (may differ freely):
