@@ -1,4 +1,5 @@
 import { ProductResult } from '@/lib/types'
+import { CATEGORIES, CATEGORY_PROMPTS, UNIVERSAL_PROMPT, type Category } from './category-prompts'
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
@@ -22,76 +23,6 @@ async function callLLM(messages: { role: string; content: string }[]): Promise<s
   if (!res.ok) throw new Error(`OpenRouter ${res.status}`)
   const data = await res.json() as { choices: { message: { content: string | null } }[] }
   return data.choices[0]?.message?.content?.trim() ?? ''
-}
-
-// Category taxonomy — discovered from Amazon JP + Rakuten (scripts/taxonomy.md).
-// CATEGORIES is the single source of truth; Category is derived from it so the
-// runtime list and the type can never drift apart.
-const CATEGORIES = [
-  'diapers', 'wipes', 'formula', 'bottles', 'baby_food',
-  'carriers', 'strollers', 'car_seats', 'skincare', 'bath',
-] as const
-
-export type Category = typeof CATEGORIES[number]
-
-type PromptBuilder = (platform: string, title: string) => string
-
-// Today's prompt, preserved verbatim as the fallback for unknown/low-confidence titles.
-const UNIVERSAL_PROMPT: PromptBuilder = (platform, title) => `Extract a search keyword for ${platform} Japan.
-Keep in this priority order:
-1. Brand name (e.g. パンパース, メリーズ, Ergobaby, 明治ほほえみ — keep full brand name)
-2. Product line / model name — highest priority after brand, never drop it
-   (e.g. さらさらケア, OMNI Breeze, らくらくキューブ, ハイハイン, ADAPT)
-3. Product type (e.g. テープ, パンツ, 抱っこひも, 粉ミルク, 離乳食)
-4. Size / weight / volume from the product name — critical, always keep
-   (e.g. 新生児, Sサイズ, 5kgまで, 800g, 540g, 60袋)
-   Do NOT invent stage/age from context — only use what is in the title itself.
-5. Count only if it distinguishes the product (e.g. 84枚, 20袋)
-
-Remove: colors, promotional text, order codes (B0xxx, CREGBCZ, ASIN), shop names, adjectives like 送料無料/新作/おすすめ/期間限定.
-Output plain text only, max 8 words.
-
-Title: ${title}`
-
-// Empirically tuned diapers (おむつ) prompt — see scripts/taxonomy.md "diapers tuning"
-// (validated end-to-end 10/10 via scripts/probe-keyword.ts). Body mirrors
-// scripts/prompts/diapers.txt with {{platform}}→${platform} and {{title}}→${title}.
-const DIAPERS_PROMPT: PromptBuilder = (platform, title) => `Extract a search keyword for ${platform} Japan for this DIAPER (おむつ) product.
-
-Output Japanese keywords in this exact priority order, space-separated:
-1. Brand (Japanese): パンパース / メリーズ / ムーニー / ムーニーマン / グーン / マミーポコ / ゲンキ / ナチュラルムーニー
-   (English to JP: Pampers=パンパース, Merries/Merys/Melys=メリーズ, Moony=ムーニー, Moonyman/Moony Man=ムーニーマン, Goo.n/Goon=グーン, Mamy Poko=マミーポコ, Genki=ゲンキ)
-2. Product line / tier (Japanese) — NEVER drop, NEVER generalize. Map English to JP:
-   - Pampers "Smooth Care"/"Sarasara"=さらさらケア ; "First Skin"/"Baby's First Skin"=はじめての肌へのいちばん ; "Silky Touch"=さらさらケア
-   - Merries "First Premium"=ファーストプレミアム ; "Air Through"/"Sarasara Air Through"=エアスルー
-   - Moony "Marshmallow Skin"=マシュマロ肌ごこち ; "Natural Moony"/"Organic Cotton"=ナチュラルムーニー
-   - Goon "Super Absorbent"/"Gungun"=ぐんぐん吸収
-   さらさらケア and はじめての肌へのいちばん are DIFFERENT tiers — keep whichever appears.
-3. Type: テープ (tape) or パンツ (pants). Always include.
-4. Size/weight — write letter sizes in FULL form with サイズ, never a bare letter:
-   新生児 / Sサイズ / Mサイズ / Lサイズ / ビッグサイズ (NOT bare "S"/"M"/"L" — Rakuten shop titles use the サイズ suffix and a bare letter returns nothing).
-   If there is no letter size, use the kg range as written (e.g. 5kgまで, 6-11kg).
-   Use ONLY what is in the title. Do NOT invent.
-
-Do NOT include: count (枚/枚数/袋), pack/case wording, ウルトラジャンボ/UJ/大容量/ケース品/まとめ買い, colors, Disney/character names, order codes (B0xxx/ASIN), shop names, 送料無料/限定/Amazon.co.jp.
-
-Output plain Japanese keywords only, no English, max 6 words.
-
-Title: ${title}`
-
-// Per-category prompts. Each starts as UNIVERSAL_PROMPT and is replaced with a
-// tuned builder during empirical tuning (later task). Keys MUST match CATEGORIES.
-const CATEGORY_PROMPTS: Record<Category, PromptBuilder> = {
-  diapers: DIAPERS_PROMPT,
-  wipes: UNIVERSAL_PROMPT,
-  formula: UNIVERSAL_PROMPT,
-  bottles: UNIVERSAL_PROMPT,
-  baby_food: UNIVERSAL_PROMPT,
-  carriers: UNIVERSAL_PROMPT,
-  strollers: UNIVERSAL_PROMPT,
-  car_seats: UNIVERSAL_PROMPT,
-  skincare: UNIVERSAL_PROMPT,
-  bath: UNIVERSAL_PROMPT,
 }
 
 export async function classifyCategory(title: string): Promise<Category | 'unknown'> {
