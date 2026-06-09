@@ -4,6 +4,8 @@ import { crawlAmazonProduct } from '@/lib/crawlers/amazon'
 import { findEquivalent } from '@/lib/matching/find-equivalent'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult, SearchResponse } from '@/lib/types'
+import { explainPriceDifference } from '@/lib/llm/openrouter'
+import { pickWinnerLoser } from '@/lib/price/explain'
 import { MOCK_RESULTS } from '@/lib/mock-data'
 function extractTitleFromAmazonUrl(url: string): string | null {
   try {
@@ -96,8 +98,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   if (results.length > 0) await setCached(cacheKey, results).catch(() => {})
+  let explanation: string | undefined
+  if (results.length === 2) {
+    const { winner, loser } = pickWinnerLoser(results[0], results[1])
+    explanation = (await explainPriceDifference(winner, loser).catch(() => null)) ?? undefined
+  }
   return NextResponse.json({
     mode: 'comparison', rakutenResults: [], amazonResults: [],
-    results, query: url, cached: false,
+    results, query: url, cached: false, explanation,
   } satisfies SearchResponse)
 }

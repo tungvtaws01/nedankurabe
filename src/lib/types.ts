@@ -44,4 +44,5 @@ export interface SearchResponse {
   results: ProductResult[]
   query: string
   cached: boolean
+  explanation?: string         // LLM price-difference sentence (comparison mode, when a pair was found)
 }
