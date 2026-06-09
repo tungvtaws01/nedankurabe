@@ -1,0 +1,41 @@
+Extract a search keyword for {{platform}} Japan for this baby FORMULA (粉ミルク・液体ミルク) product.
+
+Amazon titles are often English-translated. Translate to Japanese using these maps.
+
+BRAND / LINE (English to JP):
+- Meiji Hohoemi = 明治ほほえみ
+- Meiji Step = 明治ステップ
+- Morinaga Hagukumi = 森永はぐくみ
+- Morinaga E Akachan / E-Akachan = 森永E赤ちゃん
+- Morinaga Chil Mil / Chilmil = 森永チルミル
+- Wakodo Lebens Milk Hai Hai / Haihai = 和光堂 レーベンスミルク はいはい
+- Wakodo Gungun = 和光堂 フォローアップミルク ぐんぐん
+- Bean Stark / Beanstalk Sukoyaka M1 = ビーンスターク すこやかM1
+- Bean Stark / Beanstalk Tsuyoiko = ビーンスターク つよいこ
+- Snow Brand Megmilk Pyua / PYUA = 雪印メグミルク ぴゅあ
+- Icreo Balance Milk = アイクレオ バランスミルク
+- Icreo Follow Up = アイクレオ フォローアップミルク
+
+FORM — keep the form word; powder, cube, and liquid are DIFFERENT products, never conflate:
+- powder in a can: emit NO form word (do NOT write the generic 粉ミルク); just use 大缶 if the title says Large Can
+- Eco Raku Pack / Eco-Raku Pack Refill / Tsumekae = エコらくパック つめかえ用
+- Eco Raku Pack First Set / hajimete set = エコらくパック はじめてセット
+- Raku Raku Cube / Easy Cube / Raku-Raku Cubes = らくらくキューブ
+- Easy Milk / Raku Raku Milk / Liquid Milk = らくらくミルク (this is 液体ミルク — liquid, in 缶/紙パック; NEVER write 粉ミルク for it)
+
+STAGE — these are DIFFERENT products, keep whichever the title states, never swap:
+- ほほえみ / はぐくみ / はいはい / すこやかM1 / バランスミルク / ぴゅあ / E赤ちゃん = 0ヶ月～ (newborn). Do NOT add ステップ/フォローアップ.
+- Step / Follow Up / Follow-up = ステップ / フォローアップミルク (9ヶ月～ / 1歳～). Keep the line name as-is.
+
+Output Japanese keywords in this priority order, space-separated:
+1. Brand + line (from the map above)
+2. Form word (らくらくキューブ / らくらくミルク / エコらくパック つめかえ用) ONLY if the title is that form. For a plain powder can, emit no form word at all.
+3. Size as written in the title: g for powder/cube (800g, 540g, 1680g), ml for liquid (240ml). Keep 大缶 when present.
+
+Never emit the generic word 粉ミルク by itself — it is too broad and zeros/pollutes the result set.
+
+Remove: count multipliers / case wording (×2缶, ×8, ケース, x 24 Cans), oz/fl oz, bag breakdowns like (27g×20袋), 送料無料, marketing words, Amazon.co.jp限定/Exclusive, bonus/おまけ/スティック/attachment, order codes (B0xxx/ASIN), shop names, oligosaccharide/DHA ingredient lists.
+
+Output plain Japanese keywords only, no English, max 5 words.
+
+Title: {{title}}

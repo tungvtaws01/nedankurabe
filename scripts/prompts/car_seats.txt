@@ -1,0 +1,56 @@
+Extract a search keyword for {{platform}} Japan for this CHILD CAR SEAT (チャイルドシート / ジュニアシート / ベビーシート) product.
+
+Amazon JP titles are often English-translated; Rakuten titles are katakana. Translate to Japanese and output Japanese ONLY.
+
+The decisive fields are BRAND + EXACT MODEL + INSTALL (ISOFIX vs シートベルト固定) + AGE GROUP. The model name is the single most important token — NEVER drop it, NEVER generalize it, NEVER swap a similar model.
+
+BRANDS (English to JP) — always keep:
+- Aprica = アップリカ
+- Combi = コンビ
+- Cybex = サイベックス
+- Joie = ジョイー
+- Recaro = レカロ
+- Maxi-Cosi = マキシコシ
+- Graco = グレコ
+- Takata = タカタ
+- AileBebe / Ailbebe / Elbebe / Carmate = エールベベ
+- Leaman = リーマン
+- Nishimatsuya = 西松屋
+
+MODEL / LINE (English to JP) — pick the ONE that appears; Amazon spells these many ways, all map to the same katakana:
+Aprica:
+- Cururila / Crurilla / Kururilla / KuruRila / Kururia / Cururia = クルリラ ; keep the grade word EXACTLY — these are DIFFERENT models, never merge: "X Plus" = エックスプラス ; "Plus Light" / "+ Lite" = プラスライト ; "Bright" / "Prite" = プライト ; "Light" (alone) = ライト
+- Fradia / Fladia / FradiaGrow / Fladea / Fradia Grow = フラディア ; "Fradia Grow" = フラディアグロウ
+- Dearturn = ディアターン
+- Reride = リライド
+Combi:
+- Kurumove / Crew Move / Culmove = クルムーヴ ; "Compact" = コンパクト ; "Long" = ロング ; keep エッグショック if present
+- Neroom = ネルーム
+- Joytrip = ジョイトリップ
+Cybex:
+- Cloud = クラウド ; Sirona = シローナ ; Aton = エイトン (keep grade like T / G / Z2 if present)
+Joie:
+- Arc / I-Arc / Eye Arc = アイアーク ; Tilt = チルト ; Elevate = エレベート ; I-Pivot = アイピボット ; I-Avana / I-Irvana = アイアバーナ
+Graco:
+- Junior Plus / Junior Plus Next = ジュニアプラス (keep ネクスト if "Next") ; G-Junior = Gジュニア
+AileBebe:
+- Kurutto / Cruit / Kurt = クルット ; "Kurt R" / "Cruit R" = クルットR ; "The First 2" = ザファースト2 ; "Grand 2" / "Grans 2" = グランス2 ; "Slide" = クルットスライド
+
+INSTALL — keep exactly what the title states; ISOFIX and シートベルト固定 are DIFFERENT products, never swap or invent:
+- "ISOFIX" / "Isofix" / "アイソフィックス" = ISOFIX
+- "Seat Belt Fixed" / "Belt Fixed" / "シートベルト固定" = シートベルト固定
+
+AGE GROUP — keep only if the title states it (newborn seat vs booster are different products):
+- "Newborn" / 新生児 = 新生児 ; "Junior Seat" / "Booster" / ジュニアシート = ジュニアシート
+
+Output Japanese keywords in this priority order, space-separated:
+1. Brand (Japanese, from map) — always include.
+2. Exact model / line (Japanese katakana, from map) — always include, this is the decisive field.
+3. Install — ISOFIX or シートベルト固定 — only the one the title states.
+4. Age group word ジュニアシート ONLY for booster / junior seats (the title's primary type is "Junior Seat" / "Booster" with no newborn use, e.g. Graco Junior Plus). Do NOT add ジュニアシート to a newborn/rotating seat even if the marketing text mentions ジュニアシート — it over-narrows the result set.
+
+Keep the keyword TIGHT — brand + model + install is usually 3-4 tokens. Over-specifying (color, year/2024/2025 Model, R129, weight/age ranges like 新生児～4歳, 回転式, marketing 正規品/送料無料/保証, order codes B0xxx / 7-digit numbers / BF136, shop names) shrinks or zeroes the Rakuten result set — do NOT add them. There is NO count dimension for car seats — never add 個/台/セット.
+
+Output plain Japanese keywords only, no English, no punctuation. Max 5 words.
+
+Title: {{title}}

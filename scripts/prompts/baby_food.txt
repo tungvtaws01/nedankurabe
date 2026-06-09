@@ -1,0 +1,54 @@
+Extract a search keyword for {{platform}} Japan for this BABY FOOD / weaning product (離乳食・ベビーフード).
+
+Amazon JP titles are often English-translated. Translate to Japanese using these maps.
+
+BRAND (English to JP):
+- Wakodo = 和光堂
+- Kewpie / Kiewpy = キユーピー
+- Pigeon = ピジョン
+- Meiji = 明治
+- Glico = グリコ
+- Kameda / Kameda Seika = 亀田製菓
+- Edison / Edisonmama = エジソンママ
+
+PRODUCT LINE (English to JP) — never drop, this is decisive:
+- Goo Goo Kitchen / GooGoo Kitchen / Goo Kitchen / Plenty of Ingredients = グーグーキッチン
+- Nutrition Marche / Nutritional Marche / Nutrition Marché = 栄養マルシェ
+- BIG Nutrition Marche / Big Size Nutrition Marche / ビッグサイズの栄養マルシェ = BIG栄養マルシェ
+- Tezukuri Ouen / Homemade Support = 手作り応援
+- Nico Nico Box / Niko Niko Box / Smile Box / Smiling Box = にこにこボックス
+- Dietary Management Recipe / Dietary Recipes / Specialty Recipes / Feeding Recipes = 管理栄養士のこだわりレシピ
+- Food Education Recipe / Nutritional Education Recipe / Educational Recipes = 食育レシピ
+- High Hine / Haihin / Haihain = ハイハイン
+- Vegetable High Hine / Vegetable Haihain = 野菜ハイハイン
+- Baby Snack / Baby Treats / 赤ちゃんのおやつ = 赤ちゃんのおやつ
+
+FORM / TYPE — keep the form word, these are DIFFERENT products:
+- pouch / レトルト パウチ = パウチ
+- jar / 瓶 = 瓶
+- cup / カップ = カップ
+- powder / 粉末 = 粉末
+- snack / rice cracker / senbei / おやつ / せんべい = おやつ
+
+AGE STAGE — DIFFERENT products, keep whichever the title states, never swap:
+- 5 Months = 5ヶ月 ; 7 Months = 7ヶ月 ; 9 Months = 9ヶ月 ; 12 Months = 12ヶ月 ; 1 Year and 4 Months = 1歳4ヶ月
+Output age as Nヶ月 (or 1歳4ヶ月). Only use what the title states.
+
+Output Japanese keywords in this priority order, space-separated:
+1. Brand (Japanese, from map) — always keep.
+2. Product line (Japanese, from map) — NEVER drop. Lines are different products.
+3. Age stage (Nヶ月 / 1歳4ヶ月) if the title states it.
+4. SNACKS ONLY (おやつ / せんべい / cookies / biscuits / ウェハース / クッキー / ビスケット):
+   ALSO keep the flavor/variety word — for snacks the flavor IS the distinguishing
+   attribute (バナナクッキー ≠ かぼちゃクッキー ≠ ミルクウェハース ≠ チーズスティック).
+   Translate snack flavors: Banana Cookies = バナナクッキー, Pumpkin Cookies = かぼちゃクッキー,
+   Cheese Stick = チーズスティック, Milk Wafers = ミルクウェハース, Biscuit = ビスケット.
+   Never collapse a snack to just brand + age.
+
+For NON-snack meals/bento: keep the keyword TIGHT — brand + line + age is enough. Do NOT add the dish/flavor name; over-specifying zeros the Rakuten result set.
+
+Remove (NON-snack only): flavor/variety descriptions (rice/fish/vegetable dish names), counts and set wording (16 Types x 2, 3 Servings, Assorted, Eating Comparison Set, 詰め合わせ, セット, ×2個, 80g×2), weights (80g, 70g, oz), bonus/おまけ/tissue/spoon/gauze, 送料無料/限定/出産祝い, order codes (B0xxx/ASIN/NA-75), shop names, generic filler (赤ちゃん, 幼児食, レトルト, ベビーフード alone, Made in Japan).
+
+Output Japanese keywords only, no English, max 5 words.
+
+Title: {{title}}

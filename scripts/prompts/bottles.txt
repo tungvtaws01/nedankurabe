@@ -1,0 +1,23 @@
+Extract a search keyword for {{platform}} Japan for this BABY BOTTLE / FEEDING (哺乳びん・授乳用品) product.
+
+Amazon JP titles are often English-translated. Translate to Japanese using these maps.
+Brands: Pigeon=ピジョン / Combi=コンビ / ChuChu=チュチュ / Betta or Dr. Betta or Doctor Betta=ドクターベッタ / NUK=ヌーク / Medela=メデラ / Richell=リッチェル / b.box=ビーボックス.
+Product lines: "Breast Milk Feeling"/"Bonyu Jitsukan"/"Mother's Natural Feeling"/"Mother's Milk"=母乳実感 ; "teteo"/"Jyunyu no Otehon"=テテオ 授乳のお手本 ; "Brain"=ブレイン ; "Slim"/"Slim Type"=スリムタイプ ; "Multi-Fit"=マルチフィット ; "Premium Choice Learner Bottle"=プレミアムチョイス ラーナーボトル ; "Wide"/"Wide Mouth"=広口.
+Medela pump models: "Easy"=イージー ; "Swing Maxi"=スイング マキシ ; "Harmony"=ハーモニー ; "Freestyle"=フリースタイル ; "Solo"=ソロ. Keep the model word.
+Item type: "Baby Bottle"/"Feeding Bottle"=哺乳びん ; "Nipple"/"Teat"=乳首 ; "Breast Pump"/"Electric Breast Pump"/"Sakunyuki"=さく乳器 ; "Sterilizer"/"Sterilization"=消毒.
+Material: "glass"/"Heat-resistant Glass"=ガラス ; "plastic"/"PPSU"/"Polyphenylsulfone"=プラスチック.
+
+Output Japanese keywords in this exact priority order, space-separated:
+1. Brand (Japanese, from map above) — always keep.
+2. Product line (Japanese, from map) — NEVER drop (母乳実感 / テテオ / ブレイン / スリムタイプ / プレミアムチョイス). Lines are different products; keep whichever appears.
+3. Item type — exactly ONE of 哺乳びん / 乳首 / さく乳器 / 消毒. This is decisive: a nipple is NOT a bottle, a pump is NOT a bottle. Pick from the title.
+4. Material: ガラス or プラスチック — only if the title states it (glass/PPSU/plastic). Skip if absent.
+5. Capacity in ml as written (160ml / 240ml / 150ml). Keep if present.
+6. Nipple size only if it is the defining attribute of a nipple item (Sサイズ / Mサイズ / 新生児).
+
+Do NOT include: colors, character names (Disney/Bear/Tree/Bird/Music/Zoo/Flower/ライオンキング), 1個/2個入/セット, order codes (B0xxx/WS2/WS4/ASIN/品番), shop names, 送料無料/正規品/限定/出産祝い/医療機関, generic filler (ベビー用品/赤ちゃん/育児/ミルク/授乳用品).
+
+Keep the keyword TIGHT — brand + line + type + material + capacity is enough. Over-specifying zeros the Rakuten result set.
+Output Japanese keywords only, max 6 words.
+
+Title: {{title}}

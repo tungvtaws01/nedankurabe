@@ -1,0 +1,43 @@
+Extract a search keyword for {{platform}} Japan for this BABY SKINCARE (ベビースキンケア) product.
+
+The Amazon title may be English-translated. Translate to Japanese and output Japanese ONLY.
+
+Output Japanese keywords in this exact priority order, space-separated:
+
+1. Brand (Japanese). Map English to JP:
+   - Alobaby/Aloe Baby/ALOBABY = アロベビー
+   - Pigeon = ピジョン ; Atopita = アトピタ ; Curel = キュレル
+   - Johnson/Johnson's = ジョンソン ; Merries = メリーズ
+   - Mama&Kids/Mama and Kids = ママ&キッズ ; Weleda/WELEDA = ヴェレダ
+   - arau.baby/Arau Baby = アラウベビー ; Wakodo = 和光堂
+   - Kenei (Baby Vaseline) = ベビーワセリン (the product name IS the anchor; drop maker 健栄製薬/Kenei)
+   - Minon = ミノン ; Cow/牛乳石鹸 = 牛乳石鹸
+   If brand is unknown, use the product-type word as the anchor.
+
+2. Product line / variant (Japanese) — KEEP whichever appears, map English to JP:
+   - Alobaby "Milk Lotion" = ミルクローション ; "UV Moist Milk"/"UV & Outdoor" = UVモイストミルク ; "Mushiyoke"/insect = 虫除け
+   - Pigeon "Baby Milk Lotion"/"Baby Mill Lotion" = ベビーミルクローション ; "うるおいプラス"/"Uruoi Plus"/"Moisture Plus" = うるおいプラス ; "Momonolea"/"Momonoha"/"Momonoba"/"Peppermint Leaf"/"Peach Leaf"/"Thigh Leaves" = ももの葉 (this is a 薬用ローション; emit ピジョン ももの葉 + size, do not add a separate ローション token)
+   - Atopita "Moisturizing Whole/Full Body Milk/Milky Lotion" = 保湿全身ミルキィローション ; "Moisturizing Whole/Full Body Foaming/Foam Soap" = 保湿全身泡ソープ ; "Baby Lotion" = ベビーローション乳液
+   - Weleda "Calendra/Calendula" = カレンドラ ; "Calendra Baby Milk Lotion" = カレンドラ ベビーミルクローション ; "Calendra Baby Oil" = カレンドラ ベビーオイル ; "Calendra Baby Wash & Shampoo" = カレンドラ ベビーウォッシュ&シャンプー
+   Keep ONLY the line that literally appears. Do NOT add a line word that is not in the title.
+   For Weleda, the full type word (ミルクローション / ベビーオイル / ウォッシュ) is part of the line — keep it, do NOT shorten ミルクローション to just ローション.
+
+3. Product TYPE (Japanese) — VERY DECISIVE, must match. A lotion is NOT a UV is NOT a wash.
+   Map English to JP and ALWAYS include the one the title states:
+   - Lotion/Milk Lotion/Milky Lotion = ローション (or ミルクローション if line above already says so — do not duplicate)
+   - Cream = クリーム ; Milk (body milk) = ミルク
+   - Sunscreen/UV/UV Milk/UV Cream = UV ; or 日焼け止め
+   - Foam Soap/Foaming Soap/Body Wash/Wash = 泡ソープ ; Shampoo = シャンプー
+   - Baby Oil/Oil = ベビーオイル ; Gel = ジェル ; Balm = バーム ; Vaseline = ワセリン
+   If the line word in step 2 already encodes the type (e.g. ミルクローション, 泡ソープ, ベビーオイル), do not add a redundant type word.
+
+4. Size (ml or g) exactly as written in the title (e.g. 380ml, 300g, 200ml, 350ml, 100g, 120ml).
+   Convert fl oz / oz back to the ml/g the title gives in parentheses; use that ml/g value.
+   Always keep size — it separates本体 from つめかえ sizes.
+
+Do NOT include: つめかえ/詰替/Refill, セット/set/×N本/2本/Bottles, 送料無料/限定/まとめ買い/大容量/お徳用, オーガニック/無添加/無香料/敏感肌/弱酸性/低刺激/保湿 marketing claims, SPF/PA values, scent variants (微香性/無香料/Gentle Aroma), Disney/character/Hello Kitty names, [Amazon.co.jp Exclusive], order codes (B0xxx/ASIN), shop/maker names.
+
+Keep it TIGHT: brand + line + type + size = at most 5 tokens. Over-specifying zeroes out Rakuten.
+Output plain Japanese keywords only, no English, no punctuation.
+
+Title: {{title}}

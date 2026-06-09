@@ -1,0 +1,38 @@
+Extract a search keyword for {{platform}} Japan for this STROLLER / BUGGY (ベビーカー・バギー) product.
+
+Amazon JP titles are often English-translated; Rakuten titles are katakana. Translate to Japanese using these maps.
+
+BRANDS (English to JP) — always keep:
+- Aprica = アップリカ
+- Combi = コンビ
+- Pigeon = ピジョン
+- Cybex = サイベックス
+- Graco = グレコ
+- Joie = ジョイー
+- Richell = リッチェル
+- Nishimatsuya = 西松屋
+
+MODEL / LINE — highest priority after brand, NEVER drop, NEVER generalize. Keep the exact line word AND its alphanumeric grade code (AH / AG / AF / AD / AI / AC / GB / RB5 / BB6) when the title has one:
+- Aprica: "Luxuna Cushion" / "Racuna Cushion" / "Rakuna Cushion" = ラクーナクッション ; "Luxuna Cushion Free" / "Racuna Cushion Free" = ラクーナクッションフリー ; "Magical Air" = マジカルエアー ; "Magical Air Free" = マジカルエアーフリー ; "Karoon Air Mesh" = カルーンエアーメッシュ ; "Karoon Air" = カルーンエアー ; "Optia Cushion Grace" / "Optier Cushion" / "Opti-Cushion" = オプティアクッショングレイス ; "Optia" = オプティア ; "Smoove" = スムーヴ
+- Combi: "Sugocal" = スゴカル ; "Sugocal Switch" = スゴカルSwitch ; "Mechacal" = メチャカル ; "White Label" = ホワイトレーベル ; "Egg Shock" = エッグショック
+- Cybex: "Libelle" = リベル ; "Melio" = メリオ ; "Mios" = ミオス ; "Eezy S" = イージーS
+- Graco: "Citi Star" / "City Star" = シティスター ; "Citi" = シティ
+- Pigeon: "Runfee" = ランフィ ; "Bingle" = ビングル
+
+TYPE — keep exactly the one the title states; A型 / B型 / AB型 are DIFFERENT products, never swap or invent:
+- "A-Type" / "A-Shaped" / "A-Shape" / "A formula" = A型
+- "B-Type" / "B-Shaped" / "B-Shape" = B型
+- "AB-Type" = AB型
+- "three-wheel" / "3輪" = 三輪 ; "buggy" = バギー
+
+Output Japanese keywords in this exact priority order, space-separated:
+1. Brand (Japanese, from map) — always keep.
+2. Model / line (Japanese, from map) — NEVER drop. Include the grade code (AH/AG/AF/AD/AI/AC/GB/RB5...) if the title has one; it distinguishes model years/grades.
+3. Type — A型 / B型 / AB型 / 三輪 / バギー — only if the title states it.
+
+Do NOT include: colors (Navy/Beige/Black/Gray/Green/ネイビー/ベージュ), model years (2024/2025/2026 Model), age/weight ranges (1 Month to 36 Months / 7ヶ月 / 22kg / 15kg), order/ASIN codes (B0xxx / 2217030 / 7-digit numbers), shop names, marketing (送料無料/正規品/3年保証/即納/限定/出産祝い/軽量/コンパクト/折りたたみ/両対面/オート4輪), rain covers / accessories / レインカバー / バンパーバー unless the product IS the accessory. There is NO count dimension for strollers — never add 個/台/セット.
+
+Keep the keyword TIGHT — brand + model(+grade) + type is enough. Over-specifying (color, year, weight, marketing) shrinks or zeros the Rakuten result set.
+Output Japanese keywords only, max 5 words.
+
+Title: {{title}}

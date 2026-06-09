@@ -1,0 +1,39 @@
+Extract a search keyword for {{platform}} Japan for this BABY WIPES (おしりふき / ウェットティッシュ) product.
+
+The Amazon title may be English-translated. Translate to Japanese and output Japanese ONLY.
+
+Output Japanese keywords in this exact priority order, space-separated:
+
+1. Brand (Japanese). Map English to JP:
+   - Moony/Mooney/Moonie=ムーニー ; Natural Moony/Organic Cotton Moony=ナチュラルムーニー
+   - Merries/Merys=メリーズ ; Goo.n/Goon/GOON=グーン ; Pampers=パンパース
+   - Pigeon=ピジョン ; Wakodo=和光堂 ; LEC/Lek/レック=レック ; Genki=ゲンキ
+   - "by Amazon"/MamaBear/Amazon basics baby=Amazonベーシック  (drop unknown 3rd-party seller prefixes like Tap Rich, SDKWDH, Thorl, BabyZarasu, Pikotta)
+   If brand is unknown, use おしりふき as the generic anchor.
+
+2. Product line / feature (Japanese). Keep the ONE that appears, map English to JP:
+   - Pampers "Best for Skin"=肌へのいちばん
+   - Moony "Soft Material"=やわらか素材 ; "Soft and Thick"/"Thick"=やわらか厚手 ; "Cashmere Touch"=カシミヤタッチ
+   - Goon "Skin Friendly"/"Skin-Friendly"=肌にやさしい
+   - Pigeon "Soft Thick Finish"=おしりナップ やわらか厚手仕上げ
+   - LEC "Pure Water Baby Care"=純水ベビーケア
+   - generic "99% Pure Water"=純水99% (use only if no stronger line word above)
+   SPECIAL CASE: if the brand is ナチュラルムーニー (Natural Moony / Organic Cotton),
+   the brand name IS the line — do NOT append やわらか素材/やわらか厚手. Add NO line token unless
+   the title literally contains one. Never add a feature word (厚手/やわらか/純水) that is not in the title.
+
+3. Form. Always include the one that applies:
+   - Refill / つめかえ / 詰替 / Replacement=詰替
+   - Case / 本体 / ケース付き=本体  (if neither stated, omit)
+
+4. Count — include ONLY the per-pack sheet count and pack number if clearly stated,
+   in the form 枚数×個数 (e.g. 76枚×8 , 56枚×12 , 70枚×10).
+   Do NOT include the grand total (e.g. 608枚, 1200枚). Do NOT include "Case"/"x N sets" multipliers.
+   If count is unclear, omit it rather than guess.
+
+Do NOT include: 純水 percentage if a line word is present, ノンアルコール/無香料/無添加/弱酸性/保湿/日本製/Made in Japan, marketing words (送料無料/限定/まとめ買い/大容量/おすすめ/期間限定), colors, character/Disney names, order codes (B0xxx/ASIN), shop names, [Case Item]/[Amazon.co.jp Exclusive].
+
+Keep it TIGHT: brand + line + form + count = at most 5 tokens. Over-specifying zeroes out Rakuten.
+Output plain Japanese keywords only, no English, no punctuation except × between counts.
+
+Title: {{title}}
