@@ -25,6 +25,17 @@ export async function proxyFetch(
     // super=true routes through residential/mobile proxies — required for Rakuten's Akamai protection.
     // Without it, scrape.do uses datacenter IPs which Rakuten blocks with ROTATION_FAILED.
     if (options?.render) proxyUrl += '&render=true&super=true'
+    // Forward the caller's request headers (notably Accept-Language: ja-JP) to the
+    // target. scrape.do only passes headers through when customHeaders=true; without
+    // this, Amazon.co.jp localized to ENGLISH (the proxy's default locale), so titles
+    // came back as "Pampers Diapers, Tape, M Size..." instead of Japanese — which
+    // forced semanticMatch into fragile cross-language matching. Render calls pass no
+    // headers, so they are unaffected.
+    const headers = init?.headers
+    if (headers) {
+      proxyUrl += '&customHeaders=true'
+      return fetch(proxyUrl, { signal, headers })
+    }
     return fetch(proxyUrl, { signal })
   }
 
