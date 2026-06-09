@@ -1,5 +1,7 @@
 import { ProductResult } from '@/lib/types'
 import { CATEGORIES, CATEGORY_PROMPTS, UNIVERSAL_PROMPT, type Category } from './category-prompts'
+import { computePriceFacts, platformName } from '@/lib/price/explain'
+import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
@@ -133,4 +135,59 @@ ${candidateList}`,
 
 function stripBrackets(title: string): string {
   return title.replace(/【[^】]*】/g, '').replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * Generates one short, friendly Japanese sentence explaining why `winner` is
+ * cheaper than `loser`. The prompt pins the exact computed numbers and forbids
+ * inventing or altering them, so the LLM-written sentence stays factually correct.
+ * Cached by product-pair key. Returns null on any failure — callers fall back to
+ * the rule-based bullets.
+ */
+export async function explainPriceDifference(
+  winner: ProductResult,
+  loser: ProductResult,
+): Promise<string | null> {
+  const keyBase = `explain:${winner.affiliateUrl || winner.title}:${loser.affiliateUrl || loser.title}`
+  const cacheKey = makeCacheKey(keyBase)
+  const cached = await getCached<string>(cacheKey).catch(() => null)
+  if (cached) return cached
+
+  try {
+    const f = computePriceFacts(winner, loser)
+    const listPriceLine = f.listPriceDiff > 0
+      ? `${platformName(f.winnerPlatform)}が¥${f.listPriceDiff.toLocaleString()}安い`
+      : '同じ'
+    const pointsLine = f.pointsDelta > 50
+      ? `${platformName(f.winnerPlatform)}が¥${f.pointsDelta.toLocaleString()}多い`
+      : 'ほぼ同じ'
+    const shippingLine = f.winnerFreeShipping
+      ? `${platformName(f.winnerPlatform)}は送料無料、${platformName(f.loserPlatform)}は¥${f.loserShipping.toLocaleString()}`
+      : '同条件'
+
+    const content = await callLLM([{
+      role: 'user',
+      content: `あなたは日本の価格比較アプリのアシスタントです。以下の「事実」だけを使い、なぜ${platformName(f.winnerPlatform)}の方が安いのかを買い物客にやさしく説明する短い日本語の文を、1文（最大2文）で書いてください。
+
+事実:
+- 安い方: ${platformName(f.winnerPlatform)}「${winner.title.slice(0, 60)}」
+- 高い方: ${platformName(f.loserPlatform)}「${loser.title.slice(0, 60)}」
+- 価格差: ¥${f.diff.toLocaleString()}（${f.diffPct}%お得）
+- 定価の差: ${listPriceLine}
+- ポイント還元の差: ${pointsLine}
+- 送料: ${shippingLine}
+
+ルール:
+- 上の数字をそのまま使い、数字を変えたり新しく作ったりしないこと。
+- 専門用語を避け、親しみやすい言葉で。
+- 1文、最大2文。前置きや箇条書き・記号は不要。文だけを出力すること。`,
+    }])
+
+    const sentence = content.trim()
+    if (!sentence) return null
+    await setCached(cacheKey, sentence).catch(() => {})
+    return sentence
+  } catch {
+    return null
+  }
 }

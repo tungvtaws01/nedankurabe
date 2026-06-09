@@ -163,3 +163,34 @@ describe('refineKeyword dispatch', () => {
     expect(body1.messages[0].content).toContain('Extract a search keyword')
   })
 })
+
+describe('explainPriceDifference', () => {
+  it('returns the LLM sentence for a winner/loser pair', async () => {
+    const { explainPriceDifference } = await import('./openrouter')
+    mockFetch.mockResolvedValue(llmReply('楽天は定価が¥200安く、¥200お得です。'))
+    const winner = { ...mockProduct('楽天 商品', 1800), platform: 'rakuten' as const, affiliateUrl: 'r-ok-1' }
+    const loser = { ...mockProduct('Amazon 商品', 2000), platform: 'amazon' as const, affiliateUrl: 'a-ok-1' }
+    winner.effectivePrice = 1800
+    loser.effectivePrice = 2000
+    const text = await explainPriceDifference(winner, loser)
+    expect(text).toBe('楽天は定価が¥200安く、¥200お得です。')
+  })
+
+  it('returns null when the LLM call throws', async () => {
+    const { explainPriceDifference } = await import('./openrouter')
+    mockFetch.mockRejectedValue(new Error('network'))
+    const winner = { ...mockProduct('楽天 商品', 1800), platform: 'rakuten' as const, affiliateUrl: 'r-throw-1' }
+    const loser = { ...mockProduct('Amazon 商品', 2000), platform: 'amazon' as const, affiliateUrl: 'a-throw-1' }
+    const text = await explainPriceDifference(winner, loser)
+    expect(text).toBeNull()
+  })
+
+  it('returns null when the LLM returns empty content', async () => {
+    const { explainPriceDifference } = await import('./openrouter')
+    mockFetch.mockResolvedValue(llmReply(''))
+    const winner = { ...mockProduct('楽天 商品', 1800), platform: 'rakuten' as const, affiliateUrl: 'r-empty-1' }
+    const loser = { ...mockProduct('Amazon 商品', 2000), platform: 'amazon' as const, affiliateUrl: 'a-empty-1' }
+    const text = await explainPriceDifference(winner, loser)
+    expect(text).toBeNull()
+  })
+})
