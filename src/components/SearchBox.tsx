@@ -3,7 +3,11 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
 const POPULAR = ['パンパース テープ', '明治ほほえみ', 'エルゴ抱っこ紐', 'おしりふき', 'ベビーカー']
-const URL_RE = /^(https?:\/\/)?(www\.)?amazon\.co\.jp|^(https?:\/\/)?item\.rakuten\.co\.jp/
+// Recognizes full Amazon/Rakuten URLs AND Amazon mobile-share short links
+// (amzn.asia/…, amzn.to/…, a.co/…) so a pasted short link routes to the URL
+// flow (and triggers the preview), not the keyword search. The short-link hosts
+// require a trailing "/" so "a.com" isn't mistaken for "a.co".
+const URL_RE = /^(https?:\/\/)?(www\.)?amazon\.co\.jp|^(https?:\/\/)?item\.rakuten\.co\.jp|^(https?:\/\/)?(amzn\.asia|amzn\.to|amzn\.eu|amzn\.com|a\.co)\//
 
 interface Preview {
   platform: 'amazon' | 'rakuten'

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { crawlRakutenProductFast } from '@/lib/crawlers/rakuten'
-import { crawlAmazonProduct } from '@/lib/crawlers/amazon'
+import { crawlAmazonProduct, resolveAmazonShortLink } from '@/lib/crawlers/amazon'
 
 function parseUrl(url: string): { platform: 'amazon' | 'rakuten'; id: string; fullUrl: string } | null {
   try {
@@ -21,7 +21,10 @@ export async function POST(req: NextRequest) {
   const { url } = await req.json() as { url?: string }
   if (!url?.trim()) return NextResponse.json({ error: 'url required' }, { status: 400 })
 
-  const parsed = parseUrl(url.trim())
+  // Amazon mobile-share links (amzn.asia/…) carry no ASIN; resolve to the
+  // canonical /dp/<ASIN> URL before parsing.
+  const resolved = await resolveAmazonShortLink(url.trim())
+  const parsed = parseUrl(resolved)
   if (!parsed) return NextResponse.json({ error: 'invalid url' }, { status: 400 })
 
   if (parsed.platform === 'rakuten') {
