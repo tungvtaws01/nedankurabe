@@ -1,9 +1,10 @@
 import { NextRequest } from 'next/server'
 import { crawlRakutenProductFast, crawlRakutenProductLive, crawlRakutenSearch } from '@/lib/crawlers/rakuten'
 import { crawlAmazonProduct, crawlAmazonSearch } from '@/lib/crawlers/amazon'
-import { refineKeyword, semanticMatch } from '@/lib/llm/openrouter'
+import { refineKeyword, semanticMatch, explainPriceDifference } from '@/lib/llm/openrouter'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult } from '@/lib/types'
+import { pickWinnerLoser } from '@/lib/price/explain'
 function parseProductUrl(url: string): { platform: 'amazon' | 'rakuten'; id: string } | null {
   try {
     const normalized = /^https?:\/\//i.test(url) ? url : `https://${url}`
@@ -87,6 +88,11 @@ export async function POST(req: NextRequest): Promise<Response> {
         const cached = await getCached<ProductResult[]>(cacheKey).catch(() => null)
         if (cached && cached.length > 0) {
           send({ type: 'basic', results: cached, cached: true })
+          if (cached.length === 2) {
+            const { winner, loser } = pickWinnerLoser(cached[0], cached[1])
+            const explanation = await explainPriceDifference(winner, loser).catch(() => null)
+            if (explanation) send({ type: 'explanation', text: explanation })
+          }
           send({ type: 'done' })
           controller.close()
           return
@@ -198,6 +204,11 @@ export async function POST(req: NextRequest): Promise<Response> {
         }
 
         if (finalResults.length > 0) await setCached(cacheKey, finalResults).catch(() => {})
+        if (finalResults.length === 2) {
+          const { winner, loser } = pickWinnerLoser(finalResults[0], finalResults[1])
+          const explanation = await explainPriceDifference(winner, loser).catch(() => null)
+          if (explanation) send({ type: 'explanation', text: explanation })
+        }
         send({ type: 'done' })
         controller.close()
       } catch (err) {
