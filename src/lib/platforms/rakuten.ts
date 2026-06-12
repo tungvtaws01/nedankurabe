@@ -216,3 +216,30 @@ export async function lookupRakuten(
   if (!data.Items?.length) return null;
   return parseRakutenItem(data.Items[0].Item, affiliateId);
 }
+
+export interface RawRakutenItem {
+  itemCode: string
+  itemName: string
+  itemCaption?: string
+  itemPrice: number
+  shopName?: string
+  genreId?: string
+  smallImageUrls?: { imageUrl: string }[]
+}
+
+// One page (max 30 hits) of a genre listing. Page is 1-based; Rakuten caps page at 100.
+export async function searchRakutenGenrePage(genreId: string, page: number): Promise<RawRakutenItem[]> {
+  const appId = process.env.RAKUTEN_APP_ID!
+  const accessKey = process.env.RAKUTEN_ACCESS_KEY!
+  const params = new URLSearchParams({
+    applicationId: appId, accessKey, genreId,
+    hits: '30', page: String(page), sort: 'standard',
+  })
+  const res = await fetch(`${SEARCH_URL}?${params}`, {
+    headers: { Referer: 'https://nedankurabe.vercel.app' },
+  })
+  if (!res.ok) return []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data = JSON.parse(await res.text()) as { Items: Array<{ Item: any }> }
+  return (data.Items ?? []).map(({ Item }) => Item as RawRakutenItem)
+}
