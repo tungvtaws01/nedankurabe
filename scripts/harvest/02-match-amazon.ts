@@ -27,11 +27,27 @@ async function rakutenSourceFor(productId: number): Promise<ProductResult | null
 const SIM_THRESHOLD = 0.6
 
 async function main() {
+  const refresh = process.argv.includes('--refresh')
   const retryErrors = process.argv.includes('--retry-errors')
-  const batch = await productsAtStage('enumerated', 100000)
-  if (retryErrors) {
-    const errs = await productsAtStage('error', 100000)
-    batch.push(...errs)
+  let batch: { id: number; jan: string | null; title: string }[]
+  if (refresh) {
+    // Re-verify Amazon listings not checked in the last 7 days (dead ASINs,
+    // price drift, new items). EXISTS keeps one row per product (no JOIN
+    // fan-out for products with multiple amazon listings) and lets us ORDER BY
+    // p.id cleanly. Cap at 2000 per run to bound a maintenance pass.
+    batch = await query<{ id: number; jan: string | null; title: string }>(
+      `SELECT p.id, p.jan, p.title FROM products p
+       WHERE EXISTS (
+         SELECT 1 FROM listings l
+         WHERE l.product_id = p.id AND l.platform = 'amazon'
+           AND l.verified_at < now() - interval '7 days')
+       ORDER BY p.id LIMIT 2000`)
+  } else {
+    batch = await productsAtStage('enumerated', 100000)
+    if (retryErrors) {
+      const errs = await productsAtStage('error', 100000)
+      batch.push(...errs)
+    }
   }
   const browser = new AmazonBrowser()
   await browser.start()
