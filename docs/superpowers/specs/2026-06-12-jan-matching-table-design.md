@@ -64,7 +64,15 @@ CREATE TABLE harvest_state (
 
 Schema decisions:
 - `pack_count` from day one — multiple ASINs per JAN are almost always case-pack variants;
-  this targets the known case-pack/セット販売 matching weakness.
+  this targets the known case-pack/セット販売 matching weakness. **Semantics (strict):**
+  `pack_count` = number of *identical retail units* in the listing (the ×N multiplier),
+  never per-unit content (66枚, 800g — those are product identity, already disambiguated
+  by JAN: a 400g and an 800g can have different JANs and are different `products` rows).
+  Single-unit categories (carriers, strollers) trivially use the DEFAULT 1.
+  Heterogeneous bundles (assorted-flavor sets, bottle+nipple combos) get `pack_count NULL`
+  and are treated as distinct products — they match only equivalent sets, never single
+  units. Primary use: unit-price normalization (`effectivePrice / pack_count`) so an
+  Amazon ケース品 ×4 compares fairly against a Rakuten single pack.
 - `match_source` + `confidence` separate hard identifier matches from soft LLM matches,
   enabling `WHERE match_source='llm' AND confidence < x` audits.
 - `harvest_state` is separate from domain tables; all writes are idempotent upserts
