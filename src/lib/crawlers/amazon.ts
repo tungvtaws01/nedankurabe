@@ -104,6 +104,37 @@ function buildResult(
   }
 }
 
+export function parseAmazonSearchHtml(html: string): ProductResult[] {
+  const root = parse(html)
+  const cards = root.querySelectorAll('[data-asin][data-component-type="s-search-result"]')
+  const results: ProductResult[] = []
+
+  for (const card of cards.slice(0, 10)) {
+    const asin = card.getAttribute('data-asin') ?? ''
+    if (!asin) continue
+
+    const title = card.querySelector('h2 a span, h2 span')?.text.trim() ?? ''
+    if (!title) continue
+
+    const priceText = card.querySelector('.a-price-whole')?.text ?? '0'
+    const salePrice = parsePrice(priceText)
+    if (!salePrice) continue
+
+    const pointText = card.querySelectorAll('.a-size-base.a-color-price')
+      .map(el => el.text).join(' ')
+    const pointsEarned = parsePoints(pointText)
+    const imageUrl = card.querySelector('img.s-image')?.getAttribute('src') ?? ''
+
+    // Extract short feature/subtitle text visible on the search card
+    const descText = card.querySelectorAll('.a-size-base-plus, .a-size-base.a-color-secondary')
+      .map(el => el.text.trim()).filter(t => t.length > 3 && t.length < 120).join(' ')
+    const description = descText.slice(0, 200) || undefined
+
+    results.push({ ...buildResult(title, salePrice, pointsEarned, asin, imageUrl), description })
+  }
+  return results
+}
+
 export async function crawlAmazonSearch(keyword: string): Promise<ProductResult[]> {
   const encoded = encodeURIComponent(keyword)
   try {
@@ -113,34 +144,7 @@ export async function crawlAmazonSearch(keyword: string): Promise<ProductResult[
     )
     if (!res.ok) return []
     const html = await res.text()
-    const root = parse(html)
-    const cards = root.querySelectorAll('[data-asin][data-component-type="s-search-result"]')
-    const results: ProductResult[] = []
-
-    for (const card of cards.slice(0, 10)) {
-      const asin = card.getAttribute('data-asin') ?? ''
-      if (!asin) continue
-
-      const title = card.querySelector('h2 a span, h2 span')?.text.trim() ?? ''
-      if (!title) continue
-
-      const priceText = card.querySelector('.a-price-whole')?.text ?? '0'
-      const salePrice = parsePrice(priceText)
-      if (!salePrice) continue
-
-      const pointText = card.querySelectorAll('.a-size-base.a-color-price')
-        .map(el => el.text).join(' ')
-      const pointsEarned = parsePoints(pointText)
-      const imageUrl = card.querySelector('img.s-image')?.getAttribute('src') ?? ''
-
-      // Extract short feature/subtitle text visible on the search card
-      const descText = card.querySelectorAll('.a-size-base-plus, .a-size-base.a-color-secondary')
-        .map(el => el.text.trim()).filter(t => t.length > 3 && t.length < 120).join(' ')
-      const description = descText.slice(0, 200) || undefined
-
-      results.push({ ...buildResult(title, salePrice, pointsEarned, asin, imageUrl), description })
-    }
-    return results
+    return parseAmazonSearchHtml(html)
   } catch {
     return []
   }

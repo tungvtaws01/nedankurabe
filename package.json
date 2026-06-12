@@ -10,7 +10,7 @@
     "test:watch": "jest --watch",
     "harvest:migrate": "tsx scripts/harvest/00-migrate.ts",
     "harvest:enumerate": "USE_UNPOOLED=1 node --env-file=.env.local node_modules/.bin/tsx scripts/harvest/01-enumerate-rakuten.ts",
-    "harvest:amazon": "tsx scripts/harvest/02-match-amazon.ts",
+    "harvest:amazon": "USE_UNPOOLED=1 node --env-file=.env.local node_modules/.bin/tsx scripts/harvest/02-match-amazon.ts",
     "harvest:report": "tsx scripts/harvest/03-report.ts"
   },
   "dependencies": {
