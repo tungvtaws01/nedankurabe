@@ -25,6 +25,10 @@ async function rakutenSourceFor(productId: number): Promise<ProductResult | null
 // Minimum title similarity to accept a lone Amazon search result without LLM
 // verification. Tuned against the Stage 3 sample CSV.
 const SIM_THRESHOLD = 0.6
+// Floor for LLM-chosen matches: rejects degenerate brand-only hits (e.g. a source with a
+// detailed title matched to a terse "okamoto(オカモト)" Amazon result, which score ~0).
+// Genuine same-product pairs share type/size tokens and score well above this.
+const SIM_FLOOR = 0.12
 
 async function main() {
   const refresh = process.argv.includes('--refresh')
@@ -78,7 +82,11 @@ async function main() {
       } else if (source) {
         const ranked = rankBySimilarity(source, candidates)
         const idx = await semanticMatch(source, ranked).catch(() => null)
-        if (idx !== null && ranked[idx]) chosen = [ranked[idx]]
+        // Keep the LLM's pick only if it shares real product tokens with the source —
+        // guards against brand-only matches on genre-polluted / terse-title candidates.
+        if (idx !== null && ranked[idx] && similarity(source.title, ranked[idx].title) >= SIM_FLOOR) {
+          chosen = [ranked[idx]]
+        }
       }
       if (!chosen.length) { await setHarvestState(p.id, 'no_match'); noMatch++; continue }
 
