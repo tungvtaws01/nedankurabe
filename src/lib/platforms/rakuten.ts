@@ -235,8 +235,17 @@ export async function searchRakutenGenrePage(genreId: string, page: number): Pro
     applicationId: appId, accessKey, genreId,
     hits: '30', page: String(page), sort: 'standard',
   })
+  // The 20260401 API rejects requests without the full referrer/origin header set
+  // (errorCode 403 REQUEST_CONTEXT_BODY_HTTP_REFERRER_MISSING) — mirror searchRakuten's headers.
   const res = await fetch(`${SEARCH_URL}?${params}`, {
-    headers: { Referer: 'https://nedankurabe.vercel.app' },
+    headers: {
+      Referer: "https://nedankurabe.vercel.app/",
+      Origin: "https://nedankurabe.vercel.app",
+      "Sec-Fetch-Site": "cross-site",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Dest": "empty",
+      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    },
   })
   if (!res.ok) return []
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
