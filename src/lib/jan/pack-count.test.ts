@@ -13,4 +13,8 @@ describe('parsePackCount', () => {
   it('does not treat per-unit content (枚/g) as pack count', () => {
     expect(parsePackCount('おむつ Mサイズ 64枚')).toBe(1)
   })
+  it('handles full-width digits (NFKC)', () => {
+    expect(parsePackCount('粉ミルク ２缶セット')).toBe(2)
+    expect(parsePackCount('おしりふき ８０枚×１６個')).toBe(16)
+  })
 })
