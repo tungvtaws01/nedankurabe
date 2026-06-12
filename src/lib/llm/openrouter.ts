@@ -94,23 +94,28 @@ HIGH (all must match):
   · Carriers: OMNI Breeze ≠ ADAPT ≠ EMBRACE (different models)
   · Baby food: ハイハイン ≠ グーグーキッチン (different product lines)
 - Product type: must be the same (tape≠pants, cube≠powder, carrier≠stroller, liquid≠solid)
-- Size / stage / volume: must match — interpretation depends on category:
+- Usage variant: 夜用 (night) ≠ 昼用/標準 (day/regular). Night-use and day/regular are
+  different product lines — treat as a mismatch.
+- Gender: 男の子用 ≠ 女の子用. The boy and girl versions are different products — do NOT
+  match across gender. (Plain colors with no gender label are fine — see LOW.)
+- Size / stage / per-unit volume: must match — interpretation depends on category:
   · Diapers: weight range (新生児/5kg ≠ Sサイズ/6-11kg)
-  · Formula / baby food: age stage (0ヶ月 ≠ 6ヶ月頃) AND can/pack size (400g ≠ 800g)
+  · Formula / baby food: age stage (0ヶ月 ≠ 6ヶ月頃) AND PER-UNIT can size (a 400g can ≠ an 800g can)
   · Carriers: supported weight range (newborn ≠ toddler) if specified
-  · General: treat any size or stage difference as a mismatch
+  · General: treat any per-unit size or stage difference as a mismatch
 
-MEDIUM (minor difference is acceptable):
-- Count: compare the TOTAL pieces = per-unit count × number of packs/boxes.
-  · Minor differences are fine (82枚 vs 84枚; 264 vs 248).
-  · Same total in a different pack format is fine (1 box of 60 vs 2 boxes of 30 = 60 total).
-  · But a LARGE total mismatch is a MISMATCH: a single box (e.g. 52枚, 66枚) is NOT
-    equivalent to a multi-pack case (e.g. 264枚 = 66枚×4パック / ケース品 / "Case Product").
-    Reject when the totals differ by more than ~1.5×.
+PACK QUANTITY — normalized downstream, NOT a matching criterion:
+- The number of identical retail units (×N, N個セット, ケース, 箱×N, まとめ買い, "Case Product")
+  may differ freely. A case-pack and a single pack of the SAME unit product ARE a match —
+  unit price is compared downstream. Do NOT reject because one side is a multi-pack/セット/ケース
+  and the other is a single. (e.g. 66枚×4パック ケース品 matches a single 66枚 pack.)
+- Per-unit count WITHIN one pack: small differences are fine (82枚 vs 84枚). A drastically
+  different per-unit count that signals a different SKU — e.g. a 3-piece trial vs a 64-piece
+  pack — is a mismatch (per-unit size, governed above), but ordinary pack-quantity differences are not.
 - N/A for products with no count dimension (carriers, strollers, single-unit items)
 
 LOW (may differ freely):
-- Colors, pack design, promotional bundles
+- Plain colors (without a gender label), pack design, promotional bundles
 
 Return JSON only: {"matches": [i, j, ...]} listing every valid candidate index, or {"matches": []} if none qualify.
 
