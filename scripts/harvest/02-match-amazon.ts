@@ -1,7 +1,7 @@
 process.env.USE_UNPOOLED = '1'
 import { AmazonBrowser, sleep, jitter } from './lib/amazon-browser'
 import { parseAmazonSearchHtml } from '../../src/lib/crawlers/amazon'
-import { rankBySimilarity } from '../../src/lib/matching/rank'
+import { rankBySimilarity, similarity } from '../../src/lib/matching/rank'
 import { semanticMatch } from '../../src/lib/llm/openrouter'
 import { parsePackCount } from '../../src/lib/jan/pack-count'
 import { upsertListing, setHarvestState, productsAtStage } from '../../src/lib/harvest/repo'
@@ -10,6 +10,9 @@ import type { ProductResult } from '../../src/lib/types'
 
 // Build a minimal ProductResult from a Rakuten listing row to feed semanticMatch as the "source".
 async function rakutenSourceFor(productId: number): Promise<ProductResult | null> {
+  // salePrice is intentionally 0: the harvest does not persist prices (they're
+  // volatile and fetched live at serve time), and matching is done on
+  // brand/line/type/size — never price — so no price-sanity check happens here.
   const rows = await query<{ title: string; salePrice: number }>(
     `SELECT title, 0 AS "salePrice" FROM listings WHERE product_id=$1 AND platform='rakuten' AND is_active=true LIMIT 1`,
     [productId])
@@ -19,8 +22,17 @@ async function rakutenSourceFor(productId: number): Promise<ProductResult | null
     subscribeAvailable: false, rakutenCardEligible: true, teikiRates: null, taxRate: 1.1, affiliateUrl: '' }
 }
 
+// Minimum title similarity to accept a lone Amazon search result without LLM
+// verification. Tuned against the Stage 3 sample CSV.
+const SIM_THRESHOLD = 0.6
+
 async function main() {
+  const retryErrors = process.argv.includes('--retry-errors')
   const batch = await productsAtStage('enumerated', 100000)
+  if (retryErrors) {
+    const errs = await productsAtStage('error', 100000)
+    batch.push(...errs)
+  }
   const browser = new AmazonBrowser()
   await browser.start()
   let matched = 0, noMatch = 0, captchaPauses = 0
@@ -42,7 +54,11 @@ async function main() {
       const source = await rakutenSourceFor(p.id)
       let chosen: ProductResult[] = []
       if (candidates.length === 1) {
-        chosen = candidates
+        // Accept a lone result only if its title is similar enough to the
+        // Rakuten source — never freeze an unverified single search hit.
+        if (source && similarity(source.title, candidates[0].title) >= SIM_THRESHOLD) {
+          chosen = candidates
+        }
       } else if (source) {
         const ranked = rankBySimilarity(source, candidates)
         const idx = await semanticMatch(source, ranked).catch(() => null)
