@@ -30,3 +30,6 @@ node_modules/
 *.tmp
 .env*
 .DS_Store
+
+# Harvest artifacts
+harvest-sample.csv
