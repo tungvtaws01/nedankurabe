@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS listings (
   UNIQUE (platform, platform_id)
 );
 CREATE INDEX IF NOT EXISTS listings_product_platform_idx ON listings (product_id, platform);
+CREATE INDEX IF NOT EXISTS listings_platform_id_idx ON listings (platform_id);
 
 CREATE TABLE IF NOT EXISTS harvest_state (
   product_id BIGINT PRIMARY KEY REFERENCES products(id),
