@@ -36,3 +36,8 @@ it('records harvest state', async () => {
   const rows = await pool.query(`SELECT stage FROM harvest_state WHERE product_id=$1`, [productId])
   expect(rows.rows[0].stage).toBe('enumerated')
 })
+
+it('returns product id as a JS number, not a string', async () => {
+  const id = await upsertProduct({ jan: null, title: 'NUMCHK', brand: null, category: CAT, imageUrl: '' })
+  expect(typeof id).toBe('number')
+})
