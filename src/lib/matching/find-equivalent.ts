@@ -4,6 +4,8 @@ import { crawlAmazonSearch } from '@/lib/crawlers/amazon'
 import { crawlRakutenSearch } from '@/lib/crawlers/rakuten'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { rankBySimilarity } from './rank'
+import { findListingByPlatformId, findSiblingListings, upsertProduct, upsertListing } from '@/lib/harvest/repo'
+import { lookupRakuten } from '@/lib/platforms/rakuten'
 
 // Find the cross-platform equivalent of `source` on `targetPlatform`.
 //
@@ -18,6 +20,22 @@ export async function findEquivalent(
   targetPlatform: 'amazon' | 'rakuten',
   priorPool: ProductResult[] = [],
 ): Promise<ProductResult | null> {
+  // --- Fast path: matching-table lookup by source platform_id ---
+  // If we've already confirmed a match for this source product, return the
+  // sibling listing directly without an LLM call. DB failures fall through.
+  const srcId = sourcePlatformId(source)
+  if (srcId) {
+    const row = await findListingByPlatformId(srcId).catch(() => null)
+    if (row) {
+      const siblings = await findSiblingListings(row.product_id, targetPlatform).catch(() => [])
+      for (const sib of siblings) {
+        const hydrated = await hydrateListing(sib.platform_id, targetPlatform).catch(() => null)
+        if (hydrated) return hydrated
+      }
+    }
+  }
+
+  // --- LLM flow (existing behavior) ---
   const targeted = await searchTargeted(source, targetPlatform)
   // Targeted (relevance-ranked) results first, prior pool as supplement.
   const pool = dedupe([...targeted, ...priorPool])
@@ -25,7 +43,14 @@ export async function findEquivalent(
   // Pre-rank so the most promising candidates survive semanticMatch's window.
   const ranked = rankBySimilarity(source, pool)
   const idx = await semanticMatch(source, ranked).catch(() => null)
-  return idx !== null ? ranked[idx] ?? null : null
+  const matchResult = idx !== null ? ranked[idx] ?? null : null
+
+  // --- Write back a confirmed LLM match into the table ---
+  // Best-effort: a DB write failure must never break the user-facing lookup.
+  if (matchResult && srcId) {
+    await writeBack(source, srcId, matchResult).catch(() => {})
+  }
+  return matchResult
 }
 
 // Refine the source title into a search keyword for the target platform, then
@@ -58,4 +83,38 @@ function dedupe(items: ProductResult[]): ProductResult[] {
     out.push(it)
   }
   return out
+}
+
+// Extract the platform-native id used as the listings table key. Amazon uses
+// the 10-char ASIN from the /dp/ path; Rakuten uses "shop:itemId" parsed from
+// the (URL-encoded) item URL wrapped inside the affiliate link.
+function sourcePlatformId(p: ProductResult): string | null {
+  if (p.platform === 'amazon') return p.affiliateUrl.match(/\/dp\/([A-Z0-9]{10})/)?.[1] ?? null
+  // Rakuten affiliate URLs wrap the item URL; itemCode is "shop:itemId"
+  const m = decodeURIComponent(p.affiliateUrl).match(/item\.rakuten\.co\.jp\/([^/]+)\/([^/?]+)/)
+  return m ? `${m[1]}:${m[2]}` : null
+}
+
+// Re-fetch a listing's full ProductResult by its platform id. Amazon's crawler
+// is imported lazily to avoid a circular import (crawlers/amazon -> matching).
+async function hydrateListing(platformId: string, platform: 'amazon' | 'rakuten'): Promise<ProductResult | null> {
+  if (platform === 'rakuten') return lookupRakuten(platformId)
+  const { crawlAmazonProduct } = await import('@/lib/crawlers/amazon')
+  return crawlAmazonProduct(platformId)
+}
+
+// Persist a confirmed LLM match so subsequent lookups hit the fast path.
+function writeBack(source: ProductResult, srcId: string, match: ProductResult): Promise<void> {
+  return (async () => {
+    const productId = await upsertProduct({
+      jan: null, title: source.title, brand: null, category: 'baby', imageUrl: source.imageUrl,
+    })
+    const matchId = sourcePlatformId(match)
+    await upsertListing({ productId, platform: source.platform, platformId: srcId, title: source.title,
+      packCount: 1, matchSource: 'llm', confidence: 0.8 })
+    if (matchId) {
+      await upsertListing({ productId, platform: match.platform, platformId: matchId, title: match.title,
+        packCount: 1, matchSource: 'llm', confidence: 0.8 })
+    }
+  })()
 }
