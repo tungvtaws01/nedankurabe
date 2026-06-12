@@ -90,9 +90,16 @@ Schema decisions:
 - Throttle: 1 req/s (Rakuten limit). Full baby category ≈ hours.
 
 ### Stage 2 — `02-match-amazon.ts` (bottleneck, 1–2 days)
+**Driver: local headless browser (Playwright), not the proxy.** The app's runtime crawler
+uses scrape.do (`SCRAPEDO_TOKEN`, see proxy-fetch.ts), but the batch harvest does NOT — the
+scrape.do trial is credit-limited and expires, whereas a local browser on a Japanese
+residential IP is free, unmetered, and harder for Amazon to flag. Stage 2 fetches Amazon
+search HTML via Playwright and feeds it into the **existing HTML parser** in
+crawlers/amazon.ts (only the fetch layer changes; parsing is reused).
+
 For each product in `enumerated`:
-1. Search Amazon via existing `crawlAmazonSearch(jan)` (ScraperAPI). If no JAN, search by
-   refined title (reuse `refineKeyword` category prompts).
+1. Search Amazon by JAN (`amazon.co.jp/s?k=<jan>`). If no JAN, search by refined title
+   (reuse `refineKeyword` category prompts).
 2. Decision ladder:
    - Single result + title similarity ≥ 0.6 (normalized token overlap; tune against the
      sample CSV) + price sanity (×0.3–×3 of Rakuten price) → accept as `title-sim`.
@@ -100,7 +107,17 @@ For each product in `enumerated`:
      `find-equivalent`; store each accepted ASIN with `confidence` and `pack_count`
      parsed from title (multiplier regex as in price/explain.ts).
    - Zero results after both JAN and refined-title searches → `no_match`.
-3. Concurrency 3–5; checkpoint per product; watch ScraperAPI credits.
+3. Concurrency 1 (single browser, serial). Randomized 8–15s delay between requests.
+   Checkpoint per product. **CAPTCHA detection**: if the response is a CAPTCHA/robot-check
+   page, pause ~45min and resume (do not parse it as `no_match`).
+4. **IP isolation**: run the batch over a separate path (4G tethering or a Japan VPS) so the
+   home browsing IP is never used for scraping — keeps Amazon/Rakuten apps and normal
+   browsing unaffected.
+5. **Fallback**: scrape.do remains available via a `--driver=scrapedo` flag for stretches the
+   browser can't get past, using remaining trial credits sparingly.
+6. **Credit/cost probe first**: before committing to the full run, do a ~100-product trial
+   batch to measure real throughput and CAPTCHA rate, then decide whether browser-only
+   suffices or a paid proxy tier is warranted.
 
 ### Stage 3 — `03-report.ts`
 - SQL coverage stats: % products with Amazon match / Rakuten only / no_match;
@@ -153,7 +170,10 @@ direct connection). Batched multi-row upserts (~100 rows/statement) — Mac→Si
 
 - **JAN extraction coverage unknown** for Rakuten captions in baby category — measure in
   Stage 1 report before judging the approach; Yahoo backfill is the mitigation.
-- **ScraperAPI credits/blocking** during the 1–2 day Amazon stage — concurrency kept low,
-  checkpointed resume, credits monitored.
+- **Amazon CAPTCHA / soft-blocking** during the ~1–2 day local-browser Amazon stage —
+  mitigated by serial requests with randomized 8–15s delays, CAPTCHA detection with
+  auto-pause, checkpointed resume, IP isolation (4G/VPS), and a scrape.do fallback driver.
+  Permanent IP bans are very unlikely on Japanese residential/CGNAT IPs; worst case is
+  temporary CAPTCHA that self-clears.
 - **LLM mis-matches written to the table** would persist — mitigated by `confidence`
   recording, the 50-pair audit, and `is_active` soft-delete for corrections.
