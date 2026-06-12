@@ -1,6 +1,7 @@
 process.env.USE_UNPOOLED = '1'
 import { searchRakutenGenrePage, isTrialOrSamplePack, cleanRakutenTitle } from '../../src/lib/platforms/rakuten'
 import { extractJans } from '../../src/lib/jan/jan'
+import { parsePackCount } from '../../src/lib/jan/pack-count'
 import { upsertProduct, upsertListing, setHarvestState } from '../../src/lib/harvest/repo'
 import { pool } from '../../src/lib/db'
 import { BABY_GENRE_IDS } from './genres'
@@ -27,7 +28,7 @@ async function main() {
           })
           await upsertListing({
             productId, platform: 'rakuten', platformId: it.itemCode,
-            title: it.itemName ?? '', packCount: 1,
+            title: it.itemName ?? '', packCount: parsePackCount(it.itemName ?? ''),
             matchSource: jan ? 'jan-exact' : 'title-sim', confidence: jan ? 1.0 : null,
           })
           await setHarvestState(productId, 'enumerated')
