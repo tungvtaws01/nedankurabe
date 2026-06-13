@@ -51,3 +51,8 @@ skincare 480, carriers 467, car_seats 230, wipes 190, bath 28, diapers 24.
 
 ### wipes — COMPLETE
 - All enumerated wipes processed: matched=96 no_match=184 (rate ~34%), 0 CAPTCHA. Tuned-prompt remainder (44) ran clean.
+
+### skincare — tuned (SPF rule), running remainder
+- Eval batch 120: matched=60 (cumulative 61), rate ~41%, 0 CAPTCHA.
+- Precision 19/20 = 95%. One SPF mismatch: pid=8490 アトピタ 保湿UVクリーム50 (SPF50) ↔ AZ SPF29++ (アトピタ ships SPF29 & SPF50). Otherwise clean (ニベア/ピジョン/和光堂/ジョンソン/ミノン/ミキハウス; case-pack ×3/×5/×12 normalized).
+- Tune: added SPF rule to JUDGE (SPF50≠35≠29≠21; "クリーム50"=SPF50). Forward-looking for the ~360 remaining; 60 done not reset (95% meets gate).

@@ -109,6 +109,7 @@ HIGH (all must match):
   · Carriers: OMNI Breeze ≠ ADAPT ≠ EMBRACE (different models)
   · Baby food: ハイハイン ≠ グーグーキッチン (different product lines)
   · Wipes: 純水/水99% ≠ アルコール除菌タイプ; トイレに流せる (flushable) ≠ regular; 手口ふき (hand & mouth) ≠ おしりふき (bottom); within a brand, named wipe lines differ (Moony やわらか素材 ≠ 水分たっぷり厚手 ≠ こすらずするりんっ; 厚手 ≠ 通常 only when one explicitly says 厚手)
+  · Sunscreen/UV (日焼け止め・UVケア): the SPF rating is part of the SKU — SPF50/50+ ≠ SPF35 ≠ SPF29 ≠ SPF21; never match across different SPF levels (a number like "クリーム50" usually denotes SPF50)
 - Product type: must be the same (tape≠pants, cube≠powder, carrier≠stroller, liquid≠solid)
 - Usage variant: 夜用 (night) ≠ 昼用/標準 (day/regular). Night-use and day/regular are
   different product lines — treat as a mismatch.
