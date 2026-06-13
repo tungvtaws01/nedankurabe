@@ -150,12 +150,36 @@ export async function crawlAmazonSearch(keyword: string): Promise<ProductResult[
   }
 }
 
+// Extract the yen price-to-pay from an Amazon product page. The naive
+// `.a-price-whole` first-match is wrong on some layout variants: Amazon renders a
+// per-unit price ("¥35.84/枚") with the SAME .a-price component, and on alternate
+// (e.g. mobile-ish) layouts that lack the desktop core-price div it can appear first
+// — yielding a bogus ¥35 instead of the real ¥6,980. Discriminate by structure:
+// JP yen prices are whole numbers (empty .a-price-fraction); per-unit prices carry a
+// fraction. Also skip the strikethrough list price (.a-text-price / data-a-strike).
+// Prefer the buy-box core-price container, then fall back to a whole-document scan.
+function parseAmazonYenPrice(root: ReturnType<typeof parse>): number {
+  const scopes = ['#corePriceDisplay_desktop_feature_div', '#corePrice_feature_div', '#apex_desktop']
+    .map((s) => root.querySelector(s))
+    .filter((el): el is NonNullable<typeof el> => el !== null)
+  scopes.push(root) // whole-document fallback for layouts without the core-price div
+  for (const scope of scopes) {
+    for (const el of scope.querySelectorAll('.a-price')) {
+      if (el.querySelector('.a-price-fraction')?.text?.trim()) continue // per-unit decimal price
+      const cls = el.getAttribute('class') ?? ''
+      if (el.getAttribute('data-a-strike') === 'true' || cls.includes('a-text-price')) continue // list/was price
+      const n = parsePrice(el.querySelector('.a-price-whole')?.text ?? '')
+      if (n) return n
+    }
+  }
+  return parsePrice(root.querySelector('#priceblock_ourprice')?.text ?? '')
+}
+
 function parseAmazonProductHtml(html: string, asin: string): ProductResult | null {
   const root = parse(html)
   const title = root.querySelector('#productTitle, #title')?.text.trim() ?? ''
   if (!title) return null
-  const priceText = root.querySelector('.a-price-whole, #priceblock_ourprice')?.text ?? '0'
-  const salePrice = parsePrice(priceText)
+  const salePrice = parseAmazonYenPrice(root)
   if (!salePrice) return null
   const pointText = root.querySelectorAll('.a-size-base.a-color-price').map(el => el.text).join(' ')
   const pointsEarned = parsePoints(pointText)

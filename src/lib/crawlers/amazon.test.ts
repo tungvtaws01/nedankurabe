@@ -24,8 +24,27 @@ const PRODUCT_HTML = `
 <html><body>
   <span id="productTitle">パンパース テープ はじめての肌 Sサイズ 108枚</span>
   <img id="landingImage" src="https://m.media-amazon.com/img.jpg" />
-  <span class="a-price-whole">3,980</span>
+  <div id="corePriceDisplay_desktop_feature_div">
+    <span class="a-price priceToPay"><span class="a-price-whole">3,980</span></span>
+  </div>
   <span class="a-size-base a-color-price">40 pt</span>
+</body></html>
+`
+
+// Regression: real Amazon pages render a per-unit price ("¥36.85/枚") with the same
+// .a-price component, and on some layout variants it precedes the real price. The
+// parser must skip it (non-empty .a-price-fraction) and the strikethrough list price
+// (.a-text-price) and return the real ¥3,980 — not a bogus ¥36. See parseAmazonYenPrice.
+const PRODUCT_HTML_WITH_UNIT_PRICE = `
+<html><body>
+  <span id="productTitle">パンパース テープ はじめての肌 Sサイズ 108枚</span>
+  <span class="a-price a-text-price"><span class="a-price-whole">5,200</span></span>
+  <span class="a-price"><span class="a-price-whole">36</span><span class="a-price-fraction">85</span></span>
+  <div id="corePriceDisplay_desktop_feature_div">
+    <span class="a-price a-text-price"><span class="a-price-whole">5,200</span></span>
+    <span class="a-price priceToPay"><span class="a-price-whole">3,980</span></span>
+    <span class="a-price"><span class="a-price-whole">36</span><span class="a-price-fraction">85</span></span>
+  </div>
 </body></html>
 `
 
@@ -66,6 +85,13 @@ describe('crawlAmazonProduct', () => {
     expect(result!.salePrice).toBe(3980)
     expect(result!.pointsEarned).toBe(40)
     expect(result!.platform).toBe('amazon')
+  })
+
+  it('skips per-unit and strikethrough prices, returns the real price-to-pay', async () => {
+    mockFetch.mockResolvedValue({ ok: true, text: async () => PRODUCT_HTML_WITH_UNIT_PRICE })
+    const result = await crawlAmazonProduct('B09XYZ1111')
+    expect(result).not.toBeNull()
+    expect(result!.salePrice).toBe(3980) // not 36 (per-unit) or 5200 (list price)
   })
 
   it('returns null when fetch fails', async () => {
