@@ -217,41 +217,88 @@ function ResultsContent() {
     setRawResults([selected])
     setCrossSearching(true)
     setMode('comparison')
+    // Rakuten taps fetch live points; show the points skeleton until they arrive.
+    if (selected.platform === 'rakuten') setLivePointsLoading(true)
 
-    try {
-      let enrichedSource = selected
-      let matchResult: ProductResult | null = null
-      let explanationText: string | null = null
-
-      if (selected.platform === 'rakuten') {
-        // Rakuten tap: crawl item page for live points, then match Amazon pool
+    if (selected.platform === 'rakuten') {
+      // Rakuten tap: stream enrich-compare so the comparison appears when the Amazon
+      // match resolves (~5-8s) instead of blocking on the live-points crawl (up to 40s).
+      try {
         const res = await fetch('/api/enrich-compare', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ source: selected, candidates: amazonPool }),
         })
-        const data = await res.json() as { source: ProductResult; result: ProductResult | null; explanation?: string | null }
-        enrichedSource = data.source ?? selected
-        matchResult = data.result
-        explanationText = data.explanation ?? null
-      } else {
-        // Amazon tap: match against Rakuten pick-list
-        const res = await fetch('/api/find-amazon', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ source: selected, candidates: pickList }),
-        })
-        const data = await res.json() as { result: ProductResult | null; explanation?: string | null }
-        matchResult = data.result
-        explanationText = data.explanation ?? null
+        if (!res.ok || !res.body) {
+          if (opIdRef.current === opId) {
+            setError('比較中にエラーが発生しました。もう一度お試しください。')
+            setCrossSearching(false); setLivePointsLoading(false)
+          }
+          return
+        }
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          if (opIdRef.current !== opId) { reader.cancel(); break }
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() ?? ''
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue
+            try {
+              const event = JSON.parse(line.slice(6)) as {
+                type: string; results?: ProductResult[]; result?: ProductResult; text?: string; message?: string
+              }
+              if (opIdRef.current !== opId) break
+              if (event.type === 'basic') {
+                flushSync(() => {
+                  setRawResults(event.results ?? [selected])
+                  setCrossSearching(false)
+                })
+              } else if (event.type === 'live-points' && event.result) {
+                flushSync(() => {
+                  setRawResults(prev => prev.map(r => r.platform === 'rakuten' ? event.result! : r))
+                  setLivePointsLoading(false)
+                })
+              } else if (event.type === 'explanation') {
+                setExplanation(event.text ?? null)
+              } else if (event.type === 'done') {
+                flushSync(() => { setCrossSearching(false); setLivePointsLoading(false) })
+              } else if (event.type === 'error') {
+                flushSync(() => {
+                  setError(event.message ?? 'エラーが発生しました。')
+                  setCrossSearching(false); setLivePointsLoading(false)
+                })
+              }
+            } catch { /* ignore malformed lines */ }
+          }
+        }
+      } catch {
+        if (opIdRef.current === opId) {
+          setCrossSearching(false); setLivePointsLoading(false)
+          setError('比較中にエラーが発生しました。もう一度お試しください。')
+        }
       }
+      return
+    }
 
-      // User may have navigated back while the API call was in flight — discard stale result
+    // Amazon tap: match against the Rakuten pick-list (single blocking call — no
+    // live-points crawl on this path, so the slow operation streaming targets is absent).
+    try {
+      const res = await fetch('/api/find-amazon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: selected, candidates: pickList }),
+      })
+      const data = await res.json() as { result: ProductResult | null; explanation?: string | null }
       if (opIdRef.current !== opId) return
-      const results = [enrichedSource, ...(matchResult ? [matchResult] : [])]
+      const results = [selected, ...(data.result ? [data.result] : [])]
         .sort((a, b) => a.effectivePrice - b.effectivePrice)
       setRawResults(results)
-      setExplanation(explanationText)
+      setExplanation(data.explanation ?? null)
       setCrossSearching(false)
     } catch {
       if (opIdRef.current === opId) {
