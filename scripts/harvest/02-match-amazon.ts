@@ -2,7 +2,7 @@ process.env.USE_UNPOOLED = '1'
 import { AmazonBrowser, sleep, jitter } from './lib/amazon-browser'
 import { parseAmazonSearchHtml } from '../../src/lib/crawlers/amazon'
 import { rankBySimilarity, similarity } from '../../src/lib/matching/rank'
-import { semanticMatch } from '../../src/lib/llm/openrouter'
+import { semanticMatch, refineKeyword } from '../../src/lib/llm/openrouter'
 import { parsePackCount } from '../../src/lib/jan/pack-count'
 import { upsertListing, setHarvestState, productsAtStage } from '../../src/lib/harvest/repo'
 import { query, pool } from '../../src/lib/db'
@@ -61,7 +61,11 @@ async function main() {
   await browser.start()
   let matched = 0, noMatch = 0, captchaPauses = 0
   for (const p of batch) {
-    const keyword = p.jan ?? p.title
+    // Fix A: JAN-bearing products search by JAN (precise); for the rest, refine the noisy
+    // Rakuten title into a tight brand+line+type+size keyword (same as production
+    // find-equivalent) instead of searching the raw title — raw titles carry
+    // 【10個セット】/大容量パック/marketing noise that returns 0–1 poor Amazon results.
+    const keyword = p.jan ?? await refineKeyword(p.title, 'amazon').catch(() => p.title)
     try {
       let html = await browser.searchHtml(keyword)
       if (html === null) {
@@ -77,19 +81,20 @@ async function main() {
 
       const source = await rakutenSourceFor(p.id)
       let chosen: ProductResult[] = []
-      if (candidates.length === 1) {
-        // Accept a lone result only if its title is similar enough to the
-        // Rakuten source — never freeze an unverified single search hit.
-        if (source && similarity(source.title, candidates[0].title) >= SIM_THRESHOLD) {
-          chosen = candidates
-        }
-      } else if (source) {
+      let viaLLM = false
+      if (source && candidates.length === 1 && similarity(source.title, candidates[0].title) >= SIM_THRESHOLD) {
+        // High-confidence lone result — accept without an LLM call.
+        chosen = candidates
+      } else if (source && candidates.length) {
+        // Fix B: multiple candidates, OR a lone result below the fast-accept bar (e.g. a
+        // case-pack whose differing count drags similarity under SIM_THRESHOLD) — let the
+        // LLM judge (it applies the case-pack/variant policy). SIM_FLOOR still guards
+        // against degenerate brand-only matches on genre-polluted / terse candidates.
         const ranked = rankBySimilarity(source, candidates)
         const idx = await semanticMatch(source, ranked).catch(() => null)
-        // Keep the LLM's pick only if it shares real product tokens with the source —
-        // guards against brand-only matches on genre-polluted / terse-title candidates.
         if (idx !== null && ranked[idx] && similarity(source.title, ranked[idx].title) >= SIM_FLOOR) {
           chosen = [ranked[idx]]
+          viaLLM = true
         }
       }
       if (!chosen.length) { await setHarvestState(p.id, 'no_match'); noMatch++; continue }
@@ -100,8 +105,8 @@ async function main() {
         await upsertListing({
           productId: p.id, platform: 'amazon', platformId: asin, title: c.title,
           packCount: parsePackCount(c.title),
-          matchSource: candidates.length === 1 ? 'title-sim' : 'llm',
-          confidence: candidates.length === 1 ? 0.7 : 0.85,
+          matchSource: viaLLM ? 'llm' : 'title-sim',
+          confidence: viaLLM ? 0.85 : 0.7,
         })
       }
       await setHarvestState(p.id, 'amazon_done'); matched++
