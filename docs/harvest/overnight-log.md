@@ -60,3 +60,7 @@ skincare 480, carriers 467, car_seats 230, wipes 190, bath 28, diapers 24.
 ### skincare — COMPLETE (SPF tune validated)
 - Remainder 258 done: matched=166, 0 CAPTCHA. Post-tune precision sample 14/14 = 100% — SPF rule confirmed working (アトピタ"50"→SPF50 ✓, SPF29→SPF29 ✓; パックスベビー SPF17/SPF30 correctly kept distinct).
 - Note: distinct active Amazon listings (~90) < amazon_done products because many Rakuten shops sell the same popular SKU → same ASIN collapses under UNIQUE(platform,platform_id). Expected for consumables.
+
+### bottles — VALIDATED (no tune); remainder deferred
+- Eval batch 120: matched=55, rate ~46%, 0 CAPTCHA. Precision 20/20 ≈ 100% — nipple sizes S/M/L/SS each matched correctly, ガラス≠プラスチック kept, case-pack ×3/×5/×6 normalized, model codes (BHOP2-A/FDNK10709041) matched. Color/character design treated as cosmetic (correct).
+- Strategy: prompt validated → defer the ~490-product remainder (volume, can bulk-run later) and prioritize validating the not-yet-checked genres (formula, baby_food, durables) tonight. Maximizes number of validated prompts by morning.
