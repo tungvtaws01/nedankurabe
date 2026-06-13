@@ -64,3 +64,7 @@ skincare 480, carriers 467, car_seats 230, wipes 190, bath 28, diapers 24.
 ### bottles — VALIDATED (no tune); remainder deferred
 - Eval batch 120: matched=55, rate ~46%, 0 CAPTCHA. Precision 20/20 ≈ 100% — nipple sizes S/M/L/SS each matched correctly, ガラス≠プラスチック kept, case-pack ×3/×5/×6 normalized, model codes (BHOP2-A/FDNK10709041) matched. Color/character design treated as cosmetic (correct).
 - Strategy: prompt validated → defer the ~490-product remainder (volume, can bulk-run later) and prioritize validating the not-yet-checked genres (formula, baby_food, durables) tonight. Maximizes number of validated prompts by morning.
+
+### formula — VALIDATED (no tune)
+- Eval batch 120: matched=89, rate ~57% (highest yet — formula is well-branded/consistent), 0 CAPTCHA. Precision 20/20 = 100%.
+- Per-unit can size (小缶300g≠大缶800g) respected; forms (缶/スティック/らくらくキューブ/らくらくミルク liquid/エコらくパック) distinguished; ステップ≠ほほえみ line correct; case-pack ×3/×5/×6/×20 normalized; 旧品 packaging treated as same product. Existing formula prompt + JUDGE rules sufficient. Remainder (~450) deferred for volume.
