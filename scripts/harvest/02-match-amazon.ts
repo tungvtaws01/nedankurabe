@@ -33,6 +33,10 @@ const SIM_FLOOR = 0.12
 async function main() {
   const refresh = process.argv.includes('--refresh')
   const retryErrors = process.argv.includes('--retry-errors')
+  // --limit=N caps how many products this run processes (default: all). Useful for
+  // a bounded trial run before committing to the full ~30h harvest.
+  const limitArg = process.argv.find((a) => a.startsWith('--limit='))
+  const limit = limitArg ? parseInt(limitArg.split('=')[1], 10) : 100000
   let batch: { id: number; jan: string | null; title: string }[]
   if (refresh) {
     // Re-verify Amazon listings not checked in the last 7 days (dead ASINs,
@@ -47,9 +51,9 @@ async function main() {
            AND l.verified_at < now() - interval '7 days')
        ORDER BY p.id LIMIT 2000`)
   } else {
-    batch = await productsAtStage('enumerated', 100000)
+    batch = await productsAtStage('enumerated', limit)
     if (retryErrors) {
-      const errs = await productsAtStage('error', 100000)
+      const errs = await productsAtStage('error', limit)
       batch.push(...errs)
     }
   }
