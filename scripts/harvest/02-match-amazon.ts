@@ -4,6 +4,7 @@ import { parseAmazonSearchHtml } from '../../src/lib/crawlers/amazon'
 import { rankBySimilarity, similarity } from '../../src/lib/matching/rank'
 import { semanticMatch, refineKeyword } from '../../src/lib/llm/openrouter'
 import { parsePackCount } from '../../src/lib/jan/pack-count'
+import { classifyLocal } from '../../src/lib/jan/classify-local'
 import { upsertListing, setHarvestState, productsAtStage } from '../../src/lib/harvest/repo'
 import { query, pool } from '../../src/lib/db'
 import type { ProductResult } from '../../src/lib/types'
@@ -37,6 +38,11 @@ async function main() {
   // a bounded trial run before committing to the full ~30h harvest.
   const limitArg = process.argv.find((a) => a.startsWith('--limit='))
   const limit = limitArg ? parseInt(limitArg.split('=')[1], 10) : 100000
+  // --category=<id> processes only enumerated products whose Rakuten title classifies
+  // (locally, free) to that genre, so each genre can be harvested + evaluated + tuned
+  // on its own. Without it, all enumerated products are processed in id order.
+  const catArg = process.argv.find((a) => a.startsWith('--category='))
+  const category = catArg ? catArg.split('=')[1] : null
   let batch: { id: number; jan: string | null; title: string }[]
   if (refresh) {
     // Re-verify Amazon listings not checked in the last 7 days (dead ASINs,
@@ -50,6 +56,11 @@ async function main() {
          WHERE l.product_id = p.id AND l.platform = 'amazon'
            AND l.verified_at < now() - interval '7 days')
        ORDER BY p.id LIMIT 2000`)
+  } else if (category) {
+    // Fetch the full enumerated pool, keep only this genre, then cap to --limit.
+    const pool = await productsAtStage('enumerated', 1000000)
+    batch = pool.filter((p) => classifyLocal(p.title) === category).slice(0, limit)
+    console.log(`[amazon] category=${category}: ${batch.length} of ${pool.length} enumerated`)
   } else {
     batch = await productsAtStage('enumerated', limit)
     if (retryErrors) {
