@@ -99,12 +99,16 @@ HIGH (all must match):
   Pampers=パンパース, Merries=メリーズ, Moony=ムーニー, Goon=グーン,
   Pigeon=ピジョン, Combi=コンビ, Aprica=アップリカ, Ergobaby=エルゴベビー,
   Meiji=明治, Morinaga=森永, Snow Brand=雪印, Wakodo=和光堂, Kao=花王
+  Wipes (おしりふき) brands also: レック/LEC (純水ベビーケア・水99.9%), アイリスオーヤマ/Genki!, 西松屋.
+  DISTINCT brands NEVER match even if specs look identical: Costco's KIRKLAND (カークランド) ≠ RICO ≠ a コストコ generic — same retailer/sheet-count is NOT the same product.
+  NO-BRAND rule (HIGH): if one side names NO maker (a generic, brand-less title) and the other names a specific brand, that is a MISMATCH — return no-match for it EVEN IF size/type/sheet-count/specs are identical. Identical specs do not prove the same product; a shared brand is required.
 - Product line / model: must be the same line or model within the brand
   · Diapers: さらさらケア ≠ はじめての肌へのいちばん ≠ 超吸収エアリー ≠ 卒業パンツ (different lines/tiers);
     エアスルー ≠ ぐっすりパンツ (Merries); エアフィット ≠ マシュマロ肌ごこち (Moonyman)
   · Formula: らくらくキューブ ≠ 缶タイプ (different form); ほほえみ ≠ ステップ (different stage)
   · Carriers: OMNI Breeze ≠ ADAPT ≠ EMBRACE (different models)
   · Baby food: ハイハイン ≠ グーグーキッチン (different product lines)
+  · Wipes: 純水/水99% ≠ アルコール除菌タイプ; トイレに流せる (flushable) ≠ regular; 手口ふき (hand & mouth) ≠ おしりふき (bottom)
 - Product type: must be the same (tape≠pants, cube≠powder, carrier≠stroller, liquid≠solid)
 - Usage variant: 夜用 (night) ≠ 昼用/標準 (day/regular). Night-use and day/regular are
   different product lines — treat as a mismatch.
