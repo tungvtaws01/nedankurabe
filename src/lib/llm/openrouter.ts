@@ -100,7 +100,8 @@ HIGH (all must match):
   Pigeon=ピジョン, Combi=コンビ, Aprica=アップリカ, Ergobaby=エルゴベビー,
   Meiji=明治, Morinaga=森永, Snow Brand=雪印, Wakodo=和光堂, Kao=花王
 - Product line / model: must be the same line or model within the brand
-  · Diapers: さらさらケア ≠ はじめての肌へのいちばん (different tiers)
+  · Diapers: さらさらケア ≠ はじめての肌へのいちばん ≠ 超吸収エアリー ≠ 卒業パンツ (different lines/tiers);
+    エアスルー ≠ ぐっすりパンツ (Merries); エアフィット ≠ マシュマロ肌ごこち (Moonyman)
   · Formula: らくらくキューブ ≠ 缶タイプ (different form); ほほえみ ≠ ステップ (different stage)
   · Carriers: OMNI Breeze ≠ ADAPT ≠ EMBRACE (different models)
   · Baby food: ハイハイン ≠ グーグーキッチン (different product lines)
@@ -108,9 +109,14 @@ HIGH (all must match):
 - Usage variant: 夜用 (night) ≠ 昼用/標準 (day/regular). Night-use and day/regular are
   different product lines — treat as a mismatch.
 - Gender: 男の子用 ≠ 女の子用. The boy and girl versions are different products — do NOT
-  match across gender. (Plain colors with no gender label are fine — see LOW.)
+  match across gender. For gender-split products (especially 水あそびパンツ swim pants), COLOR
+  encodes gender: ブルー/青 = 男の子用, ピンク = 女の子用 — so blue-vs-pink, or a color on one
+  side vs the opposite gender label on the other, is a gender MISMATCH. (A plain color on a
+  NON-gender-split product is fine — see LOW.)
 - Size / stage / per-unit volume: must match — interpretation depends on category:
-  · Diapers: weight range (新生児/5kg ≠ Sサイズ/6-11kg)
+  · Diapers: weight range (新生児/5kg ≠ Sサイズ/6-11kg). Letter sizes are STRICT —
+    新生児 ≠ Sサイズ ≠ Mサイズ ≠ Lサイズ ≠ ビッグ ≠ ビッグより大きい/スーパービッグ.
+    ADJACENT sizes are STILL a mismatch (M≠L, L≠ビッグ); never match across different sizes.
   · Formula / baby food: age stage (0ヶ月 ≠ 6ヶ月頃) AND PER-UNIT can size (a 400g can ≠ an 800g can)
   · Carriers: supported weight range (newborn ≠ toddler) if specified
   · General: treat any per-unit size or stage difference as a mismatch

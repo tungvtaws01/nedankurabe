@@ -31,6 +31,8 @@ const EXCLUDE_KEYWORDS = [
   // Excluding them from baby matching is correct for both harvest and production search.
   "大人用", "介護", "尿とりパッド", "尿漏れ", "尿もれ", "アテント", "リフレ ",
   "インナーショーツ", "ミエパン", "くろぱん", "見えパン",
+  // Household goods mis-tagged into baby genres (laundry racks, hangers, etc.)
+  "物干", "洗濯物干", "ハンガー", "突っ張り棒",
 ];
 
 export function isTrialOrSamplePack(itemName: string): boolean {
