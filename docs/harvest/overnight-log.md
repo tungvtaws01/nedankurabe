@@ -43,3 +43,8 @@ skincare 480, carriers 467, car_seats 230, wipes 190, bath 28, diapers 24.
 - Ran 25/25 (all bath enumerated). matched=6, rate ~24%.
 - Precision sample 4/4 = 100% (bath ball exact, キューピー全身ベビーソープ, スキナベーブ沐浴剤, リッチェルふかふかベビーバス; case-pack ×2 normalized). 0 CAPTCHA.
 - Low recall is inherent (heterogeneous: bath toys/salts/tubs/soaps) and precision-safe (uncertain→no_match). Meets ≥95% precision gate → no prompt change.
+
+### wipes — tuned (1 light JUDGE rule), then finishing remainder
+- First batch 120: matched=56 (cumulative wipes matched=88, rate ~36%), 0 CAPTCHA.
+- Precision sample 21/22 ≈ 95% — case-pack normalization excellent across レック/ムーニー/グーン/dacco/パンパース (×3/×8/×12/×24 → unit). One real sub-line mismatch: pid=1235 ムーニー「こすらずするりんっ厚手」↔「やわらか厚手」 (distinct Moony wipe lines). One borderline-acceptable: pid=1193 ちいかわ↔サンリオ print of the same LEC 80×3 wipe (character design is cosmetic/LOW).
+- Tune: added a wipe sub-line rule to the JUDGE (Moony やわらか素材 ≠ 水分たっぷり厚手 ≠ こすらずするりんっ). Forward-looking (helps remaining + future wipes); did NOT reset the 120 done since 95% already meets the gate. Running the remaining enumerated wipes with it.

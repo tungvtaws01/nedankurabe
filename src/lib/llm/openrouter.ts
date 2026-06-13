@@ -108,7 +108,7 @@ HIGH (all must match):
   · Formula: らくらくキューブ ≠ 缶タイプ (different form); ほほえみ ≠ ステップ (different stage)
   · Carriers: OMNI Breeze ≠ ADAPT ≠ EMBRACE (different models)
   · Baby food: ハイハイン ≠ グーグーキッチン (different product lines)
-  · Wipes: 純水/水99% ≠ アルコール除菌タイプ; トイレに流せる (flushable) ≠ regular; 手口ふき (hand & mouth) ≠ おしりふき (bottom)
+  · Wipes: 純水/水99% ≠ アルコール除菌タイプ; トイレに流せる (flushable) ≠ regular; 手口ふき (hand & mouth) ≠ おしりふき (bottom); within a brand, named wipe lines differ (Moony やわらか素材 ≠ 水分たっぷり厚手 ≠ こすらずするりんっ; 厚手 ≠ 通常 only when one explicitly says 厚手)
 - Product type: must be the same (tape≠pants, cube≠powder, carrier≠stroller, liquid≠solid)
 - Usage variant: 夜用 (night) ≠ 昼用/標準 (day/regular). Night-use and day/regular are
   different product lines — treat as a mismatch.
