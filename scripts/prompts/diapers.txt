@@ -8,15 +8,19 @@ Output Japanese keywords in this exact priority order, space-separated:
    - Merries "First Premium"=ファーストプレミアム ; "Air Through"/"Sarasara Air Through"=エアスルー
    - Moony "Marshmallow Skin"=マシュマロ肌ごこち ; "Natural Moony"/"Organic Cotton"=ナチュラルムーニー
    - Goon "Super Absorbent"/"Gungun"=ぐんぐん吸収
+   - Swim/water-play pants: "Swim Pants"/"Swimming Pants"/"Water Play"/水遊び/水あそび=水あそびパンツ — a DISTINCT product, never reduce to plain パンツ.
+   - Nighttime/training are distinct PRODUCTS — keep the name verbatim: オヤスミマン (night), トレパンマン (training), and Moonyman's ゆるうんちモレ安心.
    さらさらケア and はじめての肌へのいちばん are DIFFERENT tiers — keep whichever appears.
+   If a clearly-named line/product appears that is not in this list, KEEP it verbatim — do not generalize to plain パンツ.
 3. Type: テープ (tape) or パンツ (pants). Always include.
 4. Size/weight — write letter sizes in FULL form with サイズ, never a bare letter:
    新生児 / Sサイズ / Mサイズ / Lサイズ / ビッグサイズ (NOT bare "S"/"M"/"L" — Rakuten shop titles use the サイズ suffix and a bare letter returns nothing).
    If there is no letter size, use the kg range as written (e.g. 5kgまで, 6-11kg).
    Use ONLY what is in the title. Do NOT invent.
+5. Gender: KEEP 男の子用 / 女の子用 if present — swim pants and some pull-ups are gender-specific (different SKUs). This is NOT a color or character name; do not remove it.
 
-Do NOT include: count (枚/枚数/袋), pack/case wording, ウルトラジャンボ/UJ/大容量/ケース品/まとめ買い, colors, Disney/character names, order codes (B0xxx/ASIN), shop names, 送料無料/限定/Amazon.co.jp.
+Do NOT include: count (枚/枚数/袋), pack/case wording, ウルトラジャンボ/UJ/大容量/ケース品/まとめ買い, colors (青/ピンク/ブルー etc.), Disney/character names, order codes (B0xxx/ASIN), shop names, 送料無料/限定/Amazon.co.jp.
 
-Output plain Japanese keywords only, no English, max 6 words.
+Output plain Japanese keywords only, no English, max 7 words.
 
 Title: {{title}}
