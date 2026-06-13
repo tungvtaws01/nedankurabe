@@ -5,7 +5,19 @@ import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
-async function callLLM(messages: { role: string; content: string }[]): Promise<string> {
+const DEFAULT_MODEL = 'openai/gpt-oss-120b:free'
+// JUDGE = the discriminating matcher (semanticMatch); needs strong JP + reasoning.
+// FAST  = simple classify/refine/explain; a cheaper, smaller model is fine.
+// Both fall back to OPENROUTER_MODEL, then to the default.
+const JUDGE_MODEL = process.env.OPENROUTER_MODEL_JUDGE ?? process.env.OPENROUTER_MODEL ?? DEFAULT_MODEL
+const FAST_MODEL = process.env.OPENROUTER_MODEL_FAST ?? process.env.OPENROUTER_MODEL ?? DEFAULT_MODEL
+
+// These models are non-reasoning instruct models, so outputs are small; cap max_tokens
+// tightly per task to save tokens/latency (was 32768 for the old reasoning model).
+async function callLLM(
+  messages: { role: string; content: string }[],
+  opts: { model: string; maxTokens: number },
+): Promise<string> {
   const res = await fetch(OPENROUTER_URL, {
     method: 'POST',
     cache: 'no-store',
@@ -15,10 +27,9 @@ async function callLLM(messages: { role: string; content: string }[]): Promise<s
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: process.env.OPENROUTER_MODEL ?? 'openai/gpt-oss-120b:free',
+      model: opts.model,
       messages,
-      // 32768 tokens for DeepSeek reasoning model — long chain-of-thought before answer.
-      max_tokens: 32768,
+      max_tokens: opts.maxTokens,
       temperature: 0,
     }),
   })
@@ -36,7 +47,7 @@ Category ids: ${CATEGORIES.join(', ')}
 Output ONLY the id, or "unknown" if none fit. No other text.
 
 Title: ${title}`,
-    }])
+    }], { model: FAST_MODEL, maxTokens: 24 })
     const id = result.trim().toLowerCase()
     return (CATEGORIES as readonly string[]).includes(id) ? (id as Category) : 'unknown'
   } catch {
@@ -55,7 +66,7 @@ export async function refineKeyword(
   const category = await classifyCategory(cleanTitle)
   const buildPrompt = category === 'unknown' ? UNIVERSAL_PROMPT : CATEGORY_PROMPTS[category]
   try {
-    const result = await callLLM([{ role: 'user', content: buildPrompt(targetPlatform, cleanTitle) }])
+    const result = await callLLM([{ role: 'user', content: buildPrompt(targetPlatform, cleanTitle) }], { model: FAST_MODEL, maxTokens: 120 })
     return result || stripBrackets(title)
   } catch {
     return stripBrackets(title)
@@ -122,7 +133,7 @@ Return JSON only: {"matches": [i, j, ...]} listing every valid candidate index, 
 ${fmt(source)}
 Candidates:
 ${candidateList}`,
-    }])
+    }], { model: JUDGE_MODEL, maxTokens: 600 })
     // Strip markdown fences that LLMs sometimes wrap around JSON
     const cleaned = result.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
     const parsed = JSON.parse(cleaned) as { matches: number[] }
@@ -186,7 +197,7 @@ export async function explainPriceDifference(
 - 上の数字をそのまま使い、数字を変えたり新しく作ったりしないこと。
 - 専門用語を避け、親しみやすい言葉で。
 - 1文、最大2文。前置きや箇条書き・記号は不要。文だけを出力すること。`,
-    }])
+    }], { model: FAST_MODEL, maxTokens: 200 })
 
     const sentence = content.trim()
     if (!sentence) return null

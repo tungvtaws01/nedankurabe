@@ -17,8 +17,10 @@ async function main() {
       await sleep(1100) // respect 1 req/s
       if (!items.length) break
       for (const it of items) {
-        if (isTrialOrSamplePack(it.itemName ?? '')) continue
-        const jans = extractJans(`${it.itemName ?? ''} ${it.itemCaption ?? ''}`)
+        // Skip items with no usable name (null/blank) and adult-care/non-baby pollution.
+        if (!it.itemName || !it.itemName.trim()) continue
+        if (isTrialOrSamplePack(it.itemName)) continue
+        const jans = extractJans(`${it.itemName} ${it.itemCaption ?? ''}`)
         const jan = jans[0] ?? null
         try {
           const productId = await upsertProduct({

@@ -27,6 +27,10 @@ const EXCLUDE_KEYWORDS = [
   "レンタル", "レンタル延長",
   // ふるさと納税 bundles — tax donation scheme, not regular retail
   "ふるさと納税",
+  // Adult-care / non-baby products that shops mis-tag into baby genres (genre pollution).
+  // Excluding them from baby matching is correct for both harvest and production search.
+  "大人用", "介護", "尿とりパッド", "尿漏れ", "尿もれ", "アテント", "リフレ ",
+  "インナーショーツ", "ミエパン", "くろぱん", "見えパン",
 ];
 
 export function isTrialOrSamplePack(itemName: string): boolean {
