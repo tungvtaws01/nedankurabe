@@ -45,6 +45,7 @@ export const DIAPERS_PROMPT: PromptBuilder = (platform, title) => `Extract a sea
 Output Japanese keywords in this exact priority order, space-separated:
 1. Brand (Japanese): パンパース / メリーズ / ムーニー / ムーニーマン / グーン / マミーポコ / ゲンキ / ナチュラルムーニー
    (English to JP: Pampers=パンパース, Merries/Merys/Melys=メリーズ, Moony=ムーニー, Moonyman/Moony Man=ムーニーマン, Goo.n/Goon=グーン, Mamy Poko=マミーポコ, Genki=ゲンキ)
+   If NO brand from this list appears in the title, do NOT substitute a famous brand — keep the actual maker/name written in the title, or omit brand. NEVER invent a brand that is not present.
 2. Product line / tier (Japanese) — NEVER drop, NEVER generalize. Map English to JP:
    - Pampers "Smooth Care"/"Sarasara"=さらさらケア ; "First Skin"/"Baby's First Skin"=はじめての肌へのいちばん ; "Silky Touch"=さらさらケア
    - Merries "First Premium"=ファーストプレミアム ; "Air Through"/"Sarasara Air Through"=エアスルー
@@ -54,7 +55,8 @@ Output Japanese keywords in this exact priority order, space-separated:
    - Nighttime/training are distinct PRODUCTS — keep the name verbatim: オヤスミマン (night), トレパンマン (training), and Moonyman's ゆるうんちモレ安心.
    さらさらケア and はじめての肌へのいちばん are DIFFERENT tiers — keep whichever appears.
    If a clearly-named line/product appears that is not in this list, KEEP it verbatim — do not generalize to plain パンツ.
-3. Type: テープ (tape) or パンツ (pants). Always include.
+   Only include a line/tier that LITERALLY appears in the title. If none is named, OMIT it — never guess or add a line (e.g. do not add ファーストプレミアム or ぐんぐん吸収 unless the title says so).
+3. Type/form: keep the FORM that appears — テープ (tape) / パンツ (pants) / 吸収パッド・パッド / ライナー / お産パッド. Always include it, and NEVER convert one form into another (a パッド or ライナー is not パンツ).
 4. Size/weight — write letter sizes in FULL form with サイズ, never a bare letter:
    新生児 / Sサイズ / Mサイズ / Lサイズ / ビッグサイズ (NOT bare "S"/"M"/"L" — Rakuten shop titles use the サイズ suffix and a bare letter returns nothing).
    If there is no letter size, use the kg range as written (e.g. 5kgまで, 6-11kg).

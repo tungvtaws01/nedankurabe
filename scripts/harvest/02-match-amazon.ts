@@ -65,6 +65,7 @@ async function main() {
     // Rakuten title into a tight brand+line+type+size keyword (same as production
     // find-equivalent) instead of searching the raw title — raw titles carry
     // 【10個セット】/大容量パック/marketing noise that returns 0–1 poor Amazon results.
+    const usedJan = p.jan != null
     const keyword = p.jan ?? await refineKeyword(p.title, 'amazon').catch(() => p.title)
     try {
       let html = await browser.searchHtml(keyword)
@@ -75,8 +76,27 @@ async function main() {
         html = await browser.searchHtml(keyword)
         if (html === null) { await setHarvestState(p.id, 'error', 'captcha'); continue }
       }
-      const candidates = parseAmazonSearchHtml(html)
+      let candidates = parseAmazonSearchHtml(html)
       await sleep(jitter(8000, 15000))
+      // JAN-search fallback: Amazon's search does not index JAN/EAN reliably — a JAN
+      // query frequently returns 0 results or unrelated products (e.g. formula/detergent
+      // for a diaper JAN). When the JAN search yields nothing usable (no candidate is even
+      // loosely similar to the source title), retry once with a refined brand+line+type+size
+      // keyword, the same path non-JAN products take. Only triggers on the JAN path.
+      if (usedJan) {
+        const bestSim = candidates.length
+          ? Math.max(...candidates.slice(0, 5).map((c) => similarity(p.title, c.title)))
+          : 0
+        if (bestSim < 0.15) {
+          const kw2 = await refineKeyword(p.title, 'amazon').catch(() => p.title)
+          const html2 = await browser.searchHtml(kw2)
+          await sleep(jitter(8000, 15000))
+          if (html2) {
+            const cand2 = parseAmazonSearchHtml(html2)
+            if (cand2.length) candidates = cand2
+          }
+        }
+      }
       if (!candidates.length) { await setHarvestState(p.id, 'no_match'); noMatch++; continue }
 
       const source = await rakutenSourceFor(p.id)

@@ -33,6 +33,13 @@ const EXCLUDE_KEYWORDS = [
   "インナーショーツ", "ミエパン", "くろぱん", "見えパン",
   // Household goods mis-tagged into baby genres (laundry racks, hangers, etc.)
   "物干", "洗濯物干", "ハンガー", "突っ張り棒",
+  // Non-diaper baby accessories & gifts that pollute the おむつ genre but are not
+  // price-comparable disposable-diaper SKUs (changing mats, diaper-cake gifts,
+  // generic reusable cloth, bedwetting wear, storage bags). Tokens chosen to be
+  // specific enough not to collide with real diaper lines (e.g. さらさらケア is safe
+  // vs ケアシート; 夜用パンツ is safe vs おねしょズボン).
+  "おむつケーキ", "おむつ替えシート", "おむつ替えマット", "ケアシート",
+  "成形布おむつ", "おねしょズボン", "おねしょスカート", "おねしょケット", "収納掛袋",
 ];
 
 export function isTrialOrSamplePack(itemName: string): boolean {
