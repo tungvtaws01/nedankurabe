@@ -411,6 +411,7 @@ function ResultsContent() {
               isWinner={i === 0}
               toggles={toggles}
               pointsLoading={livePointsLoading && r.platform === 'rakuten'}
+              loading={r.salePrice === 0}
             />
           ))}
           <p className="text-center text-[9px] text-[var(--ink-soft)] mt-4 leading-relaxed">

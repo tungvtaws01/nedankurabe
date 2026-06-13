@@ -157,6 +157,17 @@ export async function POST(req: NextRequest): Promise<Response> {
 
         } else {
           // ── Amazon URL ───────────────────────────────────────────────────
+          // Emit a skeleton card immediately (salePrice 0 = placeholder, rendered as a
+          // loading card by ProductCard). The Amazon detail crawl below takes 5-14s; this
+          // shows the comparison screen + the URL-derived title at once instead of a blank
+          // spinner. The real `partial`/`basic` below replaces it.
+          const urlTitle = extractTitleFromAmazonUrl(resolvedUrl)
+          send({ type: 'partial', results: [{
+            platform: 'amazon', title: urlTitle ?? '', imageUrl: '', shopName: '',
+            salePrice: 0, shippingCost: 0, couponDiscount: 0, pointRate: 1, pointsEarned: 0,
+            effectivePrice: 0, subscribeAvailable: false, rakutenCardEligible: false,
+            teikiRates: null, taxRate: 1.1, affiliateUrl: resolvedUrl,
+          }] })
           send({ type: 'status', message: 'Amazonの商品ページを取得中…' })
           const amazonProduct = await crawlAmazonProduct(parsed.id, resolvedUrl).catch(() => null)
           const titleForSearch = amazonProduct?.title ?? extractTitleFromAmazonUrl(resolvedUrl)

@@ -34,10 +34,36 @@ function buildRows(r: ProductResult, t: UserToggles, pointsLoading: boolean): Ro
   return rows
 }
 
-export default function ProductCard({ result, isWinner, toggles, pointsLoading }: {
-  result: ProductResult; isWinner: boolean; toggles: UserToggles; pointsLoading?: boolean
+export default function ProductCard({ result, isWinner, toggles, pointsLoading, loading }: {
+  result: ProductResult; isWinner: boolean; toggles: UserToggles; pointsLoading?: boolean; loading?: boolean
 }) {
   const isAmazon = result.platform === 'amazon'
+
+  // Skeleton: shown while the product page is still being crawled (e.g. an Amazon
+  // URL lookup, ~5-14s). Renders the comparison-screen structure + the title we can
+  // derive from the URL immediately, instead of a blank full-screen spinner.
+  if (loading) {
+    return (
+      <div className="rounded-2xl p-4 mb-3 bg-white border-2 border-[var(--border)]">
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <span className={`text-[9px] font-bold px-2 py-0.5 rounded ${isAmazon
+            ? 'bg-[var(--amazon)] text-[var(--amazon-accent)]'
+            : 'bg-[var(--red)] text-white'}`}>
+            {isAmazon ? 'Amazon' : '楽天 Rakuten'}
+          </span>
+        </div>
+        {result.title && (
+          <p className="text-xs font-bold leading-snug mb-3 line-clamp-3">{result.title}</p>
+        )}
+        <div className="h-7 w-28 rounded bg-[var(--cream)] animate-pulse mb-3" />
+        <div className="h-3 w-full rounded bg-[var(--cream)] animate-pulse mb-2" />
+        <div className="h-3 w-2/3 rounded bg-[var(--cream)] animate-pulse mb-3" />
+        <p className="text-[9px] text-blue-500 leading-relaxed animate-pulse">
+          ⟳ 商品情報を取得中… Loading product
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className={`rounded-2xl p-4 mb-3 ${isWinner
