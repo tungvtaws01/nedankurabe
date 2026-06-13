@@ -68,3 +68,8 @@ skincare 480, carriers 467, car_seats 230, wipes 190, bath 28, diapers 24.
 ### formula — VALIDATED (no tune)
 - Eval batch 120: matched=89, rate ~57% (highest yet — formula is well-branded/consistent), 0 CAPTCHA. Precision 20/20 = 100%.
 - Per-unit can size (小缶300g≠大缶800g) respected; forms (缶/スティック/らくらくキューブ/らくらくミルク liquid/エコらくパック) distinguished; ステップ≠ほほえみ line correct; case-pack ×3/×5/×6/×20 normalized; 旧品 packaging treated as same product. Existing formula prompt + JUDGE rules sufficient. Remainder (~450) deferred for volume.
+
+### baby_food — tuned (flavor rule), 86% → 100%
+- First batch precision 12/14 = 86%: cross-flavor error (グーグーキッチン 鮭とじゃがいも↔牛肉すき焼き) + a no-brand mug→コンビ ラクマグ (also a classify miss).
+- Tune: added baby-food dish/flavor rule to JUDGE (same line + different flavor = mismatch). Reset 70 baby_food, re-ran with flavor rule + searchHtml retry.
+- Re-run precision 16/16 = 100% — every グーグーキッチン/栄養マルシェ/食育レシピ now matches the SAME dish (肉じゃが↔肉じゃが, かぼちゃグラタン↔かぼちゃのグラタン, 鮭のクリームシチュー↔同). rate ~53%, 0 CAPTCHA.
