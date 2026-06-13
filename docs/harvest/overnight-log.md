@@ -38,3 +38,8 @@ skincare 480, carriers 467, car_seats 230, wipes 190, bath 28, diapers 24.
 ## Progress
 
 (entries appended per genre below)
+
+### bath — DONE, no tuning needed
+- Ran 25/25 (all bath enumerated). matched=6, rate ~24%.
+- Precision sample 4/4 = 100% (bath ball exact, キューピー全身ベビーソープ, スキナベーブ沐浴剤, リッチェルふかふかベビーバス; case-pack ×2 normalized). 0 CAPTCHA.
+- Low recall is inherent (heterogeneous: bath toys/salts/tubs/soaps) and precision-safe (uncertain→no_match). Meets ≥95% precision gate → no prompt change.
