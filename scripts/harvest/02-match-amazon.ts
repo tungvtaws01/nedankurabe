@@ -4,7 +4,6 @@ import { parseAmazonSearchHtml } from '../../src/lib/crawlers/amazon'
 import { rankBySimilarity, similarity } from '../../src/lib/matching/rank'
 import { semanticMatch, refineKeyword } from '../../src/lib/llm/openrouter'
 import { parsePackCount } from '../../src/lib/jan/pack-count'
-import { classifyLocal } from '../../src/lib/jan/classify-local'
 import { isTrialOrSamplePack } from '../../src/lib/platforms/rakuten'
 import { upsertListing, setHarvestState, productsAtStage } from '../../src/lib/harvest/repo'
 import { query, pool } from '../../src/lib/db'
@@ -39,9 +38,11 @@ async function main() {
   // a bounded trial run before committing to the full ~30h harvest.
   const limitArg = process.argv.find((a) => a.startsWith('--limit='))
   const limit = limitArg ? parseInt(limitArg.split('=')[1], 10) : 100000
-  // --category=<id> processes only enumerated products whose Rakuten title classifies
-  // (locally, free) to that genre, so each genre can be harvested + evaluated + tuned
-  // on its own. Without it, all enumerated products are processed in id order.
+  // --category=<id> processes only enumerated products in that genre, so each genre
+  // can be harvested + evaluated + tuned on its own. Reads the persisted, accurate
+  // products.category (3-tier resolveCategory: pollution → title regex → Rakuten
+  // genreId) — NOT a runtime title regex — so it covers products whose genre was
+  // recovered from the Rakuten genreId (keyword-less titles the regex alone missed).
   const catArg = process.argv.find((a) => a.startsWith('--category='))
   const category = catArg ? catArg.split('=')[1] : null
   let batch: { id: number; jan: string | null; title: string }[]
@@ -58,12 +59,16 @@ async function main() {
            AND l.verified_at < now() - interval '7 days')
        ORDER BY p.id LIMIT 2000`)
   } else if (category) {
-    // Fetch the full enumerated pool, keep only this genre, then cap to --limit.
-    // Also drop accessories/non-products (EXCLUDE_KEYWORDS) still sitting in the
-    // pre-filter enumerated pool, so they aren't (re)processed into no_match pollution.
-    const pool = await productsAtStage('enumerated', 1000000)
-    batch = pool.filter((p) => classifyLocal(p.title) === category && !isTrialOrSamplePack(p.title)).slice(0, limit)
-    console.log(`[amazon] category=${category}: ${batch.length} of ${pool.length} enumerated`)
+    // Indexed lookup on the persisted category + enumerated stage. The
+    // isTrialOrSamplePack filter is belt-and-suspenders (tier-0 already excludes
+    // pollution from real categories) so no accessory slips into no_match.
+    const rows = await query<{ id: number; jan: string | null; title: string }>(
+      `SELECT p.id, p.jan, p.title FROM products p
+       JOIN harvest_state hs ON hs.product_id = p.id
+       WHERE hs.stage = 'enumerated' AND p.category = $1
+       ORDER BY p.id LIMIT $2`, [category, limit])
+    batch = rows.filter((p) => !isTrialOrSamplePack(p.title))
+    console.log(`[amazon] category=${category}: ${batch.length} enumerated products`)
   } else {
     batch = await productsAtStage('enumerated', limit)
     if (retryErrors) {
