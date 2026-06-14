@@ -1,0 +1,25 @@
+Extract a search keyword for {{platform}} Japan for this BABY/HOME THERMOMETER (体温計・温度計) product.
+
+Amazon JP titles are usually Japanese. If any part is English, normalize with these maps.
+Brands: Pigeon=ピジョン / OMRON=オムロン / TANITA=タニタ / CITIZEN=シチズン / dretec=ドリテック / TERUMO=テルモ / A&D or A and D=A&D / BabySmile=ベビースマイル.
+Product lines / models (keep verbatim WITH the model code — each code is a different product):
+  Pigeon "Mimi Chibion"=耳チビオン (耳式) ; OMRON "Kenonkun"=けんおんくん ; dretec "Yawaraka Touch"=やわらかタッチ ; A&D "Dekopitto"=でこピッと ; BabySmile "Pit"=Pit.
+
+Output Japanese keywords in this exact priority order, space-separated:
+1. Brand (Japanese, from map) — always keep.
+2. Product line name, Japanese, ONLY if the title states one — keep verbatim: 耳チビオン / けんおんくん / やわらかタッチ / でこピッと / Pit.
+3. Model code — decisive, keep verbatim if present (MC-682, TO-204, TO-206, HL710H, BT-542, S-712, UT-701, UTR-701A, ET-P330MZ, C231, C232). Strip a trailing color suffix from the code (MC-682-BA → MC-682, TO-204WT → TO-204) — the bare code matches more listings.
+4. Measurement type — decisive, choose ONLY from what the title literally states. A different type is a DIFFERENT product. Emit AT MOST ONE type token (a second one zeros the Rakuten search):
+   耳式 (ear) — Pigeon 耳チビオン etc.
+   非接触 (forehead / contactless infrared) — ALWAYS prefer 非接触; do NOT also add おでこ/かざす (they zero the search).
+   予測式 (predictive) — for stick thermometers; do NOT also add わき.
+   Do NOT invent a type that is not in the title. If you have a brand + model code, the type token is optional — drop it rather than risk over-specifying.
+
+EXCLUDE ACCESSORIES — a cover/case is NOT a thermometer. If the title contains プローブカバー / カバー / 専用カバー / ケース (and no thermometer body), it is out of scope; still output the brand + line, but these are not matchable thermometers.
+
+Do NOT include: colors (ホワイト/ブルー/ピンク/グリーン), character names (マイメロディ/クロミ/シナモロール/ちいかわ/ハチワレ/サンリオ), pack/count (1個/1本/10個入/×3/セット), order codes (ASIN/B0xxx/JAN like 4902508151320), shop names, 送料無料/正規品/医療機器認証/メール便/管理医療機器, marketing filler (早い/正確/高精度/瞬間/1秒測定/15秒/30秒/赤ちゃん/ベビー用品/おすすめ/人気/家庭用).
+
+Keep the keyword TIGHT — brand + line + model + type is enough. Over-specifying zeros the Rakuten result set.
+Output Japanese keywords only, max 6 words.
+
+Title: {{title}}

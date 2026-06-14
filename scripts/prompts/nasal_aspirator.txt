@@ -1,0 +1,26 @@
+Extract a search keyword for {{platform}} Japan for this BABY NASAL ASPIRATOR (鼻吸い器・鼻水吸引器) product.
+
+Amazon JP titles are usually Japanese. If any part is English, normalize with these maps.
+Brands: Seastar or SeaStar=シースター / BabySmile or Baby Smile or babysmile=ベビースマイル / Pigeon=ピジョン / Tampei or Tanpei=丹平製薬 / ChuChu=チュチュ / Jex=ジェクス / Combi=コンビ / bebecure or BebeCure=ベベキュア / Knol or Knoll=ベビーバキューム.
+Product lines / models: "Mercy Pot"/"Melsy Pot"=メルシーポット ; "SHUPOT"/"Shupot"=シュポット ; "Mama Hanamizu Totte"=ママ鼻水トッテ ; "Sotto Totte"=ソットトッテ.
+Item type words: "Electric"=電動 ; "Handy"/"Handheld"/"Cordless"=ハンディ ; "Hand Pump"/"Hand-pump"=ハンドポンプ ; "Mouth"/"by mouth"/"お口で吸う"=口で吸う ; "Nasal Aspirator"/"Nose Suction"=鼻吸い器 ; "Nasal Mucus Suction"=鼻水吸引器.
+
+Output Japanese keywords in this exact priority order, space-separated:
+1. Brand (Japanese, from map) — always keep, but ONLY if the title actually names that brand or its English form. NEVER invent or guess a brand. ママ鼻水トッテ / ソットトッテ are 丹平製薬 products: do NOT prepend ピジョン or any unrelated brand to them. For メルシーポット either シースター or ベビースマイル is fine; prefer ベビースマイル.
+2. Product line / model name — NEVER drop. Keep verbatim: メルシーポット / シュポット / ママ鼻水トッテ / ソットトッテ / ベベキュア / こでなBiBi.
+3. Model code — DECISIVE, always keep if the title states it: S-503 / S-504 / S-505 (メルシーポット), S-303 / S-303NP (ベビースマイル ハンディ), C-62 (コンビ). Each numbered model is a different product. Copy it verbatim; NEVER invent one.
+4. Type — DECISIVE, choose ONLY from what the title literally states. These are DIFFERENT products, never substitute:
+   電動 (electric, stationary device) — e.g. メルシーポット, シュポット, ベベキュア, ソットトッテ.
+   ハンディ (handheld/cordless ELECTRIC) — e.g. ベビースマイル S-303 — keep ハンディ to distinguish from the stationary メルシーポット.
+   ハンドポンプ (manual HAND-PUMP, squeezed by hand, NOT electric) — e.g. ソットトッテ ハンドポンプ. This is a DIFFERENT product from the electric ソットトッテ — keep ハンドポンプ, never map it to ハンディ or 電動.
+   口で吸う (mouth suction, parent inhales) — e.g. ママ鼻水トッテ — a mouth-suction device is NOT electric and NOT a pump; keep this token.
+   Plus the noun: 鼻吸い器 or 鼻水吸引器 (either is fine).
+
+Do NOT include: colors (ピーチ/グリーン/ピンク/ブルー/ホワイト), counts/sets (1個/2個入/セット/パーフェクトセット/ボンジュールセット/まとめ買い), replacement-part / accessory words when the device itself is the product (ノズル/チューブ/フィルター/ボトルカバー/フロート/コネクター/充電器/部品/交換/消耗品), order codes (B0xxx/ASIN/品番), shop names, 送料無料/正規品/医師推奨/出産祝い/プレゼント/最強配送/即日配達, marketing filler (静音/パワフル/コンパクト/かんたん操作/丸洗い/赤ちゃん/ベビー用品/新生児/子供/花粉症/鼻づまり).
+
+NOTE on accessories: if the SOURCE title is itself a replacement part (e.g. フィット鼻ノズル, ボトルカバー, フロートセット, 排水コネクター), it is an accessory NOT a device — keep brand + line + the part noun so it matches the same accessory, not the machine.
+
+Keep the keyword TIGHT — brand + line + model code + type is enough. Over-specifying zeros the Rakuten result set.
+Output Japanese keywords only, max 6 words.
+
+Title: {{title}}

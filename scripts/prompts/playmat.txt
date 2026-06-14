@@ -1,0 +1,41 @@
+Extract a search keyword for {{platform}} Japan for this PLAYMAT / FLOOR-MAT product (プレイマット / ジョイントマット / フロアマット / ベビーマット / ロールマット / コルクマット).
+
+Amazon JP and Rakuten titles are both Japanese (Amazon may add an English brand). Output Japanese ONLY.
+
+For mats the IDENTITY is usually BRAND (when one exists) + TYPE + SIZE + THICKNESS. Most mats are NO-BRAND generic — for those, TYPE + SIZE + THICKNESS is the identity. SIZE is decisive here (unlike most categories) — keep it. Drop colors, character/marketing prints, and fluff.
+
+BRAND — keep VERBATIM when present (English and katakana both map; keep whichever the title uses, prefer the katakana if both):
+- CARAZ / Caraz / カラズ = カラズ (Carazマット / カラズマット = カラズ)
+- ALZIPmat / ALZiPmat = ALZIPmat
+- サンデシカ / iFam / アイファム / タンスのゲン / ニコット / Of / Eparcs / ホイミ / FORkids / エムールベビー / popomi / gumode / GUMODE / enne / DoriDori / pattan / thesun / Carrebebe / フジキ
+Keep a sub-line word only when it is part of the spoken product name (e.g. アーバンシリーズ, ゼロクリーン, クリーン). Drop it if it is just marketing.
+
+TYPE — keep exactly the type the title's PRIMARY product is; these are DIFFERENT products, never swap or merge. Pick ONE:
+- プレイマット — a single folding/seamless cushioned mat (折りたたみ / シームレス / 二つ折り / 四つ折り). Use プレイマット (add 折りたたみ if the title says it; add シームレス only if stated).
+- ジョイントマット — interlocking square tiles (大判 / 45cm / 60cm / サイドパーツ). Use ジョイントマット.
+- ロールマット — a single rolled PVC sheet (ロールマット / PVC / フリーカット). Use ロールマット.
+- コルクマット — cork-surface tiles. Use コルクマット.
+- フロアマット — generic floor mat when none of the above is the primary word. Use フロアマット.
+A folding プレイマット is NOT a ジョイントマット is NOT a ロールマット. Many titles list several of these as cross-tags — choose the ONE that is the real product (usually the first / the one the size and fold pattern describe).
+
+SIZE — KEEP IT, it is the decisive field for mats. Use the form the title states:
+- Rectangular play/floor mats: 140×200 / 180×200 / 120×160 / 155×155 — keep as "140 200" (space-separated numbers, no × needed) or the cm form. If the title lists MANY sizes (e.g. 100 120 140 160 180 200) it is a multi-size listing — then DROP size and rely on brand+type+thickness.
+- Joint-tile mats: tile size 45cm / 60cm — keep it.
+- Roll mats: width × length like 110 300 / 140 500 — keep the width number (110 / 140).
+- If the title gives ONLY a letter size-code (サイズG / サイズS / サイズSG / サイズXG / Sサイズ) with NO cm numbers, DROP size entirely — do NOT invent a numeric size. Keep brand+type+thickness instead.
+
+THICKNESS — keep ONLY when a thickness number literally appears in the title; it distinguishes SKUs: 厚さ4cm / 4cm / 厚み4cm = 4cm ; 厚さ2cm / 20mm / 2cm = 2cm ; 1.5cm / 1.2cm / 15mm (roll/PVC) — keep the number. NEVER invent a thickness that is not written in the title (do NOT assume 1.5cm for a roll mat or 4cm for a folding mat).
+
+FOLD pattern — keep only if it clearly identifies the SKU: 二つ折り / 四つ折り / 4つ折り / 4段 / 5段. These help only for folding プレイマット.
+
+Output Japanese keywords in this priority order, space-separated:
+1. Brand (from map) — only if the title clearly has one; many mats are no-brand, then skip.
+2. Type — the ONE primary type (プレイマット / ジョイントマット / ロールマット / コルクマット / フロアマット).
+3. Size — the single defining size (e.g. 140 200 ; or tile 45cm ; or roll width 110). Drop if it is a multi-size listing.
+4. Thickness — 4cm / 2cm / 1.5cm — only the one stated.
+
+Keep the keyword TIGHT — usually 3-4 tokens (brand + type + size + thickness, or for no-brand just type + size + thickness). Rakuten ZEROES OUT on over-specification, so do NOT add: colors (グレー/ベージュ/ホワイト/ライトベージュ/北欧), character/print names, marketing (送料無料/出産祝い/おしゃれ/抗菌/防水/防音/床暖房対応/洗える/リバーシブル/大判/厚手/コンパクト/軽量/安全認証/正規品/韓国製), order/ASIN codes (B0xxx / 7-digit), shop names, 赤ちゃん/ベビー/キッズ/子供 when a brand or size already pins it. Do NOT invent a size or thickness that is not in the title.
+
+Output plain Japanese keywords only, no English (except brand names that are only written in English), no punctuation. Max 5 words.
+
+Title: {{title}}

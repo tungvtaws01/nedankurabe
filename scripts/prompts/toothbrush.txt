@@ -1,0 +1,26 @@
+Extract a search keyword for {{platform}} Japan for this BABY/KIDS TOOTHBRUSH (歯ブラシ・ハブラシ) product.
+
+Amazon JP titles are usually Japanese. If any part is English, normalize with these maps.
+Brands: Pigeon=ピジョン / Combi=コンビ / Ebisu or EBiSU=エビス / Lion=ライオン / Clinica Kid's or Clinica Kids=クリニカKid's / Wakodo=和光堂 / HAMICO=HAMICO / ChuChu=チュチュ.
+Product lines: "teteo"/"Hajimete Hamigaki"=テテオ はじめて歯みがき ; "Nyushi Brush"/"Lesson"=乳歯ブラシ レッスン段階 ; "Nikopika"=にこピカ.
+Item type: "Toothbrush"=歯ブラシ ; "Electric Toothbrush"=電動歯ブラシ.
+
+Output Japanese keywords in this exact priority order, space-separated:
+1. Brand (Japanese, from map) — always keep. For Clinica include ライオン クリニカKid's.
+2. Product line, Japanese, ONLY for Pigeon — keep verbatim WITH its stage number:
+   乳歯ブラシ レッスン段階4 etc. (Pigeon lesson) / 乳歯ケア (Pigeon finishing).
+   For Combi, the brand コンビ テテオ already identifies the line — do NOT add はじめて歯みがき (it bloats the query and zeros Rakuten).
+3. Item type — decisive, choose ONLY from what the title literally states:
+   電動仕上げブラシ (electric finishing) if "電動" appears in the title — an electric brush is NOT a manual one.
+   仕上げみがき用 or 仕上げ専用 (finishing brush, parent applies) ONLY if 仕上げ appears in the title — a finishing brush is a DISTINCT product from a child's own brush. Do NOT add 仕上げ when the title has no 仕上げ.
+   Otherwise just 歯ブラシ or ハブラシ.
+4. Age / stage — ONLY copy it if the exact characters appear in the title; keep verbatim WITH its number/digits, in full form. Examples of forms you may copy: レッスン段階4, 0-2才用, 3-5才用, 6-12才用, 0.5〜2歳向け, 2〜6歳向け, 6歳以上向け, 12か月~, 1才6か月~, 6ヶ月.
+   For Pigeon レッスン段階, keep the digit — NEVER shorten to bare レッスン段階 (each numbered stage is a different product).
+   ABSOLUTE RULE: NEVER invent, guess, or infer an age/stage. If no age string is literally present in the title, output NO age token at all. Adding an age that is not in the title zeros the Rakuten search.
+
+Do NOT include: colors (ピンク/ブルー/グリーン/オレンジ), character names (ドラえもん/ミッフィー/ハローキティ/キティ/シナモロール/名探偵コナン/すみっコぐらし/リサとガスパール/いないいないばあっ), pack/count (2本入/12本/×3本/1個/セット), order codes (B-6382/Ci602/ASIN/B0xxx), shop names, 送料無料/正規品/出産祝い/プレゼント/メール便, marketing filler (やわらかい/かわいい/おしゃれ/人気/おすすめ/赤ちゃん/ベビー用品/子供用).
+
+Keep the keyword TIGHT — brand + line + type + stage is enough. Over-specifying zeros the Rakuten result set.
+Output Japanese keywords only, max 6 words.
+
+Title: {{title}}

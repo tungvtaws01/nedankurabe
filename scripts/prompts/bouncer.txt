@@ -1,0 +1,43 @@
+Extract a search keyword for {{platform}} Japan for this BABY BOUNCER / ROCKER / HI-LOW CHAIR / ELECTRIC SWING (バウンサー・ハイローラック・電動スウィング) product.
+
+Amazon JP titles are often English-translated; Rakuten titles are katakana. Translate to Japanese and output Japanese ONLY.
+
+The decisive fields are BRAND + MODEL/LINE + TYPE. The TYPE must be preserved: a manual bouncer (バウンサー) is NOT the same product as a hi-low rack (ハイローラック/ハイローチェア) and NOT the same as an electric/auto swing (電動・オートスウィング) or cradle (ゆりかご). Never swap or invent a type the title does not state.
+
+BRANDS (English to JP) — always keep:
+- BabyBjorn / Baby Bjorn / Babybjörn = ベビービョルン
+- Combi = コンビ
+- Aprica = アップリカ
+- Katoji = カトージ
+- Stokke = ストッケ
+- Ingenuity / Kids2 = インジェニュイティ
+- Richell = リッチェル
+- Nishimatsuya = 西松屋
+If NO known brand appears, keep the actual maker name written in the title; never invent a famous brand.
+
+MODEL / LINE — highest priority after brand, NEVER drop, NEVER generalize. Keep the exact line word(s) verbatim. Amazon spells these many ways; map to the katakana:
+- BabyBjorn: "Bliss" = ブリス ; "Bliss Air" = ブリス エアー ; "Balance Soft" = バランスソフト ; "Balance Soft Air" = バランスソフト エアー (keep エアー/Air — Air is a mesh variant that is a distinct SKU)
+- Combi: "Nemurila" / "Nemulila" = ネムリラ ; keep the grade word EXACTLY — these are DIFFERENT models: "Auto Swing" / "AUTO SWING" = オートスウィング (electric) ; "BEDi" = BEDi ; "Auto DR" = Auto DR ; "Long" = ロング ; "White Label" = ホワイトレーベル
+- Aprica: "YuraLism" / "Yura Rhythm" / "Yurarizumu" = ユラリズム ; "Auto" = オート (electric swing) ; "Smart" = スマート ; "Premium" = プレミアム
+- Katoji: "Piccolo" = ピッコロ ; "Swing Hi-Low Rack" = スイングハイローラック
+- Stokke: "Steps" = ステップス
+- Ingenuity: "Keep Cozy" = キープコージー ; "Cozy Spot" = コージースポット ; "Soothing" = スージング ; "Rocking" = ロッキング
+- Richell: "Bouncing Seat" / "Bouncing Seat N" = バウンシングシート N
+
+TYPE — keep exactly the one the title states; these are DIFFERENT products, never swap or invent:
+- "Bouncer" / バウンサー / "Bouncing Seat" = バウンサー (manual rocker)
+- "Hi-Low Rack" / "Hi-Low Chair" / "High Low" / ハイローラック / ハイローチェア = ハイローチェア
+- "Electric" / "Auto Swing" / "Electric Swing" / 電動 / オートスウィング = electric — keep オートスウィング or 電動 as the title states
+- "Cradle" / ゆりかご = ゆりかご
+
+Output Japanese keywords in this exact priority order, space-separated:
+1. Brand (Japanese, from map) — always keep.
+2. Model / line (Japanese, from map) — NEVER drop. Keep エアー/Air, the grade word, and オートスウィング when the title has them; they distinguish SKUs.
+3. Type — バウンサー / ハイローチェア / 電動 / オートスウィング / ゆりかご — only the one the title states.
+
+Do NOT include: colors (アンスラサイト/グレーベージュ/ブラック/ネイビー/Black/Gray/Beige etc.), fabric-only words alone, age/weight ranges (0ヶ月/1ヶ月～2歳/新生児～4歳/22kg), order/ASIN codes (B0xxx / 7-digit numbers / 12428 / 17554), shop names, marketing (送料無料/正規品/日本正規品/10年保証/2年保証/SG認証/出産祝い/出産準備/ギフト/コンパクト/軽量/折りたたみ/リクライニング/洗える/洗濯可). Replacement covers / cushions sold alone (シート単品 / クッション / カバー / 洗い替え) are ACCESSORIES, not the product — if the title is an accessory, keep the accessory word; otherwise never add it. There is NO count dimension — never add 個/台/セット.
+
+Keep the keyword TIGHT — brand + model + type is enough (usually 3-4 tokens). Over-specifying (color, age, marketing, fabric) shrinks or zeroes the Rakuten result set.
+Output plain Japanese keywords only, no English except model codes that are written in latin (BEDi/Air), max 5 words.
+
+Title: {{title}}

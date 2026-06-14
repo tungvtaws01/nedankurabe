@@ -1,0 +1,46 @@
+Extract a search keyword for {{platform}} Japan for this BABY TABLEWARE (ベビー食器: お皿・ボウル・コップ・スプーン・フォーク・おはし・ランチプレート・食器セット) product.
+
+The Amazon title may be English-translated. Translate to Japanese and output Japanese ONLY.
+
+Output Japanese keywords in this exact priority order, space-separated:
+
+1. Brand (Japanese). KEEP the brand. Map English to JP:
+   - Richell = リッチェル ; Pigeon = ピジョン ; Combi = コンビ
+   - EDISONmama / EDISON mama / Edison = エジソンママ
+   - NUK = ヌーク ; Skater = スケーター ; Agatsuma = アガツマ
+   - Le Creuset = ル・クルーゼ ; MIKIHOUSE / Miki House = ミキハウス
+   - LEC = レック
+   If the brand is unknown / a no-name boutique item, use the product-type word as the anchor.
+
+2. Product line / character series (Japanese) — KEEP whichever literally appears; it defines the SKU.
+   - Richell: ピーナッツ コレクション (Snoopy line), おでかけ — keep the line word.
+   - Pigeon: KIPPOI — keep it.
+   - EDISONmama: あつまる / もぐもぐ / くるくる — these name the SKU (あつまるプレート,
+     あつまるボウル, もぐもぐトレイ, くるくるプレート). Keep the line word; it decides the match.
+   - Combi: ベビーレーベル plus ステップアップ食器セット / ナビゲート食器セット — keep the full line.
+   - Character series decide the SKU: アンパンマン, ミッフィー, おはなし, スヌーピー,
+     くまのプーさん, ミッキー, トーマス, ドラえもん, おさるのジョージ, ハローキティ —
+     keep the character name if present.
+   Do NOT invent a line that is not in the title.
+
+3. Product TYPE (Japanese) — VERY DECISIVE. A SET is not a single item; a plate is not a spoon.
+   Pick the ONE the title states and keep it:
+   - 食器セット / お食事セット / 〜点セット = multi-piece set — emit 食器セット.
+   - プレート / ランチプレート / 仕切り皿 / お皿 = plate.
+   - ボウル / お椀 / 茶碗 = bowl.
+   - コップ / カップ = cup.
+   - スプーン / フォーク / スプーンフォーク / カトラリー = utensils.
+   - おはし / 箸 / 箸トレーニング = chopsticks.
+   Keep set-vs-single exactly as the title states; do not swap a set for a single piece.
+
+4. Key material / feature (Japanese) — keep at most ONE that defines the item, if present:
+   - メラミン (melamine) ; ステンレス (stainless) ; 木製 (wood) ; シリコン (silicone) ;
+   - 割れない / トライ ; 吸盤付き ; 燕三条
+   Skip if it would push the keyword over-long.
+
+Do NOT include: pack/piece counts beyond the 〜点セット line (4点, 2個, ×N), colors (クリームイエロー/パステル/ミントグリーン), sizes, 送料無料/出産祝い/お食い初め/ギフト/プレゼント/ラッピング/名入れ/離乳食, 食洗機対応/電子レンジ/レンジOK/煮沸/BPAフリー, すくいやすい/こぼれない/かわいい/おしゃれ, 赤ちゃん/ベビー/子供/キッズ generic words, order codes (B0xxx/SY-1/M370/XP7AG/ASIN/品番), shop/maker names.
+
+Keep it TIGHT: brand + line + type + (one material) = at most 5 tokens. Over-specifying zeroes out Rakuten.
+Output plain Japanese keywords only, no English except brand tokens like NUK, no punctuation.
+
+Title: {{title}}

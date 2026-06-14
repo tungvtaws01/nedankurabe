@@ -1,0 +1,46 @@
+Extract a search keyword for {{platform}} Japan for this BABY SAFETY GATE / FENCE / PLAYPEN (ベビーゲート / ベビーフェンス / ベビーサークル・プレイヤード) product.
+
+Amazon JP and Rakuten titles are both Japanese. Output Japanese ONLY.
+
+The decisive fields are BRAND + EXACT MODEL/LINE + TYPE + MOUNT. The model/line name is the most important token after brand — NEVER drop it, NEVER generalize it, NEVER swap a similar model. Use the KATAKANA line name; do NOT add bare numeric/ASIN model codes (BD101 / 5014047001 / 093876) — they zero out the Rakuten result set. Only keep a code that is part of the line's spoken name (FLEX-2, LDK-STYLE2).
+
+BRANDS — always keep (use the Japanese form):
+- 日本育児 (Nihon Ikuji)
+- リッチェル / Richell = リッチェル
+- カトージ / KATOJI = カトージ
+- ベビーダン / Babydan = ベビーダン
+- Lascal / ラスカル = ラスカル (キディガード = KiddyGuard)
+- ラッテ
+
+MODEL / LINE — keep VERBATIM the one the title states; these are DIFFERENT SKUs, never merge or shorten:
+- 日本育児: スマートゲイト / スマートゲイトII / スマートゲイト2 / スマートワイド / おくだけとおせんぼ / おくトビラ / おくだけドアーズWoody2 / ベビーズゲイトローステップ / FLEX-2 (spell it スマートゲイト with イ, never スマートゲート; keep II / 2 as written)
+- リッチェル: 階段の上でも使える木のバリアフリーゲート / おくだけフェンス / パーテーションにも使えるベビーサークル
+- カトージ: LDK-STYLE2 / LDK-STYLE / 木製ベビーサークル
+- ベビーダン: マルチダン / ノートリップ / フレックスフィット / フレックスフィットデラックス / ハースゲート / プレミア (use the katakana line name only — do NOT append BD101/BD108 codes; keep デラックス if the title says it)
+- Lascal: キディガード / キディガード・アヴァント
+Keep katakana suffixes that distinguish the SKU verbatim: ミルキー / プレミアムクリア / スマートワイドWoody / クリア / デラックス / スリム.
+
+TYPE — keep exactly the one the title states; these are DIFFERENT PRODUCTS, never swap or invent:
+- ゲート (gate, an opening barrier) = ベビーゲート
+- フェンス (free-standing fence) = ベビーフェンス
+- サークル / プレイヤード (enclosed playpen) = ベビーサークル
+A gate is NOT a fence is NOT a サークル. Match the title's primary type.
+
+MOUNT — keep ONLY when the exact word literally appears in the title; NEVER infer or invent a mount. A バリアフリー / 階段上 gate is NOT 突っ張り — do not add 突っ張り unless the title says 突っ張り/つっぱり:
+- 突っ張り / つっぱり (tension-mounted) = 突っ張り
+- 置くだけ / おくだけ / 自立式 (free-standing) = 置くだけ
+- ネジ固定 (screw-fixed) = ネジ固定
+- オートクローズ / オートロック (auto-close)
+- ロール式 (roll-up)
+
+Output Japanese keywords in this priority order, space-separated:
+1. Brand (Japanese) — always include.
+2. Exact model / line (katakana; keep デラックス / クリア / Woody suffix if present) — always include, the decisive field. Do NOT add bare BD/numeric codes.
+3. Type — ベビーゲート / ベビーフェンス / ベビーサークル — the one the title states.
+4. Mount — only the one the title states.
+
+Keep the keyword TIGHT — brand + model + type is usually 3-4 tokens. Over-specifying shrinks or zeroes the Rakuten result set, so do NOT add: colors (白/黒/ブラウン/ベージュ/ホワイト/グレー/ナチュラル), width/size ranges (幅62.5-106.8cm / 74～96cm / 高さ60cm) unless the width IS the SKU name, age ranges (6ヶ月~24ヶ月 / 新生児), marketing (送料無料/正規品/北欧/おしゃれ/シンプル/階段上/バリアフリー/当日出荷), order/ASIN codes (B0xxx / 7-digit numbers), shop names. There is NO count dimension — never add 個/枚/セット. Drop accessory-only items' parent line: if the product IS an 拡張パネル / ドアパネル / 追加フレーム / 拡張パーツ (single accessory part), keep that accessory word; otherwise never add it.
+
+Output plain Japanese keywords only, no English (except model codes), no punctuation. Max 5 words.
+
+Title: {{title}}

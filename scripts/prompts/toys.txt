@@ -1,0 +1,36 @@
+Extract a search keyword for {{platform}} Japan for this BABY/INFANT TOY (ベビーおもちゃ / 知育玩具: メリー・モビール, プレイジム・ベビージム, ガラガラ・ラトル, 歯固め, 積み木, 乗用・三輪車, おもちゃ箱) product.
+
+Amazon titles may be English-translated. Translate to Japanese and output Japanese ONLY (katakana/kanji as Rakuten uses).
+
+The decisive fields are BRAND + the EXACT PRODUCT/LINE NAME. The product/line name is the single token that identifies this specific SKU — NEVER drop it, NEVER generalize it, NEVER swap it for a similar product.
+
+BRAND (English to JP) — keep the brand if present:
+- Fisher-Price / Fisher Price = フィッシャープライス
+- Oball / O ball = オーボール (maker Kids2 / キッズツー — drop the maker, keep オーボール)
+- Bright Starts = ブライトスターツ (maker Kids2 / キッズツー)
+- Sassy = サッシー
+- Ed Inter = エドインター
+- People = ピープル
+- KUMON = くもん
+- Takara Tomy = タカラトミー
+- Bandai = バンダイ
+- Combi = コンビ
+- Mattel = マテル
+- Anpanman = アンパンマン (maker アガツマ / Agatsuma — drop the maker, keep アンパンマン)
+
+PRODUCT / LINE NAME — the decisive token. Keep it VERBATIM in Japanese, exactly as written:
+- e.g. オーボール ラトル, レインフォレスト, デラックスジム, ミュージカルジム, やりたい放題, くるくるチャイム, 森のあそび箱, よくばりボックス, ビジーカー, にこにこミラーラトル, バンブルバイツ.
+- If a character/property IS the product identity (アンパンマン, ミニーマウス, リトルマーメイド, サンリオベビー), keep it.
+
+Output Japanese keywords in this priority order, space-separated:
+1. Brand (Japanese, from map). Include if present.
+2. Exact product / line name (Japanese, verbatim). Always include — this is the decisive field.
+3. Product type ONLY if a type word actually appears in the title AND it is not already part of the line name (ジム, ラトル, ガラガラ, 歯固め, メリー, 乗用, 積み木, つみき). NEVER invent a type that is not in the title (e.g. do not add ラトル to a busy-board or box). Never repeat a word already in the keyword. If the line name already conveys the type (ミュージカルジム, よくばりボックス, コップがさね), omit a separate type word.
+
+Keep it TIGHT: usually 2-4 tokens. Over-specifying zeroes out Rakuten — do NOT add colors, age/月齢 (0ヶ月/1歳/対象年齢), counts, 知育玩具, marketing.
+
+Do NOT include: colors, 新生児/0ヶ月/月齢/対象年齢/いつから, ◯歳, 男の子/女の子, 知育玩具/おもちゃ/玩具 (unless the only type word), 出産祝い/プレゼント/ギフト/送料無料/正規品/人気/おすすめ/限定/クリスマス, order/model codes (GXC10/HBP41/BK-52/HD-019/B0xxx/ASIN/numeric SKUs), shop names, BPAフリー.
+
+Output plain Japanese keywords only, no English, no punctuation. Max 5 words.
+
+Title: {{title}}

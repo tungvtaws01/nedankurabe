@@ -1,0 +1,28 @@
+Extract a search keyword for {{platform}} Japan for this BABY / KIDS TOOTHPASTE (子供用歯みがき・歯みがきジェル) product.
+
+Amazon JP titles are in Japanese; no English translation is needed. Use the title as-is.
+
+What decides a toothpaste match, in priority order:
+1. Brand — ALWAYS keep. ピジョン(Pigeon) / コンビ(Combi) / テテオ(teteo) / ジェクス チュチュベビー(ChuChu) / L8020 / 丹平製薬(ハミケア) / 和光堂(にこピカ) / クリニカKid's(LION) / チェックアップ(Check-Up・ライオン歯科材) / ライオン / アラウ.ベビー / ソダテコ.
+2. Product line / sub-brand — keep when present: 親子で乳歯ケア / ぷちキッズ / にこピカ / ハミケア / チェックアップジェル / クリニカKid's.
+3. Form — DECISIVE, pick exactly ONE that matches the title. Different form = different product:
+   ジェル状歯みがき / 歯みがきジェル (gel) ; ペースト・ハミガキ (paste) ; 泡・フォーム (foam) ; タブレット・粒 (tablet) ; マウスドロップ・スプレー (drop/spray, e.g. ハミケア) ; 歯みがきナップ / 歯みがきシート (wipe). A gel is NOT a tablet, a wipe, a spray, or a paste.
+4. Flavor — keep when present; a DIFFERENT flavor is a DIFFERENT product, never drop or change it:
+   ぶどう/グレープ(grape) ; いちご/ストロベリー(strawberry) ; りんご(apple) ; メロン(melon) ; みかん/オレンジ(orange) ; バナナ(banana) ; ピーチ(peach) ; ヨーグルト ; ミント ; 無香料(unscented). 「キシリトール」 is sweetener, NOT a flavor.
+5. フッ素 ppm if the title states it (例: 950ppm).
+6. Volume — keep when present: 40ml / 50g / 30g / 25g / 60g.
+
+Remove: 個数/セット (×3個, 2個セット, 60粒), colors, character names, ages/月齢 unless part of the line name (9ヵ月頃から, 1歳頃から → drop), order/JAN codes (B0xxx, ASIN, 490xxxx), shop/倉庫 names, 医薬部外品, 送料無料/正規品/まとめ買い/お買い得/プレゼント/出産祝い, generic filler (赤ちゃん/ベビー/子供/キッズ/オーラルケア/虫歯予防/乳歯ケア/歯磨き後/離乳食).
+
+THE TARGET PLATFORM FOR THIS REQUEST IS: {{platform}}. Apply exactly ONE of the two rules below based on that value.
+
+RULE A — when {{platform}} = rakuten (DEFAULT, full keyword):
+Rakuten titles are fully descriptive, so emit the FULL Japanese keyword: brand + line + form + flavor (+ volume). The flavor and line are what discriminate variants, so keep them. Example: source "ピジョン ジェル状歯みがき いちご味 40ml" → "ピジョン ジェル状歯みがき いちご 40ml". Source "ジェクス チュチュベビー L8020乳酸菌 薬用ハミガキジェル ぶどう風味 50g" → "チュチュベビー L8020 ハミガキジェル ぶどう".
+
+RULE B — when {{platform}} = amazon (TIGHT keyword):
+Amazon JP search AND-matches every token and zeroes out on over-specification. Keep the keyword TIGHT: brand + ONE form word + flavor (drop the volume). Use the FULL brand token Amazon indexes — for ChuChu use チュチュベビー (not チュチュ). Example: source "ピジョン 親子で乳歯ケア ジェル状歯みがき いちご味 40ml" → "ピジョン ジェル状歯みがき いちご". Source "コンビ テテオ 子供用 歯磨きジェル ぶどう味" → "コンビ 歯磨きジェル ぶどう".
+IMPORTANT: use ONLY a form word that literally appears in the title. NEVER invent a form. If the title has no form word and the line/sub-brand IS the product identity (e.g. ハミケア, にこピカ シート), keep brand + line + flavor and add NO form word. Example: source "丹平製薬 ハミケア グレープ風味 25g" → "丹平製薬 ハミケア グレープ" (do NOT add ジェル). Source "和光堂 にこピカ 歯みがきシート" → "和光堂 にこピカ シート".
+
+Output Japanese keywords only, max 6 words.
+
+Title: {{title}}

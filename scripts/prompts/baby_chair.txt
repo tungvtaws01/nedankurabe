@@ -1,0 +1,45 @@
+Extract a search keyword for {{platform}} Japan for this BABY / KIDS CHAIR (ベビーチェア — ハイチェア / ローチェア / テーブルチェア / ブースター / お座り補助ソファ) product.
+
+Amazon JP titles are often English-translated; Rakuten titles are katakana. Translate to Japanese and output Japanese ONLY.
+
+The decisive fields are BRAND + EXACT MODEL/LINE + CHAIR TYPE. The model/line is the single most important token after brand — NEVER drop it, NEVER generalize it, NEVER swap a similar model. CHAIR TYPE is decisive: a high chair, a low chair, a clip-on table chair and a booster/seat-aid are DIFFERENT products — never swap or invent the type.
+
+BRANDS (English to JP) — always keep, output the Japanese form:
+- Yamatoya / sukusuku maker = 大和屋
+- Stokke = ストッケ
+- Katoji = カトージ
+- Bumbo = バンモ→バンボ (always バンボ)
+- Richell = リッチェル
+- Ingenuity / Kids2 = インジェニュイティ
+- BabyBjorn / Baby Bjorn / Baby Björn = ベビービョルン
+- Aprica = アップリカ
+- Combi = コンビ
+
+MODEL / LINE (English to JP) — pick the ONE that appears; keep it VERBATIM, it is decisive:
+- "Sukusuku Chair" / "Suku Suku" = すくすくチェア ; "Sukusuku Chair GL" = すくすくチェアGL ; "Sukusuku Slim" / "Slim-J" = すくすくスリム ; "Affel" / "Afull" = アッフル
+- "Tripp Trapp" / "TrippTrapp" = トリップトラップ ; "Nomi" = ノミ ; "Clikk" / "Click" = クリック ; "Steps" = ステップス
+- "Easy Fit" / "EasyFit" = イージーフィット ; "New York Baby" / "NewYork Baby" = ニューヨークベビー
+- "Multi Seat" / "MultiSeat" = マルチシート ; "Baby Sofa" = ベビーソファ
+- "Gokigen Chair" / "2WAY Gokigen" = 2WAYごきげんチェア
+- "Baby Base" = ベビーベース (keep grade like 3.0 if present)
+
+CHAIR TYPE — keep exactly the one the title's product IS; do not invent a second type:
+- "High Chair" / "ハイチェア" = ハイチェア (tall, sits at the dining table; usually 木製 wooden)
+- "Low Chair" / "ローチェア" = ローチェア (floor-level)
+- "Table Chair" / "Hook-on" / "Clamp" / "卓上" / "テーブルチェア" = テーブルチェア (clips onto a table edge)
+- "Booster" / "ブースター" = ブースターシート (sits on an existing chair)
+- "Baby Sofa" / "Floor Seat" / "お座り補助" = ベビーソファ
+- "Wooden" / 木製 = 木製 (keep ONLY for wooden high chairs where it distinguishes, e.g. 大和屋 / ストッケ)
+
+Output Japanese keywords in this exact priority order, space-separated:
+1. Brand (Japanese, from map) — always include.
+2. Exact model / line (Japanese, from map) — always include; this is the decisive field. Keep grade tokens (GL / スリム / 3.0) when present.
+3. Chair type — ONE word (ハイチェア / ローチェア / テーブルチェア / ブースターシート / ベビーソファ) — only the type the product actually is.
+
+Do NOT include: colors (Navy/Beige/Gray/Natural/ナチュラル/ホワイト/グレー), cushion/tray/guard accessories sold with it (クッション / テーブル付き / ガード / トレイ / ハーネス) unless the product IS that accessory, age/weight ranges (7ヶ月/5才/15kg/80kg/6ヶ月から), order/ASIN codes (B0xxx / 7-digit numbers / model SKU like 5501NA), shop names (yamatoya認定店), marketing (送料無料 / 正規品 / 7年保証 / おしゃれ / 北欧 / 長く使える / 出産祝い / ギフト / 高さ調節). There is NO count dimension for chairs — never add 個/台/セット/点.
+
+Keep the keyword TIGHT — brand + model + type is usually 3 tokens. Over-specifying (color, accessories, age/weight, marketing) shrinks or zeros the Rakuten result set — do NOT add them.
+
+Output plain Japanese keywords only, no English, no punctuation. Max 5 words.
+
+Title: {{title}}

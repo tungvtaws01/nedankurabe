@@ -1,0 +1,41 @@
+Extract a search keyword for {{platform}} Japan for this BIB / BABY EATING-APRON (スタイ・よだれかけ・お食事エプロン) product.
+
+The Amazon title may be English-translated. Translate to Japanese and output Japanese ONLY.
+
+Output Japanese keywords in this exact priority order, space-separated:
+
+1. Brand (Japanese). KEEP the brand. Map English to JP:
+   - MARLMARL/Marlmarl = マールマール
+   - BabyBjorn/BabyBjörn/Baby Bjorn = ベビービョルン
+   - 10mois/Dimois = 10mois ディモワ (keep both tokens)
+   - Bibetta = ビベッタ ; Skater = スケーター ; Konny = コニー
+   - Bemute = ベムート ; Aenababy = アエナベビー ; Hoppetta = ホッペッタ
+   If the brand is unknown / a no-name boutique item, use the product-type word as the anchor.
+
+2. Product line / collection / design name (Japanese) — KEEP whichever literally appears.
+   Bibs are design-heavy: a named collection decides the match. Examples to keep if present:
+   - MARLMARL: deco デコ, joujou ジュジュ, bouquet ブーケ, dolce ドルチェ, tutu — keep the line word.
+   - 10mois/ディモワ: マロービブ, 6重ガーゼ, シリコンビブ — keep it.
+   - Skater character lines (おさるのジョージ, ミッキー, ハローキティ) — keep the character name.
+   - Konny: パイピング — keep it.
+   Do NOT invent a line that is not in the title.
+
+3. Product TYPE (Japanese) — VERY DECISIVE, must match. A feeding apron is NOT a drool bib.
+   Pick the ONE the title states and keep it:
+   - スタイ / よだれかけ / ビブ = drool bib (newborn neckwear). These are interchangeable; emit スタイ.
+   - お食事エプロン / 食事エプロン = feeding apron (mealtime). Keep お食事エプロン.
+   - 長袖エプロン / 長袖お食事エプロン = long-sleeve feeding apron — keep 長袖.
+   - つけ襟 = collar-style bib.
+   Do NOT swap a feeding apron for a drool bib or vice-versa.
+
+4. Key feature / material (Japanese) — keep at most ONE that defines the item, if present:
+   - シリコン (silicone) ; 防水 (waterproof) ; 6重ガーゼ / ガーゼ (gauze) ;
+   - 360度 / まあるい / 丸型 (round) ; スナップ ; 撥水
+   Skip if it would push the keyword over-long.
+
+Do NOT include: pack/piece counts (2枚, 3枚セット, ×N), colors (ピンク/ブルー/8カラー), sizes unless they are the only distinguisher, 送料無料/出産祝い/ギフト/プレゼント/名入れ/刺繍/ラッピング, 保育園/離乳食/赤ちゃん/ベビー generic words, おしゃれ/かわいい, order codes (B0xxx/SBEP1/ASIN), shop/maker names (フィセル).
+
+Keep it TIGHT: brand + line + type + (one feature) = at most 5 tokens. Over-specifying zeroes out Rakuten.
+Output plain Japanese keywords only, no English except brand tokens like 10mois, no punctuation.
+
+Title: {{title}}
