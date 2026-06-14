@@ -17,6 +17,9 @@ export const CATEGORIES = [
   // Added 2026-06-14 (scope expansion). These share NEW_GENRE_PROMPT until each is
   // empirically tuned with the tune-category skill.
   'toothbrush', 'toothpaste', 'bibs', 'tableware', 'baby_chair', 'bouncer', 'toys',
+  // Added 2026-06-14 (newly enumerated Rakuten genres — bath already existed but had
+  // no dedicated genre crawled; these were not crawled before).
+  'nasal_aspirator', 'thermometer', 'safety_gate', 'playmat',
 ] as const
 
 export type Category = typeof CATEGORIES[number]
@@ -502,4 +505,8 @@ export const CATEGORY_PROMPTS: Record<Category, PromptBuilder> = {
   baby_chair: NEW_GENRE_PROMPT,
   bouncer: NEW_GENRE_PROMPT,
   toys: NEW_GENRE_PROMPT,
+  nasal_aspirator: NEW_GENRE_PROMPT,
+  thermometer: NEW_GENRE_PROMPT,
+  safety_gate: NEW_GENRE_PROMPT,
+  playmat: NEW_GENRE_PROMPT,
 }

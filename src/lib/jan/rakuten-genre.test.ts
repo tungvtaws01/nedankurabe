@@ -35,12 +35,22 @@ describe('categoryFromGenreId', () => {
     expect(categoryFromGenreId('551695')).toBe('toothpaste')  // pure ジェル歯みがき leaf
   })
 
+  it('maps bath but NOT the noisy niche genres (those are title-regex-only)', () => {
+    expect(categoryFromGenreId('505410')).toBe('bath')        // ベビーソープ (clean)
+    expect(categoryFromGenreId('505413')).toBe('bath')        // ベビーシャンプー
+    // niche genres unmapped on purpose — too many accessories/mis-tags to trust genreId
+    expect(categoryFromGenreId('207739')).toBeNull()          // 鼻吸い器
+    expect(categoryFromGenreId('567569')).toBeNull()          // 体温計
+    expect(categoryFromGenreId('200841')).toBeNull()          // ベビーゲート
+    expect(categoryFromGenreId('568495')).toBeNull()          // プレイマット
+  })
+
   it('returns null for still-out-of-scope and unknown genres', () => {
     expect(categoryFromGenreId('100533')).toBeNull() // default umbrella
     expect(categoryFromGenreId('566090')).toBeNull() // ベビーインテリア
     expect(categoryFromGenreId('0')).toBeNull()      // no-genre sentinel
     expect(categoryFromGenreId('999999')).toBeNull() // unrecognised
-    expect(categoryFromGenreId('568329')).toBeNull() // mixed dental leaf → regex decides
+    expect(categoryFromGenreId('551696')).toBeNull() // mixed dental leaf (tablets) → regex decides
   })
 
   it('handles null/undefined/numeric inputs', () => {

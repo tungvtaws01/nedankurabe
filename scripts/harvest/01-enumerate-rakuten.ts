@@ -11,8 +11,12 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const MAX_PAGE = 20 // 30 hits × 20 = up to 600 items/genre; raise later if needed
 
 async function main() {
+  // --genres=<id,id,...> enumerates only those genre IDs (e.g. to crawl newly-added
+  // genres without re-walking the whole baby tree). Defaults to all BABY_GENRE_IDS.
+  const genresArg = process.argv.find((a) => a.startsWith('--genres='))
+  const genreIds = genresArg ? genresArg.split('=')[1].split(',') : BABY_GENRE_IDS
   let total = 0, withJan = 0
-  for (const genreId of BABY_GENRE_IDS) {
+  for (const genreId of genreIds) {
     for (let page = 1; page <= MAX_PAGE; page++) {
       const items = await searchRakutenGenrePage(genreId, page)
       await sleep(1100) // respect 1 req/s

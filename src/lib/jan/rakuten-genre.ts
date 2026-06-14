@@ -45,8 +45,9 @@ const GENRE_ID_TO_CATEGORY: Record<string, Category> = {
   // 歯ブラシ・虫歯ケア (parent 551691): leaves mix brush/paste/wipe/tablet, so the
   // toothbrush↔toothpaste split is done by title regex (tier-1). Only the PURE
   // leaves are mapped here as a tier-2 fallback for keyword-less items; the mixed
-  // leaves (568329/551696/205204/551694) are intentionally left to the regex.
+  // leaves (551696/205204/551694) are intentionally left to the regex.
   '551692': 'toothbrush', '551693': 'toothbrush',  // 歯ブラシ / 仕上げブラシ
+  '568329': 'toothbrush',                            // mostly 仕上げ磨き用 brushes (POSY/リーチ)
   '551695': 'toothpaste',                            // ジェル状歯みがき
   // スタイ・お食事エプロン (parent 407002)
   '407002': 'bibs', '407003': 'bibs', '407005': 'bibs', '407004': 'bibs', '407006': 'bibs',
@@ -61,6 +62,14 @@ const GENRE_ID_TO_CATEGORY: Record<string, Category> = {
   // ベビー向けおもちゃ (parent 201591)
   '201591': 'toys', '205272': 'toys', '201598': 'toys', '201592': 'toys', '205243': 'toys',
   '201595': 'toys', '204024': 'toys', '201596': 'toys', '205278': 'toys', '201597': 'toys', '201594': 'toys',
+
+  // --- 2026-06-14 newly enumerated genres ---
+  '505410': 'bath', '505413': 'bath',          // ベビーソープ / ベビーシャンプー (clean consumable genre)
+  // The niche genres (鼻吸い器 207739, 体温計 567569, ベビーゲート 200841/200840, プレイ
+  // マット 568495) are deliberately NOT mapped: those Rakuten genres are noisy — packed
+  // with accessories (probe covers, tubes, adapters) and shop mis-tags (a blender, cereal,
+  // a car door-guard). genreId there is unreliable, so these are TITLE-REGEX-ONLY
+  // (classify-local). Keyword-less items in them stay 'unknown' (precision over coverage).
 }
 
 export function categoryFromGenreId(genreId: string | null | undefined): Category | null {

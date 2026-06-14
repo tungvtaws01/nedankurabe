@@ -49,6 +49,18 @@ describe('classifyLocal', () => {
     expect(classifyLocal('花王 メリーズ パンツ Mサイズ 58枚')).toBe('diapers')
   })
 
+  it('classifies the newly-enumerated genres', () => {
+    expect(classifyLocal('シースター ベビースマイル メルシーポット 電動鼻吸い器 S-504')).toBe('nasal_aspirator')
+    expect(classifyLocal('ピジョン 耳チビオン 耳式体温計')).toBe('thermometer')
+    expect(classifyLocal('日本育児 スルする～とゲイト ベビーゲート')).toBe('safety_gate')
+    expect(classifyLocal('CARAZ カラズ プレイマット 折りたたみ')).toBe('playmat')
+  })
+
+  it('does NOT route プレイマット to toys (プレイジム is toys, プレイマット is playmat)', () => {
+    expect(classifyLocal('ジョイントマット 大判 ベビー playmat')).toBe('playmat')
+    expect(classifyLocal('フィッシャープライス プレイジム ジム おもちゃ')).toBe('toys')
+  })
+
   it('returns unknown for genuinely out-of-scope products', () => {
     expect(classifyLocal('トラスコ中山 化粧ビス NO.3 白 M6×16')).toBe('unknown')
     expect(classifyLocal('キッズサークル 外枠 CK-F1050 ピンク')).toBe('unknown')
