@@ -93,3 +93,12 @@ skincare 480, carriers 467, car_seats 230, wipes 190, bath 28, diapers 24.
 - Low recall inherent to durables. ALL 10 GENRES now evaluated.
 
 ## Step 3: bulk-volume the validated consumable genres (formula/skincare/bottles/wipes/baby_food) with the now-validated prompts + clean accessory filter.
+
+## 2026-06-14 — products.category now stores the ACCURATE fine genre (was uniform 'baby')
+- **Problem found:** `products.category` was `'baby'` for all 8468 rows (the enumeration scope), never the fine genre. The 10-genre classification was only a runtime `classifyLocal(title)` recompute, never persisted. Biggest bucket by far was **unknown = 4686** (> all 10 genres combined).
+- **unknown breakdown:** ~445 were real diapers the regex missed (brand titles `パンパース/ムーニー/メリーズ/グーン/マミーポコ + パンツ/テープ + 枚` lack the word おむつ); ~25 pollution (hardware/funeral/adult-incontinence); ~4216 genuine out-of-scope long-tail (toys/chairs/bibs/食器/dental/bouncers — correctly unharvestable).
+- **Key insight (user-led):** enumeration walks 18 Rakuten parent genre IDs but discarded the per-item `genreId` — a structured signal more reliable than title regex. Items carry **leaf** genreIds (child of parent), discovered via `discover-genre-leaves.ts`.
+- **Built 3-tier `resolveCategory(title, genreId)`:** tier-0 pollution (`isTrialOrSamplePack`) → tier-1 title regex (`classifyLocal`, now with diaper brands) → tier-2 Rakuten leaf-genreId map (`rakuten-genre.ts`) → unknown. Regex beats genreId (keyword precision); tier-0 first so mis-shelved pollution can't be rescued.
+- **Schema:** `listings.genre_id` + `products(category)` index; enumeration stores genreId + accurate category from the start. EXCLUDE_KEYWORDS += funeral/adult/hardware tokens (they carry baby leaf genreIds).
+- **Backfill:** `backfill-category.ts` killed 'baby' instantly (regex). Post-backfill: unknown 4648, baby_food 585, bottles 511, formula 498, strollers 497, carriers 428, diapers 415, skincare 384, wipes 252, car_seats 225, bath 25. (bottles/carriers dropped vs raw regex because tier-0 correctly moved accessories to unknown.)
+- **In progress:** `requery-genre.ts` (bg) re-queries Rakuten genreId by itemCode for the 4648 unknowns → tier-2 rescues keyword-less consumables (esp. diapers via 205198). Then `llm-category-pass.ts` (Hybrid final tier) classifies whatever stays unknown. Commit de7619f.
