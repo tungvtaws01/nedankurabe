@@ -78,3 +78,7 @@ skincare 480, carriers 467, car_seats 230, wipes 190, bath 28, diapers 24.
 - Eval batch 120: matched=21, rate 18% (durable: single-unit, brand-map dependent), 0 CAPTCHA. Precision ~15/16 ≈ 94%.
 - Brand coverage strong (qwen-235b knows them): MAXI-COSI/Combi/Aprica/エールベベ/GRACO/Joie/Britax/Cybex/Nebio/OSJ all matched correctly on model name + R129. The feared brand-equivalence-map bottleneck did not materialize.
 - 1 borderline: pid=6382 RK has only model codes (no brand text) → Aprica クルリラ (no-brand rule muddied by SKU numbers). Not systematic → no tune. Low recall is inherent to durables.
+
+### carriers — durable, recall 7% (heavy pollution); strollers pending
+- matched=9 no_match=111, rate 7%, 0 CAPTCHA. Precision ~7/8: real branded carriers matched (キャリフリー/Buddy Buddy POLBAN/minimonkey/べべポケット). 1 pollution: TRUSCO industrial wire-rope sling leaked in via スリング token. よだれカバー drool-covers (accessory) also present.
+- Low recall = durable + accessory/pollution in bucket, not a matcher fault. Note: classifyLocal carriers regex (スリング) needs an industrial-tool guard.
