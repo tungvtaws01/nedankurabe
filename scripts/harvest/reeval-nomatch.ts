@@ -8,6 +8,7 @@ import { classifyLocal } from '../../src/lib/jan/classify-local'
 import { upsertListing, setHarvestState } from '../../src/lib/harvest/repo'
 import { query, pool } from '../../src/lib/db'
 import type { ProductResult } from '../../src/lib/types'
+import type { Category } from '../../src/lib/llm/category-prompts'
 
 const SIM_FLOOR = 0.12
 
@@ -40,7 +41,11 @@ async function main() {
   let recoverable = 0, stillNo = 0, noCandidates = 0
   for (const p of rows) {
     const usedJan = p.jan != null
-    const keyword = p.jan ?? await refineKeyword(p.title, 'amazon').catch(() => p.title)
+    // Route to per-genre matching rules: use the known --category if set, else
+    // classify per-product; map 'unknown'/null → undefined so it falls back to GENERAL_RULES.
+    const cat = category ?? classifyLocal(p.title)
+    const catOpt = cat === 'unknown' ? undefined : (cat as Category)
+    const keyword = p.jan ?? await refineKeyword(p.title, 'amazon', catOpt).catch(() => p.title)
     console.log(`\n=== pid=${p.id}${p.jan ? ' jan=' + p.jan : ''} ===`)
     console.log(`  SRC: ${p.title.slice(0, 85)}`)
     try {
@@ -53,7 +58,7 @@ async function main() {
           ? Math.max(...candidates.slice(0, 5).map((c) => similarity(p.title, c.title)))
           : 0
         if (bestSim < 0.15) {
-          const kw2 = await refineKeyword(p.title, 'amazon').catch(() => p.title)
+          const kw2 = await refineKeyword(p.title, 'amazon', catOpt).catch(() => p.title)
           const html2 = await browser.searchHtml(kw2)
           await sleep(jitter(8000, 14000))
           if (html2) { const cand2 = parseAmazonSearchHtml(html2); if (cand2.length) candidates = cand2 }
@@ -62,7 +67,7 @@ async function main() {
       if (!candidates.length) { console.log('  → 0 candidates'); noCandidates++; continue }
       const source = rakutenSource(p.title)
       const ranked = rankBySimilarity(source, candidates)
-      const idx = await semanticMatch(source, ranked).catch(() => null)
+      const idx = await semanticMatch(source, ranked, { category: catOpt }).catch(() => null)
       if (idx !== null && ranked[idx] && similarity(source.title, ranked[idx].title) >= SIM_FLOOR) {
         const c = ranked[idx]
         console.log(`  → ✅ RECOVERABLE: "${c.title.slice(0, 70)}"`)

@@ -6,8 +6,10 @@ import { semanticMatch, refineKeyword } from '../../src/lib/llm/openrouter'
 import { parsePackCount } from '../../src/lib/jan/pack-count'
 import { isTrialOrSamplePack } from '../../src/lib/platforms/rakuten'
 import { upsertListing, setHarvestState, productsAtStage } from '../../src/lib/harvest/repo'
+import { classifyLocal } from '../../src/lib/jan/classify-local'
 import { query, pool } from '../../src/lib/db'
 import type { ProductResult } from '../../src/lib/types'
+import type { Category } from '../../src/lib/llm/category-prompts'
 
 // Build a minimal ProductResult from a Rakuten listing row to feed semanticMatch as the "source".
 async function rakutenSourceFor(productId: number): Promise<ProductResult | null> {
@@ -85,7 +87,11 @@ async function main() {
     // find-equivalent) instead of searching the raw title — raw titles carry
     // 【10個セット】/大容量パック/marketing noise that returns 0–1 poor Amazon results.
     const usedJan = p.jan != null
-    const keyword = p.jan ?? await refineKeyword(p.title, 'amazon').catch(() => p.title)
+    // Route to per-genre matching rules: use the known --category if set, else
+    // classify per-product; map 'unknown' → undefined so it falls back to GENERAL_RULES.
+    const cat = category ?? classifyLocal(p.title)
+    const catOpt = cat === 'unknown' ? undefined : (cat as Category)
+    const keyword = p.jan ?? await refineKeyword(p.title, 'amazon', catOpt).catch(() => p.title)
     try {
       let html = await browser.searchHtml(keyword)
       if (html === null) {
@@ -107,7 +113,7 @@ async function main() {
           ? Math.max(...candidates.slice(0, 5).map((c) => similarity(p.title, c.title)))
           : 0
         if (bestSim < 0.15) {
-          const kw2 = await refineKeyword(p.title, 'amazon').catch(() => p.title)
+          const kw2 = await refineKeyword(p.title, 'amazon', catOpt).catch(() => p.title)
           const html2 = await browser.searchHtml(kw2)
           await sleep(jitter(8000, 15000))
           if (html2) {
@@ -130,7 +136,7 @@ async function main() {
         // LLM judge (it applies the case-pack/variant policy). SIM_FLOOR still guards
         // against degenerate brand-only matches on genre-polluted / terse candidates.
         const ranked = rankBySimilarity(source, candidates)
-        const idx = await semanticMatch(source, ranked).catch(() => null)
+        const idx = await semanticMatch(source, ranked, { category: catOpt }).catch(() => null)
         if (idx !== null && ranked[idx] && similarity(source.title, ranked[idx].title) >= SIM_FLOOR) {
           chosen = [ranked[idx]]
           viaLLM = true
