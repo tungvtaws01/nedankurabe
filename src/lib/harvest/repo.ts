@@ -16,6 +16,7 @@ export interface ListingInput {
   packCount: number
   matchSource: 'jan-exact' | 'title-sim' | 'llm'
   confidence: number | null
+  genreId?: string | null
 }
 
 export interface ListingRow {
@@ -52,13 +53,14 @@ export async function upsertProduct(p: ProductInput): Promise<number> {
 
 export async function upsertListing(l: ListingInput): Promise<void> {
   await query(
-    `INSERT INTO listings (product_id, platform, platform_id, title, pack_count, match_source, confidence, verified_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7, now())
+    `INSERT INTO listings (product_id, platform, platform_id, title, pack_count, match_source, confidence, genre_id, verified_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8, now())
      ON CONFLICT (platform, platform_id) DO UPDATE SET
        product_id=EXCLUDED.product_id, title=EXCLUDED.title, pack_count=EXCLUDED.pack_count,
        match_source=EXCLUDED.match_source, confidence=EXCLUDED.confidence,
+       genre_id=COALESCE(EXCLUDED.genre_id, listings.genre_id),
        is_active=true, verified_at=now()`,
-    [l.productId, l.platform, l.platformId, l.title, l.packCount, l.matchSource, l.confidence],
+    [l.productId, l.platform, l.platformId, l.title, l.packCount, l.matchSource, l.confidence, l.genreId ?? null],
   )
 }
 

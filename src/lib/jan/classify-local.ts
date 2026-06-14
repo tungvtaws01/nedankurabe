@@ -15,7 +15,12 @@ const RULES: Array<[Category, RegExp]> = [
   ['carriers',  /抱っこ紐|抱っこひも|抱っこ補助|ベビーキャリア|スリング|ヒップシート|おんぶ紐/],
   ['strollers', /ベビーカー|バギー/],
   ['car_seats', /チャイルドシート|ジュニアシート|カーシート|回転式シート/],
-  ['diapers',   /おむつ|オムツ|紙おむつ|パンツタイプ|テープタイプ|トレパン|オヤスミマン|水あそびパンツ|スイミングパンツ|水遊び.*パンツ|お産用パッド|母乳パッド/],
+  // Diaper BRAND names go last so the wipes/formula rules above win first (e.g.
+  // "パンパース おしりふき" → wipes, "ほほえみ" → formula). Most Rakuten diaper titles
+  // are "brand + パンツ/テープ + size + N枚" WITHOUT the literal word おむつ, so brand
+  // tokens (with full-width dash variants ー/−/-) are needed to catch them. Case-
+  // insensitive for the latin brand spellings (GOON, nepia).
+  ['diapers',   /おむつ|オムツ|紙おむつ|パンツタイプ|テープタイプ|トレパン|オヤスミマン|水あそびパンツ|スイミングパンツ|水遊び.*パンツ|お産用パッド|母乳パッド|パンパース|ム[ーー−\-]ニ|メリーズ|グ[ーー−\-]ン|GOON|マミ[ーー−\-]?ポコ|ゲンキ|ネピア|nepia/i],
 ]
 
 export function classifyLocal(title: string): Category | 'unknown' {

@@ -2,6 +2,7 @@ process.env.USE_UNPOOLED = '1'
 import { searchRakutenGenrePage, isTrialOrSamplePack, cleanRakutenTitle } from '../../src/lib/platforms/rakuten'
 import { extractJans } from '../../src/lib/jan/jan'
 import { parsePackCount } from '../../src/lib/jan/pack-count'
+import { resolveCategory } from '../../src/lib/jan/resolve-category'
 import { upsertProduct, upsertListing, setHarvestState } from '../../src/lib/harvest/repo'
 import { pool } from '../../src/lib/db'
 import { BABY_GENRE_IDS } from './genres'
@@ -22,16 +23,21 @@ async function main() {
         if (isTrialOrSamplePack(it.itemName)) continue
         const jans = extractJans(`${it.itemName} ${it.itemCaption ?? ''}`)
         const jan = jans[0] ?? null
+        const cleanTitle = cleanRakutenTitle(it.itemName ?? '')
+        // Prefer the item's own genreId; fall back to the genre page we are walking
+        // (always one of the mapped baby genres) so tier-2 always has a usable signal.
+        const itemGenreId = it.genreId ?? genreId
         try {
           const productId = await upsertProduct({
-            jan, title: cleanRakutenTitle(it.itemName ?? ''),
-            brand: null, category: 'baby',
+            jan, title: cleanTitle,
+            brand: null, category: resolveCategory(cleanTitle, itemGenreId),
             imageUrl: it.smallImageUrls?.[0]?.imageUrl ?? '',
           })
           await upsertListing({
             productId, platform: 'rakuten', platformId: it.itemCode,
             title: it.itemName ?? '', packCount: parsePackCount(it.itemName ?? ''),
             matchSource: jan ? 'jan-exact' : 'title-sim', confidence: jan ? 1.0 : null,
+            genreId: itemGenreId,
           })
           await setHarvestState(productId, 'enumerated')
           total++; if (jan) withJan++

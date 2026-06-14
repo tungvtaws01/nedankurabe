@@ -52,6 +52,12 @@ const EXCLUDE_KEYWORDS = [
   "おしりふきケース", "ウェットシートケース", "おしりふきのフタ", "お尻拭きのフタ",
   "ウェットシートのふた", "シート用フタ", "に貼るフタ", "ビタット", "Bitatto",
   "よだれカバー", "よだれパッド", "ワイヤーロープ",
+  // Non-baby pollution that carries a baby leaf genreId (so tier-2 would otherwise
+  // mis-map it to a real category): funeral return-gifts, adult incontinence wear,
+  // and industrial hardware mis-shelved into baby genres.
+  "香典返し", "満中陰志", "粗供養", "法要", "偲草",
+  "はくパンツ", "イワツキ", "リブドゥ",
+  "化粧ビス", "トラスコ", "フローバル", "異径ユニオン", "カプラ", "ヘックスビット",
 ];
 
 export function isTrialOrSamplePack(itemName: string): boolean {
@@ -219,6 +225,31 @@ export async function searchRakuten(keyword: string): Promise<ProductResult[]> {
     if (results.length > 0) return results;
   }
   return [];
+}
+
+// Fetch just the Rakuten genreId for a single itemCode. Used by the category
+// backfill to recover the structured genre signal for items enumerated before the
+// genre_id column existed. Uses the full referrer/origin header set the 20260401
+// API requires (a bare Referer 403s on this endpoint).
+export async function lookupRakutenGenreId(itemCode: string): Promise<string | null> {
+  const appId = process.env.RAKUTEN_APP_ID!
+  const accessKey = process.env.RAKUTEN_ACCESS_KEY!
+  const params = new URLSearchParams({ applicationId: appId, accessKey, itemCode, hits: '1' })
+  const res = await fetch(`${SEARCH_URL}?${params}`, {
+    headers: {
+      Referer: "https://nedankurabe.vercel.app/",
+      Origin: "https://nedankurabe.vercel.app",
+      "Sec-Fetch-Site": "cross-site",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Dest": "empty",
+      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    },
+  })
+  if (!res.ok) return null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data = JSON.parse(await res.text()) as { Items?: Array<{ Item: any }> }
+  const gid = data.Items?.[0]?.Item?.genreId
+  return gid != null ? String(gid) : null
 }
 
 export async function lookupRakuten(
