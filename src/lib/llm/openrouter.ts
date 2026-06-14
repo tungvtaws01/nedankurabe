@@ -2,6 +2,8 @@ import { ProductResult } from '@/lib/types'
 import { CATEGORIES, CATEGORY_PROMPTS, UNIVERSAL_PROMPT, type Category } from './category-prompts'
 import { computePriceFacts, platformName } from '@/lib/price/explain'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
+import { brandsAreDistinct } from './brand-aliases'
+import { composeMatchPrompt } from './match-rules'
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
@@ -76,86 +78,36 @@ export async function refineKeyword(
 export async function semanticMatch(
   source: ProductResult,
   candidates: ProductResult[],
+  opts?: { category?: Category },
 ): Promise<number | null> {
   if (!candidates.length) return null
   try {
-    // Limit to top 8 — reasoning models exhaust tokens on long candidate lists.
-    // Callers should pre-rank (see matching/rank.ts) so the true match is in this window.
-    const pool = candidates.slice(0, 8)
+    // Brand gate: drop candidates whose KNOWN brand differs from the source's known
+    // brand. Track original indices so the return value still indexes `candidates`.
+    const gated = candidates
+      .map((c, origIdx) => ({ c, origIdx }))
+      .filter(({ c }) => !brandsAreDistinct(source.title, c.title))
+    if (!gated.length) return null
+    const pool = gated.slice(0, 8) // reasoning models exhaust tokens on long lists
     const fmt = (p: ProductResult, i?: number) => {
       const prefix = i !== undefined ? `${i}: ` : 'Source: '
       const desc = p.description ? ` [${p.description.slice(0, 120)}]` : ''
       return `${prefix}${p.title.slice(0, 100)} ¥${p.salePrice.toLocaleString()}${desc}`
     }
-    const candidateList = pool.map((c, i) => fmt(c, i)).join('\n')
+    const candidateList = pool.map(({ c }, i) => fmt(c, i)).join('\n')
     const result = await callLLM([{
       role: 'user',
-      content: `You are a product matching engine for Japanese e-commerce platforms (Amazon JP ↔ Rakuten).
-
-List ALL candidates that satisfy ALL HIGH criteria below. The caller will pick the cheapest — just identify every valid match.
-
-HIGH (all must match):
-- Brand: same brand including JP/EN equivalents
-  Pampers=パンパース, Merries=メリーズ, Moony=ムーニー, Goon=グーン,
-  Pigeon=ピジョン, Combi=コンビ, Aprica=アップリカ, Ergobaby=エルゴベビー,
-  Meiji=明治, Morinaga=森永, Snow Brand=雪印, Wakodo=和光堂, Kao=花王
-  Wipes (おしりふき) brands also: レック/LEC (純水ベビーケア・水99.9%), アイリスオーヤマ/Genki!, 西松屋.
-  DISTINCT brands NEVER match even if specs look identical: Costco's KIRKLAND (カークランド) ≠ RICO ≠ a コストコ generic — same retailer/sheet-count is NOT the same product.
-  NO-BRAND rule (HIGH): if one side names NO maker (a generic, brand-less title) and the other names a specific brand, that is a MISMATCH — return no-match for it EVEN IF size/type/sheet-count/specs are identical. Identical specs do not prove the same product; a shared brand is required.
-- Product line / model: must be the same line or model within the brand
-  · Diapers: さらさらケア ≠ はじめての肌へのいちばん ≠ 超吸収エアリー ≠ 卒業パンツ (different lines/tiers);
-    エアスルー ≠ ぐっすりパンツ (Merries); エアフィット ≠ マシュマロ肌ごこち (Moonyman)
-  · Formula: らくらくキューブ ≠ 缶タイプ (different form); ほほえみ ≠ ステップ (different stage)
-  · Carriers: OMNI Breeze ≠ ADAPT ≠ EMBRACE (different models)
-  · Baby food: ハイハイン ≠ グーグーキッチン (different product lines). The specific
-    DISH/FLAVOR must also match within a line — グーグーキッチン 鮭とじゃがいもの和風煮 ≠
-    牛肉のすき焼き風ごはん ≠ ラタトゥイユ; 栄養マルシェ flavors differ; same line +
-    different dish/flavor = a DIFFERENT product (mismatch)
-  · Wipes: 純水/水99% ≠ アルコール除菌タイプ; トイレに流せる (flushable) ≠ regular; 手口ふき (hand & mouth) ≠ おしりふき (bottom); within a brand, named wipe lines differ (Moony やわらか素材 ≠ 水分たっぷり厚手 ≠ こすらずするりんっ; 厚手 ≠ 通常 only when one explicitly says 厚手)
-  · Sunscreen/UV (日焼け止め・UVケア): the SPF rating is part of the SKU — SPF50/50+ ≠ SPF35 ≠ SPF29 ≠ SPF21; never match across different SPF levels (a number like "クリーム50" usually denotes SPF50)
-- Product type: must be the same (tape≠pants, cube≠powder, carrier≠stroller, liquid≠solid)
-- Usage variant: 夜用 (night) ≠ 昼用/標準 (day/regular). Night-use and day/regular are
-  different product lines — treat as a mismatch.
-- Gender: 男の子用 ≠ 女の子用. The boy and girl versions are different products — do NOT
-  match across gender. For gender-split products (especially 水あそびパンツ swim pants), COLOR
-  encodes gender: ブルー/青 = 男の子用, ピンク = 女の子用 — so blue-vs-pink, or a color on one
-  side vs the opposite gender label on the other, is a gender MISMATCH. (A plain color on a
-  NON-gender-split product is fine — see LOW.)
-- Size / stage / per-unit volume: must match — interpretation depends on category:
-  · Diapers: weight range (新生児/5kg ≠ Sサイズ/6-11kg). Letter sizes are STRICT —
-    新生児 ≠ Sサイズ ≠ Mサイズ ≠ Lサイズ ≠ ビッグ ≠ ビッグより大きい/スーパービッグ.
-    ADJACENT sizes are STILL a mismatch (M≠L, L≠ビッグ); never match across different sizes.
-  · Formula / baby food: age stage (0ヶ月 ≠ 6ヶ月頃) AND PER-UNIT can size (a 400g can ≠ an 800g can)
-  · Carriers: supported weight range (newborn ≠ toddler) if specified
-  · General: treat any per-unit size or stage difference as a mismatch
-
-PACK QUANTITY — normalized downstream, NOT a matching criterion:
-- The number of identical retail units (×N, N個セット, ケース, 箱×N, まとめ買い, "Case Product")
-  may differ freely. A case-pack and a single pack of the SAME unit product ARE a match —
-  unit price is compared downstream. Do NOT reject because one side is a multi-pack/セット/ケース
-  and the other is a single. (e.g. 66枚×4パック ケース品 matches a single 66枚 pack.)
-- Per-unit count WITHIN one pack: small differences are fine (82枚 vs 84枚). A drastically
-  different per-unit count that signals a different SKU — e.g. a 3-piece trial vs a 64-piece
-  pack — is a mismatch (per-unit size, governed above), but ordinary pack-quantity differences are not.
-- N/A for products with no count dimension (carriers, strollers, single-unit items)
-
-LOW (may differ freely):
-- Plain colors (without a gender label), pack design, promotional bundles
-
-Return JSON only: {"matches": [i, j, ...]} listing every valid candidate index, or {"matches": []} if none qualify.
-
-${fmt(source)}
-Candidates:
-${candidateList}`,
+      content: `${composeMatchPrompt(opts?.category)}\n\n${fmt(source)}\nCandidates:\n${candidateList}`,
     }], { model: JUDGE_MODEL, maxTokens: 600 })
-    // Strip markdown fences that LLMs sometimes wrap around JSON
     const cleaned = result.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
     const parsed = JSON.parse(cleaned) as { matches: number[] }
     if (!Array.isArray(parsed.matches) || parsed.matches.length === 0) return null
-    // Among all valid matches, pick the one with the lowest effective price
-    const valid = parsed.matches.filter(i => typeof i === 'number' && candidates[i] !== undefined)
-    if (valid.length === 0) return null
-    return valid.reduce((best, i) =>
+    // LLM indices are into `pool`; map back to original `candidates` indices.
+    const validOrig = parsed.matches
+      .filter((i) => typeof i === 'number' && pool[i] !== undefined)
+      .map((i) => pool[i].origIdx)
+    if (validOrig.length === 0) return null
+    return validOrig.reduce((best, i) =>
       candidates[i].effectivePrice < candidates[best].effectivePrice ? i : best
     )
   } catch {

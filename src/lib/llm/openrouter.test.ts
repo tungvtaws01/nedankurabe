@@ -56,7 +56,8 @@ describe('semanticMatch', () => {
     })
     const source = mockProduct('パンパース テープ S 108枚', 3980)
     const candidates = [
-      mockProduct('GOO.N テープ S 90枚', 2980),
+      // No-brand generic: survives the brand gate (no known maker), LLM rejects it (NO-BRAND rule)
+      mockProduct('おむつ テープ S 90枚', 2980),
       mockProduct('パンパース はじめての肌 テープ Sサイズ 108枚', 3800),
     ]
     const idx = await semanticMatch(source, candidates)
@@ -71,7 +72,7 @@ describe('semanticMatch', () => {
     const source = mockProduct('パンパース さらさらケア テープ 新生児', 2000)
     const candidates = [
       mockProduct('パンパース さらさらケア テープ 新生児 84枚 (高い店)', 2640),  // index 0
-      mockProduct('GOO.N テープ S 90枚', 1200),                                  // index 1 — wrong brand
+      mockProduct('おむつ テープ S 90枚', 1200),                                 // index 1 — no-brand generic, LLM rejects (survives gate)
       mockProduct('パンパース さらさらケア テープ 新生児 82枚 (安い店)', 1800),  // index 2
     ]
     const idx = await semanticMatch(source, candidates)
@@ -109,6 +110,29 @@ describe('semanticMatch', () => {
   it('returns null when candidates is empty', async () => {
     const idx = await semanticMatch(mockProduct('A', 100), [])
     expect(idx).toBeNull()
+  })
+
+  it('drops a known cross-brand candidate before the LLM (brand gate)', async () => {
+    // The LLM would say match index 0, but the gate must remove it (different known brand).
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: '{"matches":[0]}' } }] }),
+    })
+    const source = mockProduct('カークランド おしりふき 100枚', 500)
+    const idx = await semanticMatch(source, [mockProduct('RICO おしりふき 100枚', 400)])
+    expect(idx).toBeNull()
+  })
+
+  it('routes to the per-genre rule when category is supplied', async () => {
+    // Capture the prompt sent to the LLM and assert the thermometer rule text is present.
+    let lastContent = ''
+    mockFetch.mockImplementation(async (_url: string, init: { body: string }) => {
+      lastContent = JSON.parse(init.body).messages[0].content
+      return { ok: true, json: async () => ({ choices: [{ message: { content: '{"matches":[0]}' } }] }) }
+    })
+    const source = mockProduct('ピジョン 耳チビオン 耳式体温計 C231', 3000)
+    await semanticMatch(source, [mockProduct('ピジョン 耳チビオン C231 体温計', 2800)], { category: 'thermometer' })
+    expect(lastContent).toContain('耳式 (ear)')
   })
 })
 
