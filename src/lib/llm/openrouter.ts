@@ -60,13 +60,15 @@ Title: ${title}`,
 export async function refineKeyword(
   title: string,
   targetPlatform: 'amazon' | 'rakuten',
+  category?: Category | 'unknown',
 ): Promise<string> {
   // Strip supplementary bracket annotations before LLM sees the title.
   // Amazon appends usage context in [brackets] (e.g. [0ヵ月~1歳頃 固形タイプの粉ミルク])
   // that are not part of the searchable product name and mislead keyword generation.
   const cleanTitle = title.replace(/\[([^\]]{0,60})\]/g, '').replace(/\s+/g, ' ').trim()
-  const category = await classifyCategory(cleanTitle)
-  const buildPrompt = category === 'unknown' ? UNIVERSAL_PROMPT : CATEGORY_PROMPTS[category]
+  // Callers that already know the category can pass it in to skip a duplicate classify call.
+  const cat = category ?? await classifyCategory(cleanTitle)
+  const buildPrompt = cat === 'unknown' ? UNIVERSAL_PROMPT : CATEGORY_PROMPTS[cat]
   try {
     const result = await callLLM([{ role: 'user', content: buildPrompt(targetPlatform, cleanTitle) }], { model: FAST_MODEL, maxTokens: 120 })
     return result || stripBrackets(title)

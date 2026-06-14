@@ -46,6 +46,14 @@ describe('refineKeyword', () => {
     const result = await refineKeyword('【キャンペーン】パンパース テープ Sサイズ', 'rakuten')
     expect(result).toBe('パンパース テープ Sサイズ')
   })
+
+  it('skips internal classifyCategory when a category is supplied', async () => {
+    // With a category passed, refineKeyword must make only ONE LLM call (the keyword
+    // build) — NOT a second call to classify. Count fetch calls (callLLM uses fetch).
+    mockFetch.mockResolvedValue(llmReply('パンパース テープ Sサイズ'))
+    await refineKeyword('パンパース テープ Sサイズ 108枚', 'amazon', 'diapers')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('semanticMatch', () => {
