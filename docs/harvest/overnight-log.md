@@ -82,3 +82,8 @@ skincare 480, carriers 467, car_seats 230, wipes 190, bath 28, diapers 24.
 ### carriers — durable, recall 7% (heavy pollution); strollers pending
 - matched=9 no_match=111, rate 7%, 0 CAPTCHA. Precision ~7/8: real branded carriers matched (キャリフリー/Buddy Buddy POLBAN/minimonkey/べべポケット). 1 pollution: TRUSCO industrial wire-rope sling leaked in via スリング token. よだれカバー drool-covers (accessory) also present.
 - Low recall = durable + accessory/pollution in bucket, not a matcher fault. Note: classifyLocal carriers regex (スリング) needs an industrial-tool guard.
+
+### A — accessory exclusion (recall denominator cleanup)
+- Added ~30 accessory tokens to EXCLUDE_KEYWORDS (哺乳瓶スタンド/ラック/ホルダー/乾燥/ケース/ボックス/ポーチ/カバー/収納, 授乳クッション/枕, 母乳実感パーツ, おしりふきケース/フタ/ビタット, よだれカバー/パッド, ワイヤーロープ). Compounds avoid case-pack (ケース品) collision; baby スリング kept (only ワイヤーロープ industrial blocked).
+- Deleted 130 no_match accessory products (clean-polluted-nomatch). 02-match-amazon now also skips EXCLUDE matches in the enumerated pool (no re-pollution).
+- Recall measured accurately now: bottles 50%→81%, wipes 49%→59%. formula/skincare/baby_food already clean (73/63/52%). bath/car_seats/carriers low = genuinely hard (durable/heterogeneous), not pollution.

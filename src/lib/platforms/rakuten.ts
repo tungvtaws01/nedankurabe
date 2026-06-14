@@ -40,6 +40,18 @@ const EXCLUDE_KEYWORDS = [
   // vs ケアシート; 夜用パンツ is safe vs おねしょズボン).
   "おむつケーキ", "おむつ替えシート", "おむつ替えマット", "ケアシート",
   "成形布おむつ", "おねしょズボン", "おねしょスカート", "おねしょケット", "収納掛袋",
+  // Non-product accessories / equipment that pollute consumable genres: they carry the
+  // product noun (哺乳瓶/おしりふき/…) but are stands, racks, holders, cases, lids,
+  // cushions, replacement parts, or industrial goods. Compounds avoid colliding with
+  // case-packs (ケース品/ケース販売) and legit products (a baby スリング is real — only
+  // ワイヤーロープ is industrial pollution).
+  "哺乳瓶スタンド", "哺乳瓶ラック", "哺乳瓶ホルダー", "哺乳びんホルダー", "哺乳瓶乾燥", "哺乳びん乾燥",
+  "哺乳瓶ケース", "哺乳瓶ボックス", "哺乳瓶ポーチ", "哺乳瓶入れ", "哺乳瓶カバー", "哺乳瓶収納",
+  "ボトルスタンド", "乾燥ラック", "水切りラック", "ドライラック",
+  "授乳クッション", "授乳枕", "サポートクッション", "セルフミルク", "ミルククッション", "母乳実感パーツ",
+  "おしりふきケース", "ウェットシートケース", "おしりふきのフタ", "お尻拭きのフタ",
+  "ウェットシートのふた", "シート用フタ", "に貼るフタ", "ビタット", "Bitatto",
+  "よだれカバー", "よだれパッド", "ワイヤーロープ",
 ];
 
 export function isTrialOrSamplePack(itemName: string): boolean {

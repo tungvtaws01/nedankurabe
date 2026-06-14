@@ -5,6 +5,7 @@ import { rankBySimilarity, similarity } from '../../src/lib/matching/rank'
 import { semanticMatch, refineKeyword } from '../../src/lib/llm/openrouter'
 import { parsePackCount } from '../../src/lib/jan/pack-count'
 import { classifyLocal } from '../../src/lib/jan/classify-local'
+import { isTrialOrSamplePack } from '../../src/lib/platforms/rakuten'
 import { upsertListing, setHarvestState, productsAtStage } from '../../src/lib/harvest/repo'
 import { query, pool } from '../../src/lib/db'
 import type { ProductResult } from '../../src/lib/types'
@@ -58,8 +59,10 @@ async function main() {
        ORDER BY p.id LIMIT 2000`)
   } else if (category) {
     // Fetch the full enumerated pool, keep only this genre, then cap to --limit.
+    // Also drop accessories/non-products (EXCLUDE_KEYWORDS) still sitting in the
+    // pre-filter enumerated pool, so they aren't (re)processed into no_match pollution.
     const pool = await productsAtStage('enumerated', 1000000)
-    batch = pool.filter((p) => classifyLocal(p.title) === category).slice(0, limit)
+    batch = pool.filter((p) => classifyLocal(p.title) === category && !isTrialOrSamplePack(p.title)).slice(0, limit)
     console.log(`[amazon] category=${category}: ${batch.length} of ${pool.length} enumerated`)
   } else {
     batch = await productsAtStage('enumerated', limit)
