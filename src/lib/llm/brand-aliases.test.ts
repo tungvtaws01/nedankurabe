@@ -17,6 +17,19 @@ describe('normalizeBrand', () => {
     expect(normalizeBrand('RICO ベビー おしりふき')).toBe('rico')
     expect(normalizeBrand('カークランド')).not.toBe(normalizeBrand('RICO'))
   })
+  it('does not match ASCII aliases as substrings of longer words', () => {
+    expect(normalizeBrand('ergonomic pillow')).toBeNull()        // not ergobaby (ergo)
+    expect(normalizeBrand('vermillion paint set')).toBeNull()    // not lion
+    expect(normalizeBrand('combination playmat 200')).toBeNull() // not combi
+    expect(normalizeBrand('apricot baby snack')).toBeNull()      // not rico
+  })
+  it('still matches ASCII aliases as whole words and all JP forms', () => {
+    expect(normalizeBrand('Combi ベビーカー')).toBe('combi')
+    expect(normalizeBrand('Ergo 抱っこ紐')).toBe('ergobaby')
+    expect(normalizeBrand('RICO おしりふき 100枚')).toBe('rico')
+    expect(normalizeBrand('BABYDAN gate')).toBe('babydan')
+    expect(normalizeBrand('パンパース テープ')).toBe('pampers')
+  })
 })
 
 describe('brandsAreDistinct', () => {

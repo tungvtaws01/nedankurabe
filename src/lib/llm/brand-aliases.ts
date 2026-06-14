@@ -53,9 +53,23 @@ export const BRAND_ALIASES: Record<string, string[]> = {
   edisonmama: ['エジソンママ', 'EDISONmama', 'Edison Mama'],
 }
 
-const NORMALIZED: Array<[string, string[]]> = Object.entries(BRAND_ALIASES).map(
-  ([id, forms]) => [id, forms.map((f) => f.toLowerCase())],
-)
+const isAscii = (s: string) => /^[\x00-\x7f]+$/.test(s)
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+// Precompute: for each canonical id, a list of matchers (each knows its alias length).
+type Matcher = { len: number; test: (hay: string) => boolean }
+const MATCHERS: Array<[string, Matcher[]]> = Object.entries(BRAND_ALIASES).map(([id, forms]) => [
+  id,
+  forms.map((form) => {
+    const lower = form.toLowerCase()
+    if (isAscii(lower)) {
+      // word-boundary: not flanked by another ascii letter/digit (handles "combination", "vermillion")
+      const re = new RegExp(`(?<![a-z0-9])${escapeRegExp(lower)}(?![a-z0-9])`)
+      return { len: lower.length, test: (hay: string) => re.test(hay) }
+    }
+    return { len: lower.length, test: (hay: string) => hay.includes(lower) }
+  }),
+])
 
 // Returns the canonical brand id whose alias appears in the title, else null.
 // Case-insensitive; on overlap the LONGEST matching alias wins.
@@ -63,11 +77,11 @@ export function normalizeBrand(title: string): string | null {
   const hay = title.toLowerCase()
   let bestId: string | null = null
   let bestLen = 0
-  for (const [id, forms] of NORMALIZED) {
-    for (const f of forms) {
-      if (f.length > bestLen && hay.includes(f)) {
+  for (const [id, matchers] of MATCHERS) {
+    for (const m of matchers) {
+      if (m.len > bestLen && m.test(hay)) {
         bestId = id
-        bestLen = f.length
+        bestLen = m.len
       }
     }
   }
