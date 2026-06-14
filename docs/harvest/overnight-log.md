@@ -87,3 +87,9 @@ skincare 480, carriers 467, car_seats 230, wipes 190, bath 28, diapers 24.
 - Added ~30 accessory tokens to EXCLUDE_KEYWORDS (哺乳瓶スタンド/ラック/ホルダー/乾燥/ケース/ボックス/ポーチ/カバー/収納, 授乳クッション/枕, 母乳実感パーツ, おしりふきケース/フタ/ビタット, よだれカバー/パッド, ワイヤーロープ). Compounds avoid case-pack (ケース品) collision; baby スリング kept (only ワイヤーロープ industrial blocked).
 - Deleted 130 no_match accessory products (clean-polluted-nomatch). 02-match-amazon now also skips EXCLUDE matches in the enumerated pool (no re-pollution).
 - Recall measured accurately now: bottles 50%→81%, wipes 49%→59%. formula/skincare/baby_food already clean (73/63/52%). bath/car_seats/carriers low = genuinely hard (durable/heterogeneous), not pollution.
+
+### strollers — VALIDATED (no tune); durable, recall 7%
+- matched=8 no_match=112, rate 7%, 0 CAPTCHA. Precision ~8/8: real strollers matched (カトージ 二人でゴー/リッチェル コアラクーン/マキシコシ レオナ2; Aprica/MAXI-COSI/Richell/Katoji brand coverage good). Many matches are accessories (保冷シート/クリップ/フック/アタッチメント) — correct but low value.
+- Low recall inherent to durables. ALL 10 GENRES now evaluated.
+
+## Step 3: bulk-volume the validated consumable genres (formula/skincare/bottles/wipes/baby_food) with the now-validated prompts + clean accessory filter.
