@@ -26,7 +26,8 @@ Return JSON only: {"matches": [i, j, ...]} listing every valid candidate index, 
 // Per-genre HIGH line/model/size discriminators. Existing genres mirror today's
 // inline bullets; the 2026-06-14 genres are seeded from scripts/tuning/<cat>.md.
 export const MATCH_RULES: Record<Category, string> = {
-  diapers: `- Product line / tier: さらさらケア ≠ はじめての肌へのいちばん ≠ 超吸収エアリー ≠ 卒業パンツ; エアスルー ≠ ぐっすりパンツ (Merries); エアフィット ≠ マシュマロ肌ごこち (Moonyman).
+  diapers: `- Product line / tier: さらさらケア ≠ はじめての肌へのいちばん ≠ 超吸収エアリー ≠ 卒業パンツ; エアスルー ≠ ぐっすりパンツ (Merries); エアフィット ≠ マシュマロ肌ごこち (Moonyman). The line is the NAMED SERIES only. The diaper FORM word is NOT a line: パンツ/さらさらパンツ is the pants cut of the さらさらケア line — "さらさらパンツ" and "さらさらケア" name the SAME line (one just abbreviates it to its pants form), so match. Likewise ignore spacing/kana spelling of the brand+line (ナチュラルムーニー = ナチュラル ムーニー = the same brand).
+- Tape vs pants (テープ ≠ パンツ) is decisive ONLY when BOTH titles literally contain a form word (the kanji/kana テープ or パンツ). If a title does not literally contain テープ nor パンツ, its form is UNSPECIFIED — you must NOT guess or infer a form from the brand/size/popularity, and you must NOT reject on form. With an unspecified form, a same brand+line+size pair still MATCHES.
 - Size: weight range (新生児/5kg ≠ Sサイズ/6-11kg). Letter sizes STRICT — 新生児 ≠ S ≠ M ≠ L ≠ ビッグ ≠ ビッグより大きい/スーパービッグ. ADJACENT sizes are STILL a mismatch (M≠L, L≠ビッグ).`,
   wipes: `- Line/type: 純水/水99% ≠ アルコール除菌タイプ; トイレに流せる (flushable) ≠ regular; 手口ふき (hand & mouth) ≠ おしりふき (bottom). Within a brand named lines differ (Moony やわらか素材 ≠ 水分たっぷり厚手 ≠ こすらずするりんっ; 厚手 ≠ 通常 only when one explicitly says 厚手).`,
   formula: `- Form/stage: らくらくキューブ ≠ 缶タイプ ≠ 液体 (different form); ほほえみ ≠ ステップ (different stage). PER-UNIT can size: a 400g can ≠ an 800g can. Age stage 0ヶ月 ≠ 6ヶ月頃.`,
