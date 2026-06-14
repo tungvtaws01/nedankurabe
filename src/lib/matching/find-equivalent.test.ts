@@ -1,6 +1,7 @@
 jest.mock('@/lib/llm/openrouter', () => ({
   refineKeyword: jest.fn(),
   semanticMatch: jest.fn(),
+  classifyCategory: jest.fn(async () => 'unknown'),
 }))
 jest.mock('@/lib/crawlers/amazon', () => ({ crawlAmazonSearch: jest.fn() }))
 jest.mock('@/lib/crawlers/rakuten', () => ({ crawlRakutenSearch: jest.fn() }))

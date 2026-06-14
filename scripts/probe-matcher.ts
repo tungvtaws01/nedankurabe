@@ -3,6 +3,7 @@
 // Run: OPENROUTER_API_KEY must be set. The free model is nondeterministic — runs each case twice.
 import { semanticMatch } from '../src/lib/llm/openrouter'
 import type { ProductResult } from '../src/lib/types'
+import type { Category } from '../src/lib/llm/category-prompts'
 
 function p(title: string, salePrice = 1000): ProductResult {
   return {
@@ -36,7 +37,7 @@ const CASES: Case[] = [
 ]
 
 async function runOnce(c: Case): Promise<boolean> {
-  const idx = await semanticMatch(c.source, c.candidates).catch(() => null)
+  const idx = await semanticMatch(c.source, c.candidates, { category: process.env.PROBE_CATEGORY as Category | undefined }).catch(() => null)
   if (c.expect === 'nomatch') return idx === null
   if (idx === null) return false
   return c.want ? (c.candidates[idx]?.title.includes(c.want) ?? false) : true

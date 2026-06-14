@@ -1,5 +1,6 @@
 import { ProductResult } from '@/lib/types'
-import { refineKeyword, semanticMatch } from '@/lib/llm/openrouter'
+import { refineKeyword, semanticMatch, classifyCategory } from '@/lib/llm/openrouter'
+import { type Category } from '@/lib/llm/category-prompts'
 import { crawlAmazonSearch } from '@/lib/crawlers/amazon'
 import { crawlRakutenSearch } from '@/lib/crawlers/rakuten'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
@@ -36,13 +37,17 @@ export async function findEquivalent(
   }
 
   // --- LLM flow (existing behavior) ---
-  const targeted = await searchTargeted(source, targetPlatform)
+  // Classify once and thread into both refineKeyword and semanticMatch so per-genre
+  // routing is consistent without adding an extra LLM call.
+  const category = await classifyCategory(source.title).catch(() => 'unknown' as const)
+  const catOpt = category === 'unknown' ? undefined : category
+  const targeted = await searchTargeted(source, targetPlatform, category)
   // Targeted (relevance-ranked) results first, prior pool as supplement.
   const pool = dedupe([...targeted, ...priorPool])
   if (!pool.length) return null
   // Pre-rank so the most promising candidates survive semanticMatch's window.
   const ranked = rankBySimilarity(source, pool)
-  const idx = await semanticMatch(source, ranked).catch(() => null)
+  const idx = await semanticMatch(source, ranked, { category: catOpt }).catch(() => null)
   const matchResult = idx !== null ? ranked[idx] ?? null : null
 
   // --- Write back a confirmed LLM match into the table ---
@@ -59,8 +64,9 @@ export async function findEquivalent(
 async function searchTargeted(
   source: ProductResult,
   targetPlatform: 'amazon' | 'rakuten',
+  category?: Category | 'unknown',
 ): Promise<ProductResult[]> {
-  const keyword = await refineKeyword(source.title, targetPlatform).catch(() => source.title)
+  const keyword = await refineKeyword(source.title, targetPlatform, category).catch(() => source.title)
   const cacheKey = makeCacheKey(`findeq:${targetPlatform}:${keyword}`)
   const cached = await getCached<ProductResult[]>(cacheKey).catch(() => null)
   if (cached) return cached

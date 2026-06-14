@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { crawlRakutenProductFast, crawlRakutenProductLive, crawlRakutenSearch } from '@/lib/crawlers/rakuten'
 import { crawlAmazonProduct, crawlAmazonSearch, resolveAmazonShortLink } from '@/lib/crawlers/amazon'
-import { refineKeyword, semanticMatch, explainPriceDifference } from '@/lib/llm/openrouter'
+import { refineKeyword, semanticMatch, explainPriceDifference, classifyCategory } from '@/lib/llm/openrouter'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult } from '@/lib/types'
 import { pickWinnerLoser } from '@/lib/price/explain'
@@ -126,9 +126,11 @@ export async function POST(req: NextRequest): Promise<Response> {
             (async () => {
               try {
                 send({ type: 'status', message: 'Amazonで同等商品を検索中…' })
-                const kw = await refineKeyword(rakutenProduct.title, 'amazon').catch(() => rakutenProduct.title)
+                const category = await classifyCategory(rakutenProduct.title).catch(() => 'unknown' as const)
+                const catOpt = category === 'unknown' ? undefined : category
+                const kw = await refineKeyword(rakutenProduct.title, 'amazon', category).catch(() => rakutenProduct.title)
                 const candidates = await crawlAmazonSearch(kw).catch(() => [] as ProductResult[])
-                const idx = await semanticMatch(rakutenProduct, candidates).catch(() => null)
+                const idx = await semanticMatch(rakutenProduct, candidates, { category: catOpt }).catch(() => null)
                 const amazonMatch = idx !== null ? candidates[idx] ?? null : null
                 basicResults = [latestRakuten, ...(amazonMatch ? [amazonMatch] : [])]
                   .sort((a, b) => a.effectivePrice - b.effectivePrice)
@@ -181,9 +183,15 @@ export async function POST(req: NextRequest): Promise<Response> {
           if (amazonProduct) send({ type: 'partial', results: [amazonProduct] })
 
           // Phase 2: Rakuten search
+          // Classify once (only when we have a real Amazon title) and thread into
+          // both refineKeyword and semanticMatch — no extra LLM call.
           send({ type: 'status', message: '楽天で同等商品を検索中…' })
+          const category = amazonProduct
+            ? await classifyCategory(amazonProduct.title).catch(() => 'unknown' as const)
+            : 'unknown' as const
+          const catOpt = category === 'unknown' ? undefined : category
           const rakutenKeyword = amazonProduct
-            ? await refineKeyword(amazonProduct.title, 'rakuten').catch(() => amazonProduct.title)
+            ? await refineKeyword(amazonProduct.title, 'rakuten', category).catch(() => amazonProduct.title)
             : titleForSearch ?? ''
           const rakutenCandidates = await crawlRakutenSearch(rakutenKeyword).catch(() => [] as ProductResult[])
           if (!amazonProduct && !rakutenCandidates.length) {
@@ -192,7 +200,7 @@ export async function POST(req: NextRequest): Promise<Response> {
             return
           }
           const matchIdx = amazonProduct
-            ? await semanticMatch(amazonProduct, rakutenCandidates).catch(() => null)
+            ? await semanticMatch(amazonProduct, rakutenCandidates, { category: catOpt }).catch(() => null)
             : null
           const rakutenMatch = matchIdx !== null ? rakutenCandidates[matchIdx] ?? null : null
           let results: ProductResult[] = [...(amazonProduct ? [amazonProduct] : []), ...(rakutenMatch ? [rakutenMatch] : [])]

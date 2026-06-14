@@ -16,6 +16,7 @@
  */
 import { readFileSync } from 'fs'
 import path from 'path'
+import { type Category } from '../src/lib/llm/category-prompts'
 
 // Load .env.local into process.env (no dotenv dependency). Existing env wins.
 try {
@@ -55,6 +56,7 @@ test('probe', async () => {
   const { crawlRakutenSearch } = await import('@/lib/crawlers/rakuten')
   const { rankBySimilarity } = await import('@/lib/matching/rank')
   const { semanticMatch } = await import('@/lib/llm/openrouter')
+  const cat = process.env.PROBE_CATEGORY as Category | undefined
 
   const cleanTitle = title.replace(/\[([^\]]{0,60})\]/g, '').replace(/\s+/g, ' ').trim()
   const prompt = promptTemplate
@@ -80,7 +82,7 @@ test('probe', async () => {
   console.log('\n=== RANKED CANDIDATES (top 10) ===')
   ranked.slice(0, 10).forEach((r, i) => console.log(`${i}: ¥${r.effectivePrice} ${r.title}`))
 
-  const idx = await semanticMatch(source, ranked).catch(() => null)
+  const idx = await semanticMatch(source, ranked, { category: cat }).catch(() => null)
   console.log('\n=== SEMANTIC MATCH ===')
   console.log(idx === null ? 'NO MATCH' : `${idx}: ¥${ranked[idx].effectivePrice} ${ranked[idx].title}`)
   console.log('=== END ===\n')
