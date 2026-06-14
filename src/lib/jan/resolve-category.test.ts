@@ -23,7 +23,8 @@ describe('resolveCategory', () => {
   })
 
   it('tier 3: unmapped genre + no keyword → unknown', () => {
-    expect(resolveCategory('ベビー枕 ドーナツ枕', '201591')).toBe('unknown') // toys genre, unmapped
+    expect(resolveCategory('ベビー枕 ドーナツ枕', '566090')).toBe('unknown') // ベビーインテリア, unmapped
+    expect(resolveCategory('謎の雑貨', '100533')).toBe('unknown')             // キッズ umbrella, unmapped
     expect(resolveCategory('謎の雑貨')).toBe('unknown')
   })
 })

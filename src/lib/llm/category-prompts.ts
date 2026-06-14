@@ -14,6 +14,9 @@
 export const CATEGORIES = [
   'diapers', 'wipes', 'formula', 'bottles', 'baby_food',
   'carriers', 'strollers', 'car_seats', 'skincare', 'bath',
+  // Added 2026-06-14 (scope expansion). These share NEW_GENRE_PROMPT until each is
+  // empirically tuned with the tune-category skill.
+  'toothbrush', 'toothpaste', 'bibs', 'tableware', 'baby_chair', 'bouncer', 'toys',
 ] as const
 
 export type Category = typeof CATEGORIES[number]
@@ -34,6 +37,22 @@ Keep in this priority order:
 
 Remove: colors, promotional text, order codes (B0xxx, CREGBCZ, ASIN), shop names, adjectives like 送料無料/新作/おすすめ/期間限定.
 Output plain text only, max 8 words.
+
+Title: ${title}`
+
+// Shared starter prompt for the 2026-06-14 scope-expansion categories (toothbrush,
+// toothpaste, bibs, tableware, baby_chair, bouncer, toys) until each is tuned. It is
+// deliberately distinct from UNIVERSAL_PROMPT so the category-prompts test still
+// guards every category against an accidental universal fallback. Tune per-category
+// later with the tune-category skill.
+export const NEW_GENRE_PROMPT: PromptBuilder = (platform, title) => `Extract a Japanese search keyword for ${platform} Japan for this baby product.
+Output Japanese keywords, space-separated, in this priority order:
+1. Brand — keep the maker/brand exactly as written in the title; NEVER invent one that is not present.
+2. Product line / model / character name — keep verbatim, never generalize.
+3. Product type noun (e.g. 歯ブラシ / 歯みがき / スタイ / お食事エプロン / ベビー食器 / ベビーチェア / ハイチェア / バウンサー / おもちゃ).
+4. Size / age-stage / volume only if it appears in the title (e.g. 0-3才, 6ヶ月, 50g, Mサイズ).
+Drop: colors, promotional text (送料無料/新作/期間限定), order codes, shop names, adjectives.
+Output Japanese keywords only, max 7 words.
 
 Title: ${title}`
 
@@ -476,4 +495,11 @@ export const CATEGORY_PROMPTS: Record<Category, PromptBuilder> = {
   car_seats: CAR_SEATS_PROMPT,
   skincare: SKINCARE_PROMPT,
   bath: BATH_PROMPT,
+  toothbrush: NEW_GENRE_PROMPT,
+  toothpaste: NEW_GENRE_PROMPT,
+  bibs: NEW_GENRE_PROMPT,
+  tableware: NEW_GENRE_PROMPT,
+  baby_chair: NEW_GENRE_PROMPT,
+  bouncer: NEW_GENRE_PROMPT,
+  toys: NEW_GENRE_PROMPT,
 }

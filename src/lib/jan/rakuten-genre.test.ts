@@ -25,12 +25,22 @@ describe('categoryFromGenreId', () => {
     expect(categoryFromGenreId('203056')).toBe('car_seats') // チャイルドシート child
   })
 
-  it('returns null for out-of-scope and unknown genres (so regex/LLM decide)', () => {
-    expect(categoryFromGenreId('201591')).toBeNull() // toys
-    expect(categoryFromGenreId('566882')).toBeNull() // baby chair
-    expect(categoryFromGenreId('407002')).toBeNull() // bibs
+  it('maps the 2026-06-14 scope-expansion genres', () => {
+    expect(categoryFromGenreId('407003')).toBe('bibs')        // スタイ
+    expect(categoryFromGenreId('207751')).toBe('tableware')   // ベビー食器
+    expect(categoryFromGenreId('213963')).toBe('baby_chair')  // ベビーチェア
+    expect(categoryFromGenreId('213968')).toBe('bouncer')     // バウンサー
+    expect(categoryFromGenreId('201591')).toBe('toys')        // おもちゃ
+    expect(categoryFromGenreId('551692')).toBe('toothbrush')  // pure 歯ブラシ leaf
+    expect(categoryFromGenreId('551695')).toBe('toothpaste')  // pure ジェル歯みがき leaf
+  })
+
+  it('returns null for still-out-of-scope and unknown genres', () => {
     expect(categoryFromGenreId('100533')).toBeNull() // default umbrella
+    expect(categoryFromGenreId('566090')).toBeNull() // ベビーインテリア
+    expect(categoryFromGenreId('0')).toBeNull()      // no-genre sentinel
     expect(categoryFromGenreId('999999')).toBeNull() // unrecognised
+    expect(categoryFromGenreId('568329')).toBeNull() // mixed dental leaf → regex decides
   })
 
   it('handles null/undefined/numeric inputs', () => {

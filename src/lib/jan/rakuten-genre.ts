@@ -11,9 +11,9 @@ import { type Category } from '../llm/category-prompts'
 // genre the harvest walks), discovered empirically with
 // scripts/harvest/discover-genre-leaves.ts. Every leaf listed sits under a parent
 // that maps cleanly to one category, so the whole subtree inherits that category.
-// Out-of-scope parents (toys, baby chairs, bibs, tableware, dental, bouncers, the
-// キッズ umbrella) are deliberately OMITTED so their items stay 'unknown' — the
-// correct outcome, not a miss.
+// Remaining out-of-scope parents (the キッズ umbrella 100533, ベビーインテリア 566090,
+// the no-genre sentinel 0) are deliberately OMITTED so their items stay 'unknown'
+// — the correct outcome, not a miss.
 const GENRE_ID_TO_CATEGORY: Record<string, Category> = {
   // おむつ (parent 205197) — diaper size/type sub-genres
   '205197': 'diapers', '205198': 'diapers', '205199': 'diapers',
@@ -40,6 +40,27 @@ const GENRE_ID_TO_CATEGORY: Record<string, Category> = {
   '203051': 'car_seats', '407014': 'car_seats',
   // ベビーローション・オイル (205205) + 日焼け止め (401166)
   '205205': 'skincare', '401166': 'skincare',
+
+  // --- 2026-06-14 scope-expansion genres ---
+  // 歯ブラシ・虫歯ケア (parent 551691): leaves mix brush/paste/wipe/tablet, so the
+  // toothbrush↔toothpaste split is done by title regex (tier-1). Only the PURE
+  // leaves are mapped here as a tier-2 fallback for keyword-less items; the mixed
+  // leaves (568329/551696/205204/551694) are intentionally left to the regex.
+  '551692': 'toothbrush', '551693': 'toothbrush',  // 歯ブラシ / 仕上げブラシ
+  '551695': 'toothpaste',                            // ジェル状歯みがき
+  // スタイ・お食事エプロン (parent 407002)
+  '407002': 'bibs', '407003': 'bibs', '407005': 'bibs', '407004': 'bibs', '407006': 'bibs',
+  // ベビー食器 (parent 207750) — NOT 207753, that is ストローマグ → bottles
+  '207750': 'tableware', '207751': 'tableware', '207752': 'tableware',
+  '566111': 'tableware', '401170': 'tableware', '551698': 'tableware',
+  // ベビーチェア (parent 566882)
+  '566882': 'baby_chair', '213963': 'baby_chair', '566883': 'baby_chair',
+  '566885': 'baby_chair', '551686': 'baby_chair', '566884': 'baby_chair',
+  // バウンサー (parent 213968)
+  '213968': 'bouncer',
+  // ベビー向けおもちゃ (parent 201591)
+  '201591': 'toys', '205272': 'toys', '201598': 'toys', '201592': 'toys', '205243': 'toys',
+  '201595': 'toys', '204024': 'toys', '201596': 'toys', '205278': 'toys', '201597': 'toys', '201594': 'toys',
 }
 
 export function categoryFromGenreId(genreId: string | null | undefined): Category | null {

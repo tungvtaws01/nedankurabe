@@ -7,9 +7,10 @@ describe('CATEGORY_PROMPTS', () => {
     }
   })
 
-  // Every category has been empirically tuned, so none should still fall back to
-  // the universal prompt. This catches a category accidentally left wired to
-  // UNIVERSAL_PROMPT during future edits.
+  // No category should fall back to the universal prompt: the original 10 are
+  // empirically tuned, the 2026-06-14 scope-expansion categories share the distinct
+  // NEW_GENRE_PROMPT (pending per-category tuning). This catches a category
+  // accidentally left wired to UNIVERSAL_PROMPT during future edits.
   it.each([...CATEGORIES])('uses a category-specific (non-universal) prompt for %s', (c) => {
     const universal = UNIVERSAL_PROMPT('amazon', 'X')
     const built = CATEGORY_PROMPTS[c]('amazon', 'X')

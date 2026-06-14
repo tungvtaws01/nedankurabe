@@ -30,6 +30,25 @@ describe('classifyLocal', () => {
     expect(classifyLocal('エルゴベビー 抱っこ紐 OMNI Breeze')).toBe('carriers')
   })
 
+  it('splits dental into toothbrush vs toothpaste by the title type-word', () => {
+    expect(classifyLocal('クリニカKid\'s ハブラシ 0-2才用')).toBe('toothbrush')
+    expect(classifyLocal('ピジョン はじめての仕上げ専用 電動歯ブラシ')).toBe('toothbrush')
+    expect(classifyLocal('ピジョン ジェル状歯みがき ぶどう味 40ml')).toBe('toothpaste')
+    expect(classifyLocal('丹平製薬 こどもハミガキ上手 いちご味 180ml')).toBe('toothpaste')
+  })
+
+  it('classifies the other scope-expansion genres', () => {
+    expect(classifyLocal('マールマール スタイ よだれかけ 360度')).toBe('bibs')
+    expect(classifyLocal('リッチェル ベビー食器 離乳食セット')).toBe('tableware')
+    expect(classifyLocal('大和屋 すくすくローチェア ベビーチェア')).toBe('baby_chair')
+    expect(classifyLocal('ベビービョルン バウンサー Bliss')).toBe('bouncer')
+    expect(classifyLocal('フィッシャープライス ベビージム おもちゃ')).toBe('toys')
+  })
+
+  it('does NOT misroute メリーズ (diaper) to toys via メリー', () => {
+    expect(classifyLocal('花王 メリーズ パンツ Mサイズ 58枚')).toBe('diapers')
+  })
+
   it('returns unknown for genuinely out-of-scope products', () => {
     expect(classifyLocal('トラスコ中山 化粧ビス NO.3 白 M6×16')).toBe('unknown')
     expect(classifyLocal('キッズサークル 外枠 CK-F1050 ピンク')).toBe('unknown')
