@@ -116,3 +116,38 @@ skincare 480, carriers 467, car_seats 230, wipes 190, bath 28, diapers 24.
 - **Phase 3 (niche crawl):** added 鼻吸い器 207739, ベビー体温計 567569, ベビーゲート 200841, プレイマット 568495 to enumeration + new categories nasal_aspirator/thermometer/safety_gate/playmat. Total products 8468→10975.
 - **Precision decision (user: A):** the 4 niche genres are NOISY (probe covers in thermometer, a blender + cereal mis-tagged into playmat, a car door-guard in safety_gate). So they are TITLE-REGEX-ONLY — NOT mapped in rakuten-genre tier-2 — trading coverage for precision. Removed the worst mis-tags (playmat 504→127, safety_gate 480→363). Bath stays genreId-mapped (clean genre). Residual niche noise = accessories whose titles contain the device name (replacement tubes / probe covers) — inherent, low-value, left as-is.
 - New genres share NEW_GENRE_PROMPT pending per-genre tune-category. 01-enumerate got a --genres= filter to crawl specific genres without re-walking the tree. Final unknown=1154 (mostly accessories/mis-tags correctly NOT force-fit).
+
+## 2026-06-14 (cont.) — first-harvest of the 11 new genres (post brand-genre refactor)
+- After merging the semanticMatch refactor (deterministic brand gate + per-genre MATCH_RULES — branch refactor/semanticmatch-brand-genre, 8 tasks, merged to master), the 11 newly-added genres + bath are still at `enumerated` (never matched). 4314 enumerated products total.
+- Measured durable re-eval first (carriers/car_seats/strollers ×14, free Playwright): only 3/42 recovered, all 3 verified CORRECT (byte-identical cross-listed import SKUs). Conclusion: already-harvested durable no_match is COVERAGE-limited (no Amazon equivalent), not judge-limited — the refactor doesn't move it. So NO full durable re-eval.
+- NOTE: harvest (02-match) + reeval-nomatch use AmazonBrowser = direct Playwright (FREE, CAPTCHA-prone), NOT scrape.do. scrape.do credits are only the serve-path crawlAmazonSearch + the tune harness. So harvest/re-eval cost time + CAPTCHA risk, not paid credits.
+- Launched first-harvest of all 11 new genres + bath, consumables-first order (toothbrush→toothpaste→tableware→bibs→bath→nasal→thermometer→safety_gate→baby_chair→bouncer→playmat→toys). Free Playwright, background (caffeinate). Per-genre prompts (just tuned) + expanded brand-map now active. Expect strong recall on consumables (toothbrush/toothpaste/bibs/tableware/bath are branded), low on durables/toys (coverage-limited, like strollers/carriers ~7%).
+
+### First-harvest results (stopped after safety_gate per user — durables/toys deferred)
+| genre | matched | no_match | rate |
+|---|---|---|---|
+| toothbrush | 157 | 201 | 44% |
+| toothpaste | 75 | 36 | 68% |
+| tableware | 137 | 226 | 38% |
+| bibs | 55 | 415 | 12% (no-brand boutique, coverage-limited) |
+| bath | 158 | 516 | 23% |
+| nasal_aspirator | 46 | 218 | 17% |
+| thermometer | 29 | 41 | 41% |
+| safety_gate | 98 | 265 | 27% |
+| **TOTAL** | **755** | **1918** | **28%** |
+- +755 new amazon_done matches from the new genres. 0 CAPTCHA across the whole run. Consumables/branded strong (toothpaste 68%, toothbrush/thermometer ~42%); bibs low (no-brand boutique). safety_gate 27% > durable re-eval 7% — confirms first-harvest beats re-mining picked-over no_match.
+- DEFERRED (still enumerated, ~1641 products): baby_chair 592, bouncer 277, playmat 126, toys 646 — low-value/coverage-limited; run later if needed via `02-match-amazon.ts --category=<g>`.
+
+## 2026-06-15/16 — Keyword-hallucination fix (Track 1) + consumables backlog
+
+**Consumables backlog harvest** (enumerated→amazon_done, free Playwright, 0 CAPTCHA):
+bottles 307/518, baby_food 230/474, skincare 374/151, formula 77/37, wipes 22/78 → +1,010 matched.
+
+**Item-level audit** (scripts/harvest/audit-genre.ts, free, no crawl) of no_match buckets:
+KEYWORD_HALLUC share = bottles 41% (+23% pollution), wipes 68% (mostly pollution), baby_food 48%, formula 40%, skincare 36%. REVERSED the prior "coverage is the ceiling" conclusion — keyword refiner is the dominant no_match cause. Root cause: map-based prompts make the model substitute famous lines / force item type / invent capacity/material when a token isn't in the map. Reproducible (qwen temp 0).
+
+**Track 1 fix (APPLIED, working tree, not committed):** ANTI_HALLUCINATION preamble prepended in refineKeyword. A/B on 15 hardest bottles: 5→6/15 end-to-end, faithfulness up ~8/15, 0 new false-positives. tsc clean, 45 llm tests pass.
+
+**Re-mine no_match with fixed keyword** (reeval-nomatch.ts --apply, accessory+pollution filtered, semanticMatch+gate+SIM_FLOOR guarded, 0 CAPTCHA): recovered bottles 77, skincare 77, formula 52, baby_food 36, wipes 25 → **+267 correct matches**.
+
+**Track 2 (classification pollution ~20%) — DEFERRED for user review:** NEW_POLLUTION regex caught 25/25 known pollution, 0 real false-exclusion, but tokens チェア/bare YAMATO over-broad for global classify (baby_chair is a real genre). Needs scoping: industrial→unknown, chairs→baby_chair. Accuracy mandate: do not auto-exclude real baby products.

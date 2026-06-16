@@ -26,6 +26,24 @@ export type Category = typeof CATEGORIES[number]
 
 export type PromptBuilder = (platform: string, title: string) => string
 
+// Cross-cutting anti-hallucination preamble prepended to EVERY keyword prompt by
+// refineKeyword. Empirically, the per-category prompts (which translate via finite
+// brand/line/type maps) make the model GUESS from training memory when a token is not
+// in the map: it substitutes a more famous product line (母乳相談室→母乳実感,
+// アイクレオ 赤ちゃんミルク→バランスミルク), forces the item type into the listed set
+// (ストローボトル/乳頭保護器→哺乳びん), invents capacity/material (silicone item →
+// プラスチック, no-capacity title → 380ml), or infers a brand from a shop/maker name.
+// A 2026-06-15 audit found this in ~40% of no_match items across 5 genres. These rules
+// OVERRIDE the per-category maps and are kept generic so they help every category.
+export const ANTI_HALLUCINATION =
+`CRITICAL — extract only what is written (these rules OVERRIDE the maps/examples below):
+1. Use ONLY brand/line/type/size/material/capacity that LITERALLY appear in the title. NEVER invent or infer one (no guessed ml/g, no guessed size, no guessed material).
+2. NEVER substitute a different or more famous product line/type for what is written. Translating the SAME written line/brand EN<->JP via the maps is fine; replacing 母乳相談室 with 母乳実感, or 赤ちゃんミルク with バランスミルク, is FORBIDDEN.
+3. Keep the brand exactly as written (keep both Latin and katakana forms if both appear). Never take a shop/retailer/maker name as the brand.
+4. If the item TYPE in the title is not in this category's list, output it VERBATIM — do not force it into the list (e.g. ストローボトル/ストローマグ/コップ/乳頭保護器/フリーザーパック stay as written, NOT 哺乳びん/乳首/消毒).
+
+`
+
 // Today's prompt, preserved verbatim as the fallback for unknown/low-confidence titles.
 export const UNIVERSAL_PROMPT: PromptBuilder = (platform, title) => `Extract a search keyword for ${platform} Japan.
 Keep in this priority order:

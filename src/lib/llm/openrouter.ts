@@ -1,5 +1,5 @@
 import { ProductResult } from '@/lib/types'
-import { CATEGORIES, CATEGORY_PROMPTS, UNIVERSAL_PROMPT, type Category } from './category-prompts'
+import { CATEGORIES, CATEGORY_PROMPTS, UNIVERSAL_PROMPT, ANTI_HALLUCINATION, type Category } from './category-prompts'
 import { computePriceFacts, platformName } from '@/lib/price/explain'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { brandsAreDistinct } from './brand-aliases'
@@ -70,7 +70,7 @@ export async function refineKeyword(
   const cat = category ?? await classifyCategory(cleanTitle)
   const buildPrompt = cat === 'unknown' ? UNIVERSAL_PROMPT : CATEGORY_PROMPTS[cat]
   try {
-    const result = await callLLM([{ role: 'user', content: buildPrompt(targetPlatform, cleanTitle) }], { model: FAST_MODEL, maxTokens: 120 })
+    const result = await callLLM([{ role: 'user', content: ANTI_HALLUCINATION + buildPrompt(targetPlatform, cleanTitle) }], { model: FAST_MODEL, maxTokens: 120 })
     return result || stripBrackets(title)
   } catch {
     return stripBrackets(title)
