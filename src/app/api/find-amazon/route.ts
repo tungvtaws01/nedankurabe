@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { findEquivalent } from '@/lib/matching/find-equivalent'
 import { explainPriceDifference } from '@/lib/llm/openrouter'
-import { pickWinnerLoser } from '@/lib/price/explain'
+import { isComparablePair, pickWinnerLoser } from '@/lib/price/explain'
 import { ProductResult } from '@/lib/types'
 export async function POST(req: NextRequest): Promise<NextResponse<{ result: ProductResult | null; explanation?: string | null }>> {
   const body = await req.json() as { source?: ProductResult; candidates?: ProductResult[] }
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<{ result: Pro
   // using the keyword-search pick-list (candidates) as a supplementary pool.
   const result = await findEquivalent(body.source, 'rakuten', body.candidates ?? []).catch(() => null)
   let explanation: string | null = null
-  if (result) {
+  if (result && isComparablePair(body.source, result)) {
     const { winner, loser } = pickWinnerLoser(body.source, result)
     explanation = await explainPriceDifference(winner, loser).catch(() => null)
   }

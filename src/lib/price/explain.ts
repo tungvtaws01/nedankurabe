@@ -78,3 +78,10 @@ export function computePriceFacts(winner: ProductResult, loser: ProductResult): 
     reasons,
   }
 }
+
+// A pair can be compared (winner badge, price-difference explanation) only when
+// BOTH products have a displayable price. Link-only listings (Amazon during the
+// pre-Creators-API gap) are never comparable.
+export function isComparablePair(a: ProductResult, b: ProductResult): boolean {
+  return !a.priceUnavailable && !b.priceUnavailable
+}
