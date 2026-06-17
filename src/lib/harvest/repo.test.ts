@@ -41,3 +41,56 @@ it('returns product id as a JS number, not a string', async () => {
   const id = await upsertProduct({ jan: null, title: 'NUMCHK', brand: null, category: CAT, imageUrl: '' })
   expect(typeof id).toBe('number')
 })
+
+// ---------------------------------------------------------------------------
+// Unit tests for findAmazonSiblingByRakuten / findMatchByAsin
+// These spy on the `query` helper so no real DB connection is needed.
+// ---------------------------------------------------------------------------
+import * as db from '../db'
+import { findAmazonSiblingByRakuten, findMatchByAsin } from './repo'
+
+describe('findAmazonSiblingByRakuten', () => {
+  let querySpy: jest.SpyInstance
+
+  beforeEach(() => {
+    querySpy = jest.spyOn(db, 'query')
+  })
+
+  afterEach(() => {
+    querySpy.mockRestore()
+  })
+
+  it('maps a row to the AmazonSibling shape', async () => {
+    querySpy.mockResolvedValueOnce([{ asin: 'B0ABC12345', title: 'メリーズ M', image_url: 'https://thumbnail.image.rakuten.co.jp/a.jpg' }])
+    const r = await findAmazonSiblingByRakuten('shop:item1')
+    expect(r).toEqual({ asin: 'B0ABC12345', productTitle: 'メリーズ M', productImageUrl: 'https://thumbnail.image.rakuten.co.jp/a.jpg' })
+  })
+
+  it('returns null when there is no match', async () => {
+    querySpy.mockResolvedValueOnce([])
+    expect(await findAmazonSiblingByRakuten('shop:none')).toBeNull()
+  })
+})
+
+describe('findMatchByAsin', () => {
+  let querySpy: jest.SpyInstance
+
+  beforeEach(() => {
+    querySpy = jest.spyOn(db, 'query')
+  })
+
+  afterEach(() => {
+    querySpy.mockRestore()
+  })
+
+  it('maps a row including the rakuten sibling code', async () => {
+    querySpy.mockResolvedValueOnce([{ title: 'メリーズ M', image_url: 'https://thumbnail.image.rakuten.co.jp/a.jpg', rakuten_code: 'shop:item1' }])
+    const r = await findMatchByAsin('B0ABC12345')
+    expect(r).toEqual({ productTitle: 'メリーズ M', productImageUrl: 'https://thumbnail.image.rakuten.co.jp/a.jpg', rakutenItemCode: 'shop:item1' })
+  })
+
+  it('returns null when the ASIN is not in the table', async () => {
+    querySpy.mockResolvedValueOnce([])
+    expect(await findMatchByAsin('B0NONE00000')).toBeNull()
+  })
+})
