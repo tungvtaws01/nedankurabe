@@ -33,3 +33,12 @@ node_modules/
 
 # Harvest artifacts
 harvest-sample.csv
+# Verify audit: ignore bulky/regenerable artifacts, keep curated results + verdicts
+docs/harvest/verify/img/
+docs/harvest/verify/img-hi/
+docs/harvest/verify/shards/
+docs/harvest/verify/shards-hi/
+docs/harvest/verify/shards-hi-keep/
+docs/harvest/verify/batches/
+docs/harvest/verify/pairs.jsonl
+docs/harvest/verify/shard-paths.json
