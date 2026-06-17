@@ -49,9 +49,15 @@ export default function KeywordResultsList({ results, query, onSelect }: Props) 
                 <p className="text-[10px] text-[var(--ink-soft)]">{r.shopName}</p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-base font-black text-[var(--red)]">¥{r.salePrice.toLocaleString()}</p>
-                {r.shippingCost === 0 && (
-                  <p className="text-[9px] text-green-600">送料無料</p>
+                {r.priceUnavailable ? (
+                  <p className="text-[10px] text-[var(--ink-soft)]">Amazonで<br />価格を確認</p>
+                ) : (
+                  <>
+                    <p className="text-base font-black text-[var(--red)]">¥{r.salePrice.toLocaleString()}</p>
+                    {r.shippingCost === 0 && (
+                      <p className="text-[9px] text-green-600">送料無料</p>
+                    )}
+                  </>
                 )}
               </div>
             </button>
