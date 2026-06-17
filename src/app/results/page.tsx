@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, Suspense } from 'react'
 import { flushSync } from 'react-dom'
 import { ProductResult, UserToggles, DEFAULT_TOGGLES } from '@/lib/types'
 import { recalcWithToggles } from '@/lib/price/normalize'
+import { isComparablePair } from '@/lib/price/explain'
 import ProductCard from '@/components/ProductCard'
 import TogglePanel from '@/components/TogglePanel'
 import KeywordResultsList from '@/components/KeywordResultsList'
@@ -323,12 +324,13 @@ function ResultsContent() {
   // The bundled sentence reflects DEFAULT toggle settings. If a toggle changes the
   // winner or the gap, the sentence's numbers would be stale → fall back to bullets.
   const defaultRanked = recalcWithToggles(rawResults, DEFAULT_TOGGLES)
+  const comparable = ranked.length === 2 && isComparablePair(ranked[0], ranked[1])
   const winnerUnchanged =
     ranked.length === 2 && defaultRanked.length === 2 &&
     ranked[0].affiliateUrl === defaultRanked[0].affiliateUrl
   const defaultGap = defaultRanked.length === 2 ? defaultRanked[1].effectivePrice - defaultRanked[0].effectivePrice : null
   const currentGap = ranked.length === 2 ? ranked[1].effectivePrice - ranked[0].effectivePrice : null
-  const showSentence = !!explanation && winnerUnchanged && defaultGap === currentGap
+  const showSentence = comparable && !!explanation && winnerUnchanged && defaultGap === currentGap
 
   return (
     <main className="min-h-screen px-4 py-8 max-w-lg mx-auto">
@@ -397,7 +399,7 @@ function ResultsContent() {
                 : '楽天で同等商品が見つかりませんでした。 Rakuten equivalent not found.'}
             </div>
           )}
-          {ranked.length === 2 && (
+          {comparable && (
             <PriceExplanation
               winner={ranked[0]}
               loser={ranked[1]}
@@ -406,12 +408,12 @@ function ResultsContent() {
           )}
           {ranked.map((r, i) => (
             <ProductCard
-              key={r.affiliateUrl}
+              key={`${r.platform}:${r.affiliateUrl || r.title}`}
               result={r}
-              isWinner={i === 0}
+              isWinner={comparable && i === 0}
               toggles={toggles}
               pointsLoading={livePointsLoading && r.platform === 'rakuten'}
-              loading={r.salePrice === 0}
+              loading={r.salePrice === 0 && !r.priceUnavailable}
             />
           ))}
           <p className="text-center text-[9px] text-[var(--ink-soft)] mt-4 leading-relaxed">
