@@ -264,8 +264,17 @@ export async function lookupRakuten(
     itemCode,
     hits: "1",
   });
+  // The 20260401 endpoint 403s on a bare Referer — it needs the full
+  // referrer/origin/sec-fetch header set (same as lookupRakutenGenreId).
   const res = await fetch(`${SEARCH_URL}?${params}`, {
-    headers: { Referer: "https://nedankurabe.vercel.app" },
+    headers: {
+      Referer: "https://nedankurabe.vercel.app/",
+      Origin: "https://nedankurabe.vercel.app",
+      "Sec-Fetch-Site": "cross-site",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Dest": "empty",
+      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    },
   });
   if (!res.ok) return null;
   const data = (await res.json()) as { Items: Array<{ Item: unknown }> };
