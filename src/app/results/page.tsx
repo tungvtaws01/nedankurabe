@@ -9,6 +9,7 @@ import ProductCard from '@/components/ProductCard'
 import TogglePanel from '@/components/TogglePanel'
 import KeywordResultsList from '@/components/KeywordResultsList'
 import PriceExplanation from '@/components/PriceExplanation'
+import AffiliateDisclosure from '@/components/AffiliateDisclosure'
 
 function loadToggles(): UserToggles {
   if (typeof window === 'undefined') return DEFAULT_TOGGLES
@@ -385,6 +386,7 @@ function ResultsContent() {
             amazonSubscribeAvailable={rawResults.some(r => r.platform === 'amazon' && r.subscribeAvailable)}
             rakutenSubscribeAvailable={rawResults.some(r => r.platform === 'rakuten' && r.subscribeAvailable)}
           />
+          <AffiliateDisclosure />
           {ranked.length === 1 && crossSearching && (
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-3 text-xs text-blue-600 text-center animate-pulse">
               {ranked[0].platform === 'rakuten'
