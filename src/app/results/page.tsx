@@ -371,7 +371,8 @@ function ResultsContent() {
             </p>
           )}
           <KeywordResultsList
-            results={[...pickList, ...amazonPool].sort((a, b) => a.salePrice - b.salePrice)}
+            results={[...pickList, ...amazonPool].sort((a, b) =>
+              (a.priceUnavailable ? 1 : 0) - (b.priceUnavailable ? 1 : 0) || a.salePrice - b.salePrice)}
             query={query ?? ''}
             onSelect={handlePickSelect}
           />

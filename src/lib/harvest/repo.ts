@@ -131,3 +131,23 @@ export async function findMatchByAsin(asin: string): Promise<AmazonMatch | null>
     ? { productTitle: rows[0].title, productImageUrl: rows[0].image_url, rakutenItemCode: rows[0].rakuten_code }
     : null
 }
+
+// Search active Amazon listings by keyword for the search pick-list. Tokenizes the
+// query on whitespace and requires every token to appear in the product title
+// (ILIKE AND). DB-only: returns the matched ASIN + product title + Rakuten-sourced
+// image so the caller can build a link-only Amazon card (no scraping, no Amazon image).
+export async function searchAmazonFromDb(keyword: string, limit = 10): Promise<AmazonSibling[]> {
+  const tokens = keyword.trim().split(/[\s　]+/).filter(Boolean).slice(0, 6)
+  if (!tokens.length) return []
+  const conds = tokens.map((_, i) => `p.title ILIKE $${i + 1}`).join(' AND ')
+  const params = [...tokens.map((t) => `%${t}%`), limit]
+  const rows = await query<{ asin: string; title: string; image_url: string }>(
+    `SELECT la.platform_id AS asin, p.title, p.image_url
+       FROM products p
+       JOIN listings la ON la.product_id = p.id AND la.platform='amazon' AND la.is_active
+      WHERE ${conds} AND p.image_url <> ''
+      LIMIT $${tokens.length + 1}`,
+    params,
+  )
+  return rows.map((r) => ({ asin: r.asin, productTitle: r.title, productImageUrl: r.image_url }))
+}
