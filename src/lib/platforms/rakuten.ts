@@ -167,9 +167,12 @@ async function searchRakutenKeyword(
   headers: Record<string, string>,
 ): Promise<ProductResult[]> {
   const specificGenre = getGenreId(kw);
+  // Baby-only scope: search the specific baby genre + 100533 (baby & maternity).
+  // No "0" (all-genres) fallback — off-topic queries should return nothing so the
+  // UI can show an on-brand "baby products only" empty state.
   const genreFallbacks = specificGenre === "100533"
-    ? ["100533", "0"]
-    : [specificGenre, "100533", "0"];
+    ? ["100533"]
+    : [specificGenre, "100533"];
 
   for (const genreId of genreFallbacks) {
     const params = new URLSearchParams({
