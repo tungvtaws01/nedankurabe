@@ -3,41 +3,36 @@ global.fetch = mockFetch
 
 import { crawlRakutenSearch, crawlRakutenProduct } from './rakuten'
 
-// Rakuten search page uses JSON-LD for structured data (stable, SEO-driven)
-// Points are JavaScript-rendered and not in initial HTML.
-const SEARCH_HTML = `
-<html><body>
-<script type="application/ld+json">
-{
-  "@type": "ItemList",
-  "itemListElement": [
+// crawlRakutenSearch now delegates to the Rakuten Ichiba API (searchRakuten),
+// which returns JSON: { Items: [{ Item: {...} }] } and is parsed by parseRakutenItem.
+const SEARCH_API = JSON.stringify({
+  Items: [
     {
-      "@type": "ListItem",
-      "position": 1,
-      "item": {
-        "@type": "Product",
-        "name": "明治ほほえみ 780g×2缶入",
-        "url": "https://item.rakuten.co.jp/netbaby/4902705129566/?scid=test",
-        "image": ["https://thumbnail.image.rakuten.co.jp/img.jpg"],
-        "offers": { "@type": "Offer", "price": 5979, "priceCurrency": "JPY" }
-      }
+      Item: {
+        itemName: '明治ほほえみ 780g×2缶入',
+        itemCode: 'netbaby:4902705129566',
+        itemPrice: 5979,
+        postageFlag: 1,
+        pointRate: 1,
+        itemUrl: 'https://item.rakuten.co.jp/netbaby/4902705129566/',
+        smallImageUrls: [{ imageUrl: 'https://thumbnail.image.rakuten.co.jp/img.jpg' }],
+        genreId: '100533',
+      },
     },
     {
-      "@type": "ListItem",
-      "position": 2,
-      "item": {
-        "@type": "Product",
-        "name": "パンパース テープ Sサイズ 108枚",
-        "url": "https://item.rakuten.co.jp/shop/item2/",
-        "image": "https://thumbnail.image.rakuten.co.jp/img2.jpg",
-        "offers": { "@type": "Offer", "price": 880, "priceCurrency": "JPY" }
-      }
-    }
-  ]
-}
-</script>
-</body></html>
-`
+      Item: {
+        itemName: 'パンパース テープ Sサイズ 108枚',
+        itemCode: 'shop:item2',
+        itemPrice: 880,
+        postageFlag: 1,
+        pointRate: 1,
+        itemUrl: 'https://item.rakuten.co.jp/shop/item2/',
+        smallImageUrls: [{ imageUrl: 'https://thumbnail.image.rakuten.co.jp/img2.jpg' }],
+        genreId: '100533',
+      },
+    },
+  ],
+})
 
 // Rakuten item pages use EUC-JP encoding; the new crawler uses og:title + itemprop price
 // (both available in static HTML). We mock the response with an ArrayBuffer.
@@ -53,34 +48,39 @@ const ITEM_HTML_UTF8 = `
 
 beforeEach(() => {
   mockFetch.mockReset()
-  // Enable proxy path so crawlRakutenSearch exercises JSON-LD crawl logic
+  // SCRAPER_API_KEY enables the proxy path for crawlRakutenProduct (HTML crawl).
   process.env.SCRAPER_API_KEY = 'test-key'
+  // crawlRakutenSearch -> searchRakuten needs the Rakuten API credentials.
+  process.env.RAKUTEN_APP_ID = 'test-app'
+  process.env.RAKUTEN_ACCESS_KEY = 'test-key'
+  // No affiliate id -> affiliateUrl is the raw item URL (deterministic for assertions).
+  delete process.env.RAKUTEN_AFFILIATE_ID
 })
 
 describe('crawlRakutenSearch', () => {
-  it('extracts title, price, shipping from JSON-LD on search page', async () => {
-    mockFetch.mockResolvedValue({ ok: true, text: async () => SEARCH_HTML })
+  it('extracts title, price, points from the Rakuten API', async () => {
+    mockFetch.mockResolvedValue({ ok: true, text: async () => SEARCH_API })
     const results = await crawlRakutenSearch('明治ほほえみ')
     expect(results).toHaveLength(2)
     expect(results[0].title).toBe('明治ほほえみ 780g×2缶入')
     expect(results[0].salePrice).toBe(5979)
-    // Points estimated from 1% base rate: floor(floor(5979/1.1)/100) = 54
+    // Points from 1% base rate: floor(floor(5979/1.1) * 1/100) = floor(5435/100) = 54
     expect(results[0].pointsEarned).toBe(54)
     // price >= 3980 → free shipping heuristic
     expect(results[0].shippingCost).toBe(0)
     expect(results[0].effectivePrice).toBe(5979 - 54)
     expect(results[0].platform).toBe('rakuten')
-    // tracking params stripped from URL
-    expect(results[0].affiliateUrl).not.toContain('?scid=')
+    // No affiliate id configured → affiliateUrl is the raw item URL.
+    expect(results[0].affiliateUrl).toBe('https://item.rakuten.co.jp/netbaby/4902705129566/')
   })
 
-  it('charges 490 shipping when price < 3980', async () => {
-    mockFetch.mockResolvedValue({ ok: true, text: async () => SEARCH_HTML })
+  it('charges 700 shipping when price < 3980', async () => {
+    mockFetch.mockResolvedValue({ ok: true, text: async () => SEARCH_API })
     const results = await crawlRakutenSearch('パンパース')
-    // item2 has price 880 < 3980 → shipping 490
-    // points estimated: floor(floor(880/1.1)/100) = floor(799/100) = 7
-    expect(results[1].shippingCost).toBe(490)
-    expect(results[1].effectivePrice).toBe(880 + 490 - 7)
+    // item2 has price 880 < 3980 and postageFlag 1 → shipping 700
+    // points: floor(floor(880/1.1) * 1/100) = floor(799/100) = 7  (880/1.1 = 799.99… in IEEE-754)
+    expect(results[1].shippingCost).toBe(700)
+    expect(results[1].effectivePrice).toBe(880 + 700 - 7)
   })
 
   it('returns empty array when fetch fails', async () => {

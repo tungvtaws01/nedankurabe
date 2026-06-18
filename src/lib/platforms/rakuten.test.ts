@@ -28,8 +28,8 @@ describe('parseRakutenItem', () => {
     expect(parseRakutenItem({ ...MOCK, postageFlag: 1 }, 'id').shippingCost).toBe(0)
   })
 
-  it('shippingCost is 490 when postageFlag=1 and price < 3980', () => {
-    expect(parseRakutenItem({ ...MOCK, postageFlag: 1, itemPrice: 980 }, 'id').shippingCost).toBe(490)
+  it('shippingCost is 700 when postageFlag=1 and price < 3980', () => {
+    expect(parseRakutenItem({ ...MOCK, postageFlag: 1, itemPrice: 980 }, 'id').shippingCost).toBe(700)
   })
 
   it('pointRate matches API field', () => {
