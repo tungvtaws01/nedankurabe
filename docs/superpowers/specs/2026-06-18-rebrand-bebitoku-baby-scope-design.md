@@ -26,7 +26,9 @@ The brand name is only displayed in two places (confirmed by grep — note the h
 
 **Confirmed NOT to contain the brand name (no change):** `Footer.tsx` and `AffiliateDisclosure.tsx` (these hold only the required "Amazonアソシエイト" disclosure, no brand string), and `SearchBox.tsx`.
 
-**Explicitly NOT changed:** the domain; the Rakuten API `Referer`/`Origin` headers (`https://nedankurabe.vercel.app/` in `src/lib/platforms/rakuten.ts`); the Amazon tag `nedankurabe-22`; and the **`nedankurabe_toggles` localStorage key** in `results/page.tsx` (renaming it would reset every existing user's saved toggle preferences — it is invisible, so leave it).
+**Also rename:** the **`nedankurabe_toggles` localStorage key** → `bebitoku_toggles` in `results/page.tsx` (both the `getItem` in `loadToggles` and the `setItem` in `handleToggles`). Safe because there are no users yet, so no saved preferences to migrate.
+
+**Explicitly NOT changed:** the domain; the Rakuten API `Referer`/`Origin` headers (`https://nedankurabe.vercel.app/` in `src/lib/platforms/rakuten.ts`); and the Amazon tag `nedankurabe-22`.
 
 ### B. Tagline / positioning (#2)
 - Add the tagline and positioning line to the homepage (`src/app/page.tsx`), styled with the existing design tokens.
@@ -47,7 +49,7 @@ The brand name is only displayed in two places (confirmed by grep — note the h
 | `src/app/page.tsx` | hero `<h1>` ねだん/くらべ → ベビ/得; subtitle → tagline + positioning line |
 | `package.json` | `name` → `bebitoku` (cosmetic) |
 | `src/lib/platforms/rakuten.ts` | drop `genreId: "0"` fallback in `searchRakutenKeyword` |
-| `src/app/results/page.tsx` | on-brand empty state for zero-result searches (do NOT touch the `nedankurabe_toggles` key) |
+| `src/app/results/page.tsx` | on-brand empty state for zero-result searches; rename `nedankurabe_toggles` → `bebitoku_toggles` |
 | `docs/.../amazon-associate-reapplication.md` | brand name → ベビ得 |
 
 ## Error handling / edge cases
