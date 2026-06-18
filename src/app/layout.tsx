@@ -10,7 +10,7 @@ const noto = Noto_Sans_JP({
 })
 
 export const metadata: Metadata = {
-  title: 'ベビ得 — ベビー用品の最安値比較',
+  title: 'ベビトク — ベビー用品の最安値比較',
   description: 'ベビー用品の実質価格を Amazon・楽天 でまとめて比較。かしこくおトクに。',
 }
 
