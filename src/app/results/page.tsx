@@ -13,7 +13,7 @@ import AffiliateDisclosure from '@/components/AffiliateDisclosure'
 
 function loadToggles(): UserToggles {
   if (typeof window === 'undefined') return DEFAULT_TOGGLES
-  try { return JSON.parse(localStorage.getItem('nedankurabe_toggles') ?? 'null') ?? DEFAULT_TOGGLES }
+  try { return JSON.parse(localStorage.getItem('bebitoku_toggles') ?? 'null') ?? DEFAULT_TOGGLES }
   catch { return DEFAULT_TOGGLES }
 }
 
@@ -318,7 +318,7 @@ function ResultsContent() {
 
   function handleToggles(t: UserToggles) {
     setToggles(t)
-    localStorage.setItem('nedankurabe_toggles', JSON.stringify(t))
+    localStorage.setItem('bebitoku_toggles', JSON.stringify(t))
   }
 
   const ranked = recalcWithToggles(rawResults, toggles)
