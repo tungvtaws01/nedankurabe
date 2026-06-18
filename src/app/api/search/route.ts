@@ -30,8 +30,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const body = await req.json() as { query?: string }
   if (!body.query?.trim()) return NextResponse.json({ error: 'query required' }, { status: 400 })
   const query = body.query.trim()
-  // kw5: prefix — busts kw4 entries that had no Amazon results.
-  const cacheKey = makeCacheKey(`kw5:${query}`)
+  // kw6: prefix — busts kw5 entries created with the all-genres Rakuten fallback.
+  const cacheKey = makeCacheKey(`kw6:${query}`)
 
   const cached = await getCached<{ rakutenResults: ProductResult[]; amazonResults: ProductResult[] }>(cacheKey).catch(() => null)
   if (cached && cached.rakutenResults.length > 0) {

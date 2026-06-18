@@ -15,9 +15,10 @@ export default function KeywordResultsList({ results, query, onSelect }: Props) 
       </p>
 
       {results.length === 0 && (
-        <p className="text-center py-20 text-sm text-[var(--ink-soft)]">
-          商品が見つかりませんでした。<br />
-          <span className="italic text-xs">No products found. Try a different keyword.</span>
+        <p className="text-center py-20 text-sm text-[var(--ink-soft)] leading-relaxed">
+          ベビ得はベビー用品専門です。<br />
+          おむつ・ミルク・抱っこ紐などで検索してください。<br />
+          <span className="italic text-xs">ベビ得 only covers baby products — try diapers, formula, carriers, etc.</span>
         </p>
       )}
 

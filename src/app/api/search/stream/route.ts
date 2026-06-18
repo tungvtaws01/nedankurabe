@@ -18,7 +18,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     return new Response(JSON.stringify({ error: 'query required' }), { status: 400 })
   }
   const query = body.query.trim()
-  const cacheKey = makeCacheKey(`kw5:${query}`)
+  const cacheKey = makeCacheKey(`kw6:${query}`)
   const encoder = new TextEncoder()
 
   const stream = new ReadableStream({
