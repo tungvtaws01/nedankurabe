@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { crawlRakutenSearch } from '@/lib/crawlers/rakuten'
 import { searchAmazonFromDb } from '@/lib/harvest/repo'
 import { buildAmazonLinkResult } from '@/lib/platforms/amazon-link'
+import { isBabyQuery } from '@/lib/search/baby-scope'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult } from '@/lib/types'
 
@@ -36,11 +37,15 @@ export async function POST(req: NextRequest): Promise<Response> {
         return
       }
 
-      // Rakuten (live API) and Amazon (DB, link-only) in parallel.
-      const [rakutenResults, amazonResults] = await Promise.all([
-        crawlRakutenSearch(query).catch(() => [] as ProductResult[]),
-        amazonFromDb(query),
-      ])
+      // Baby-only scope: skip both platforms for off-topic queries so the UI shows
+      // the baby-only empty state instead of generic Rakuten gift items.
+      // Rakuten (live API) and Amazon (DB, link-only) run in parallel otherwise.
+      const [rakutenResults, amazonResults] = isBabyQuery(query)
+        ? await Promise.all([
+            crawlRakutenSearch(query).catch(() => [] as ProductResult[]),
+            amazonFromDb(query),
+          ])
+        : [[] as ProductResult[], [] as ProductResult[]]
       send({ type: 'rakuten', results: rakutenResults })
       send({ type: 'amazon', results: amazonResults })
 

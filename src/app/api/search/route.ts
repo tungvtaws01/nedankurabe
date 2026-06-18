@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { crawlRakutenSearch } from '@/lib/crawlers/rakuten'
 import { searchAmazonFromDb } from '@/lib/harvest/repo'
 import { buildAmazonLinkResult } from '@/lib/platforms/amazon-link'
+import { isBabyQuery } from '@/lib/search/baby-scope'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult, SearchResponse } from '@/lib/types'
 import { MOCK_RESULTS } from '@/lib/mock-data'
@@ -41,11 +42,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     } satisfies SearchResponse)
   }
 
-  // Rakuten (live API) + Amazon (DB, link-only) in parallel. Amazon is never scraped.
-  const [rakutenResults, amazonResults] = await Promise.all([
-    crawlRakutenSearch(query).catch(() => [] as ProductResult[]),
-    amazonFromDb(query),
-  ])
+  // Baby-only scope: skip both platforms for off-topic queries so the UI shows the
+  // baby-only empty state. Rakuten (live API) + Amazon (DB, link-only) run in
+  // parallel otherwise. Amazon is never scraped.
+  const [rakutenResults, amazonResults] = isBabyQuery(query)
+    ? await Promise.all([
+        crawlRakutenSearch(query).catch(() => [] as ProductResult[]),
+        amazonFromDb(query),
+      ])
+    : [[] as ProductResult[], [] as ProductResult[]]
   if (rakutenResults.length > 0) {
     await setCached(cacheKey, { rakutenResults, amazonResults }).catch(() => {})
   }
