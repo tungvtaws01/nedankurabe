@@ -61,7 +61,7 @@ function main() {
   const removeN = count((v) => v.verdict === 'REMOVE')
   const judged = count((v) => ['KEEP', 'REMOVE', 'UNSURE'].includes(v.verdict))
   console.log(`\nfalse-positive (REMOVE) rate among vision-judged: ${removeN}/${judged} = ${(100 * removeN / Math.max(1, judged)).toFixed(1)}%`)
-  console.log(`qtyDiffers among KEEP (price-normalization follow-up): ${count((v) => v.verdict === 'KEEP' && v.qtyDiffers)}`)
+  console.log(`qtyDiffers among KEEP (price-normalization follow-up): ${count((v) => v.verdict === 'KEEP' && v.qtyDiffers === true)}`)
 
   console.log('\n-- REMOVE by mismatch type --')
   const byMis: Record<string, number> = {}

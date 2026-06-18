@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { crawlRakutenSearch, crawlRakutenProduct } from '@/lib/crawlers/rakuten'
-import { crawlAmazonProduct, resolveAmazonShortLink } from '@/lib/crawlers/amazon'
+import { crawlRakutenProduct } from '@/lib/crawlers/rakuten'
+import { resolveAmazonShortLink } from '@/lib/crawlers/amazon'
 import { findEquivalent } from '@/lib/matching/find-equivalent'
+import { findMatchByAsin } from '@/lib/harvest/repo'
+import { buildAmazonLinkResult } from '@/lib/platforms/amazon-link'
+import { lookupRakuten } from '@/lib/platforms/rakuten'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult, SearchResponse } from '@/lib/types'
 import { explainPriceDifference } from '@/lib/llm/openrouter'
-import { pickWinnerLoser } from '@/lib/price/explain'
+import { isComparablePair, pickWinnerLoser } from '@/lib/price/explain'
+import { byEffectivePrice } from '@/lib/price/normalize'
 import { MOCK_RESULTS } from '@/lib/mock-data'
+
 function extractTitleFromAmazonUrl(url: string): string | null {
   try {
     const u = new URL(url)
@@ -23,7 +28,6 @@ function extractTitleFromAmazonUrl(url: string): string | null {
 
 function parseProductUrl(url: string): { platform: 'amazon' | 'rakuten'; id: string } | null {
   try {
-    // Normalize: add https:// if user pasted without protocol (e.g. amazon.co.jp/dp/...)
     const normalized = /^https?:\/\//i.test(url) ? url : `https://${url}`
     const u = new URL(normalized)
     if (u.hostname.includes('amazon.co.jp')) {
@@ -50,64 +54,51 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const body = await req.json() as { url?: string }
   if (!body.url?.trim()) return NextResponse.json({ error: 'url required' }, { status: 400 })
   const url = body.url.trim()
-  // Amazon mobile-share links (amzn.asia/…) carry no ASIN; resolve to the
-  // canonical /dp/<ASIN> URL before parsing so they don't break the flow.
   const resolvedUrl = await resolveAmazonShortLink(url)
   const parsed = parseProductUrl(resolvedUrl)
   if (!parsed) {
     return NextResponse.json({ error: 'Amazon または楽天の商品URLを入力してください。' }, { status: 400 })
   }
 
-  const cacheKey = makeCacheKey(`lookup4:${url}`)
+  const cacheKey = makeCacheKey(`lookup6:${url}`)
   const cached = await getCached<ProductResult[]>(cacheKey).catch(() => null)
   if (cached && cached.length > 0) {
     return NextResponse.json({
-      mode: 'comparison', rakutenResults: [], amazonResults: [],
-      results: cached, query: url, cached: true,
+      mode: 'comparison', rakutenResults: [], amazonResults: [], results: cached, query: url, cached: true,
     } satisfies SearchResponse)
   }
 
   let results: ProductResult[] = []
 
   if (parsed.platform === 'amazon') {
-    // Try crawling the Amazon product page first.
-    // Falls back to slug-based title extraction when crawl is blocked (e.g. Vercel IPs).
-    const amazonProduct = await crawlAmazonProduct(parsed.id, resolvedUrl).catch(() => null)
-    const titleForSearch = amazonProduct?.title ?? extractTitleFromAmazonUrl(resolvedUrl)
-    if (!titleForSearch) {
+    // DB-only: build a link-only Amazon card; if matched, add the priced Rakuten sibling.
+    const match = await findMatchByAsin(parsed.id).catch(() => null)
+    const title = match?.productTitle ?? extractTitleFromAmazonUrl(resolvedUrl) ?? ''
+    if (!title && !match) {
       return NextResponse.json({ error: '商品が見つかりませんでした。' }, { status: 404 })
     }
-    if (amazonProduct) {
-      const rakutenMatch = await findEquivalent(amazonProduct, 'rakuten').catch(() => null)
-      results = [amazonProduct, ...(rakutenMatch ? [rakutenMatch] : [])].sort((a, b) => a.effectivePrice - b.effectivePrice)
-    } else {
-      // Product-page crawl was blocked (e.g. Vercel IP). Without a reliable source
-      // ProductResult we can't run a semantic match — confirm the product exists
-      // via a best-effort Rakuten search, otherwise 404.
-      const rakutenCandidates = await crawlRakutenSearch(titleForSearch).catch(() => [] as ProductResult[])
-      if (!rakutenCandidates.length) {
-        return NextResponse.json({ error: '商品が見つかりませんでした。' }, { status: 404 })
-      }
-      results = []
-    }
-
+    const amazonCard = buildAmazonLinkResult({ asin: parsed.id, title, imageUrl: match?.productImageUrl ?? '' })
+    const rakuten = match?.rakutenItemCode ? await lookupRakuten(match.rakutenItemCode).catch(() => null) : null
+    results = [amazonCard, ...(rakuten ? [rakuten] : [])].sort(byEffectivePrice)
   } else {
     const rakutenProduct = await crawlRakutenProduct(parsed.id).catch(() => null)
     if (!rakutenProduct) {
       return NextResponse.json({ error: '商品が見つかりませんでした。' }, { status: 404 })
     }
     const amazonMatch = await findEquivalent(rakutenProduct, 'amazon').catch(() => null)
-    results = [rakutenProduct, ...(amazonMatch ? [amazonMatch] : [])].sort((a, b) => a.effectivePrice - b.effectivePrice)
+    results = [rakutenProduct, ...(amazonMatch ? [amazonMatch] : [])].sort(byEffectivePrice)
   }
 
   if (results.length > 0) await setCached(cacheKey, results).catch(() => {})
+
+  // Price-difference explanation only when BOTH sides have a real price (never for a
+  // link-only Amazon card). During the gap this is effectively cross-platform-off.
   let explanation: string | undefined
-  if (results.length === 2) {
+  if (results.length === 2 && isComparablePair(results[0], results[1])) {
     const { winner, loser } = pickWinnerLoser(results[0], results[1])
     explanation = (await explainPriceDifference(winner, loser).catch(() => null)) ?? undefined
   }
   return NextResponse.json({
-    mode: 'comparison', rakutenResults: [], amazonResults: [],
-    results, query: url, cached: false, explanation,
+    mode: 'comparison', rakutenResults: [], amazonResults: [], results, query: url, cached: false, explanation,
   } satisfies SearchResponse)
 }

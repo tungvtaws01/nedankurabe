@@ -167,9 +167,12 @@ async function searchRakutenKeyword(
   headers: Record<string, string>,
 ): Promise<ProductResult[]> {
   const specificGenre = getGenreId(kw);
+  // Baby-only scope: search the specific baby genre + 100533 (baby & maternity).
+  // No "0" (all-genres) fallback — off-topic queries should return nothing so the
+  // UI can show an on-brand "baby products only" empty state.
   const genreFallbacks = specificGenre === "100533"
-    ? ["100533", "0"]
-    : [specificGenre, "100533", "0"];
+    ? ["100533"]
+    : [specificGenre, "100533"];
 
   for (const genreId of genreFallbacks) {
     const params = new URLSearchParams({
@@ -264,8 +267,17 @@ export async function lookupRakuten(
     itemCode,
     hits: "1",
   });
+  // The 20260401 endpoint 403s on a bare Referer — it needs the full
+  // referrer/origin/sec-fetch header set (same as lookupRakutenGenreId).
   const res = await fetch(`${SEARCH_URL}?${params}`, {
-    headers: { Referer: "https://nedankurabe.vercel.app" },
+    headers: {
+      Referer: "https://nedankurabe.vercel.app/",
+      Origin: "https://nedankurabe.vercel.app",
+      "Sec-Fetch-Site": "cross-site",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Dest": "empty",
+      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    },
   });
   if (!res.ok) return null;
   const data = (await res.json()) as { Items: Array<{ Item: unknown }> };

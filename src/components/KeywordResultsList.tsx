@@ -15,9 +15,10 @@ export default function KeywordResultsList({ results, query, onSelect }: Props) 
       </p>
 
       {results.length === 0 && (
-        <p className="text-center py-20 text-sm text-[var(--ink-soft)]">
-          商品が見つかりませんでした。<br />
-          <span className="italic text-xs">No products found. Try a different keyword.</span>
+        <p className="text-center py-20 text-sm text-[var(--ink-soft)] leading-relaxed">
+          ベビ得はベビー用品専門です。<br />
+          おむつ・ミルク・抱っこ紐などで検索してください。<br />
+          <span className="italic text-xs">ベビ得 only covers baby products — try diapers, formula, carriers, etc.</span>
         </p>
       )}
 
@@ -49,9 +50,15 @@ export default function KeywordResultsList({ results, query, onSelect }: Props) 
                 <p className="text-[10px] text-[var(--ink-soft)]">{r.shopName}</p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-base font-black text-[var(--red)]">¥{r.salePrice.toLocaleString()}</p>
-                {r.shippingCost === 0 && (
-                  <p className="text-[9px] text-green-600">送料無料</p>
+                {r.priceUnavailable ? (
+                  <p className="text-[10px] text-[var(--ink-soft)]">Amazonで<br />価格を確認</p>
+                ) : (
+                  <>
+                    <p className="text-base font-black text-[var(--red)]">¥{r.salePrice.toLocaleString()}</p>
+                    {r.shippingCost === 0 && (
+                      <p className="text-[9px] text-green-600">送料無料</p>
+                    )}
+                  </>
                 )}
               </div>
             </button>

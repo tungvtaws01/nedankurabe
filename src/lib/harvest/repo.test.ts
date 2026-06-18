@@ -41,3 +41,77 @@ it('returns product id as a JS number, not a string', async () => {
   const id = await upsertProduct({ jan: null, title: 'NUMCHK', brand: null, category: CAT, imageUrl: '' })
   expect(typeof id).toBe('number')
 })
+
+// ---------------------------------------------------------------------------
+// Unit tests for findAmazonSiblingByRakuten / findMatchByAsin
+// These spy on the `query` helper so no real DB connection is needed.
+// ---------------------------------------------------------------------------
+import * as db from '../db'
+import { findAmazonSiblingByRakuten, findMatchByAsin, searchAmazonFromDb } from './repo'
+
+describe('findAmazonSiblingByRakuten', () => {
+  let querySpy: jest.SpyInstance
+
+  beforeEach(() => {
+    querySpy = jest.spyOn(db, 'query')
+  })
+
+  afterEach(() => {
+    querySpy.mockRestore()
+  })
+
+  it('maps a row to the AmazonSibling shape', async () => {
+    querySpy.mockResolvedValueOnce([{ asin: 'B0ABC12345', title: 'メリーズ M', image_url: 'https://thumbnail.image.rakuten.co.jp/a.jpg' }])
+    const r = await findAmazonSiblingByRakuten('shop:item1')
+    expect(r).toEqual({ asin: 'B0ABC12345', productTitle: 'メリーズ M', productImageUrl: 'https://thumbnail.image.rakuten.co.jp/a.jpg' })
+  })
+
+  it('returns null when there is no match', async () => {
+    querySpy.mockResolvedValueOnce([])
+    expect(await findAmazonSiblingByRakuten('shop:none')).toBeNull()
+  })
+})
+
+describe('findMatchByAsin', () => {
+  let querySpy: jest.SpyInstance
+
+  beforeEach(() => {
+    querySpy = jest.spyOn(db, 'query')
+  })
+
+  afterEach(() => {
+    querySpy.mockRestore()
+  })
+
+  it('maps a row including the rakuten sibling code', async () => {
+    querySpy.mockResolvedValueOnce([{ title: 'メリーズ M', image_url: 'https://thumbnail.image.rakuten.co.jp/a.jpg', rakuten_code: 'shop:item1' }])
+    const r = await findMatchByAsin('B0ABC12345')
+    expect(r).toEqual({ productTitle: 'メリーズ M', productImageUrl: 'https://thumbnail.image.rakuten.co.jp/a.jpg', rakutenItemCode: 'shop:item1' })
+  })
+
+  it('returns null when the ASIN is not in the table', async () => {
+    querySpy.mockResolvedValueOnce([])
+    expect(await findMatchByAsin('B0NONE00000')).toBeNull()
+  })
+})
+
+describe('searchAmazonFromDb', () => {
+  let querySpy: jest.SpyInstance
+  beforeEach(() => { querySpy = jest.spyOn(db, 'query') })
+  afterEach(() => { querySpy.mockRestore() })
+
+  it('tokenizes the keyword into AND-ed ILIKE params and maps rows', async () => {
+    querySpy.mockResolvedValueOnce([
+      { asin: 'B0ABC12345', title: 'パンパース テープ Sサイズ', image_url: 'https://thumbnail.image.rakuten.co.jp/a.jpg' },
+    ])
+    const r = await searchAmazonFromDb('パンパース テープ')
+    expect(r).toEqual([{ asin: 'B0ABC12345', productTitle: 'パンパース テープ Sサイズ', productImageUrl: 'https://thumbnail.image.rakuten.co.jp/a.jpg' }])
+    const [, params] = querySpy.mock.calls[0]
+    expect(params).toEqual(['%パンパース%', '%テープ%', 10])
+  })
+
+  it('returns [] for an empty/whitespace keyword without querying', async () => {
+    expect(await searchAmazonFromDb('   ')).toEqual([])
+    expect(querySpy).not.toHaveBeenCalled()
+  })
+})

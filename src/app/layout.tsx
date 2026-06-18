@@ -10,8 +10,8 @@ const noto = Noto_Sans_JP({
 })
 
 export const metadata: Metadata = {
-  title: 'ねだんくらべ — Amazon・楽天 最安値比較',
-  description: 'Amazon と楽天市場の最安値を実質価格で比較します。',
+  title: 'ベビ得 — ベビー用品の最安値比較',
+  description: 'ベビー用品の実質価格を Amazon・楽天 でまとめて比較。かしこくおトクに。',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

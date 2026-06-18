@@ -2,6 +2,7 @@ import { ProductResult, UserToggles } from '@/lib/types'
 import PriceBreakdown, { Row } from './PriceBreakdown'
 
 function buildRows(r: ProductResult, t: UserToggles, pointsLoading: boolean): Row[] {
+  if (r.priceUnavailable) return []
   const rows: Row[] = [{ labelJP: '定価', labelEN: 'List price', value: `¥${r.salePrice.toLocaleString()}` }]
 
   if (r.platform === 'amazon') {
@@ -94,20 +95,30 @@ export default function ProductCard({ result, isWinner, toggles, pointsLoading, 
         </div>
       </div>
 
-      <div className="flex items-baseline gap-2 mb-3">
-        <span className="text-2xl font-black text-[var(--red)]"
-          style={{ fontFamily: '"Dela Gothic One", sans-serif' }}>
-          ¥{result.effectivePrice.toLocaleString()}
-        </span>
-        <span className="text-[10px] text-[var(--ink-soft)]">
-          実質価格 <span className="italic">Effective price</span>
-          {!isAmazon && !pointsLoading && result.pointRate <= 1 && result.couponDiscount === 0 && (
-            <span className="ml-1 text-amber-600 font-medium not-italic">(キャンペーン除く)</span>
-          )}
-        </span>
-      </div>
-
-      <PriceBreakdown rows={buildRows(result, toggles, !isAmazon && !!pointsLoading)} total={result.effectivePrice} />
+      {result.priceUnavailable ? (
+        <div className="bg-[var(--cream)] border border-[var(--border)] rounded-lg px-3 py-2 mb-3">
+          <p className="text-[11px] text-[var(--ink-soft)] leading-relaxed">
+            価格はAmazonでご確認ください
+            <span className="italic ml-1">Check the current price on Amazon</span>
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-baseline gap-2 mb-3">
+            <span className="text-2xl font-black text-[var(--red)]"
+              style={{ fontFamily: '"Dela Gothic One", sans-serif' }}>
+              ¥{result.effectivePrice.toLocaleString()}
+            </span>
+            <span className="text-[10px] text-[var(--ink-soft)]">
+              実質価格 <span className="italic">Effective price</span>
+              {!isAmazon && !pointsLoading && result.pointRate <= 1 && result.couponDiscount === 0 && (
+                <span className="ml-1 text-amber-600 font-medium not-italic">(キャンペーン除く)</span>
+              )}
+            </span>
+          </div>
+          <PriceBreakdown rows={buildRows(result, toggles, !isAmazon && !!pointsLoading)} total={result.effectivePrice} />
+        </>
+      )}
 
       {!isAmazon && !pointsLoading && result.pointRate <= 1 && result.couponDiscount === 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2">
@@ -129,15 +140,19 @@ export default function ProductCard({ result, isWinner, toggles, pointsLoading, 
         </p>
       )}
 
-      <a href={result.affiliateUrl} target="_blank" rel="noopener noreferrer"
-        className={`block w-full text-center py-3 rounded-xl text-xs font-bold ${isAmazon
-          ? 'bg-[var(--amazon)] text-[var(--amazon-accent)]'
-          : 'bg-[var(--red)] text-white'}`}>
-        {isAmazon ? 'Amazonで購入する' : '楽天で購入する'} →
-        <span className="italic ml-1 opacity-70 font-normal">
-          {isAmazon ? 'Buy on Amazon' : 'Buy on Rakuten'}
-        </span>
-      </a>
+      {result.affiliateUrl ? (
+        <a href={result.affiliateUrl} target="_blank" rel="noopener noreferrer sponsored"
+          className={`block w-full text-center py-3 rounded-xl text-xs font-bold ${isAmazon
+            ? 'bg-[var(--amazon)] text-[var(--amazon-accent)]'
+            : 'bg-[var(--red)] text-white'}`}>
+          {isAmazon ? 'Amazonで見る' : '楽天で購入する'} →
+          <span className="italic ml-1 opacity-70 font-normal">
+            {isAmazon ? 'View on Amazon' : 'Buy on Rakuten'}
+          </span>
+        </a>
+      ) : (
+        <p className="text-[10px] text-[var(--ink-soft)] text-center py-2">リンクは現在利用できません</p>
+      )}
     </div>
   )
 }

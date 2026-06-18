@@ -4,14 +4,16 @@ import { useEffect, useState, useRef, Suspense } from 'react'
 import { flushSync } from 'react-dom'
 import { ProductResult, UserToggles, DEFAULT_TOGGLES } from '@/lib/types'
 import { recalcWithToggles } from '@/lib/price/normalize'
+import { isComparablePair } from '@/lib/price/explain'
 import ProductCard from '@/components/ProductCard'
 import TogglePanel from '@/components/TogglePanel'
 import KeywordResultsList from '@/components/KeywordResultsList'
 import PriceExplanation from '@/components/PriceExplanation'
+import AffiliateDisclosure from '@/components/AffiliateDisclosure'
 
 function loadToggles(): UserToggles {
   if (typeof window === 'undefined') return DEFAULT_TOGGLES
-  try { return JSON.parse(localStorage.getItem('nedankurabe_toggles') ?? 'null') ?? DEFAULT_TOGGLES }
+  try { return JSON.parse(localStorage.getItem('bebitoku_toggles') ?? 'null') ?? DEFAULT_TOGGLES }
   catch { return DEFAULT_TOGGLES }
 }
 
@@ -316,19 +318,20 @@ function ResultsContent() {
 
   function handleToggles(t: UserToggles) {
     setToggles(t)
-    localStorage.setItem('nedankurabe_toggles', JSON.stringify(t))
+    localStorage.setItem('bebitoku_toggles', JSON.stringify(t))
   }
 
   const ranked = recalcWithToggles(rawResults, toggles)
   // The bundled sentence reflects DEFAULT toggle settings. If a toggle changes the
   // winner or the gap, the sentence's numbers would be stale → fall back to bullets.
   const defaultRanked = recalcWithToggles(rawResults, DEFAULT_TOGGLES)
+  const comparable = ranked.length === 2 && isComparablePair(ranked[0], ranked[1])
   const winnerUnchanged =
     ranked.length === 2 && defaultRanked.length === 2 &&
     ranked[0].affiliateUrl === defaultRanked[0].affiliateUrl
   const defaultGap = defaultRanked.length === 2 ? defaultRanked[1].effectivePrice - defaultRanked[0].effectivePrice : null
   const currentGap = ranked.length === 2 ? ranked[1].effectivePrice - ranked[0].effectivePrice : null
-  const showSentence = !!explanation && winnerUnchanged && defaultGap === currentGap
+  const showSentence = comparable && !!explanation && winnerUnchanged && defaultGap === currentGap
 
   return (
     <main className="min-h-screen px-4 py-8 max-w-lg mx-auto">
@@ -368,7 +371,8 @@ function ResultsContent() {
             </p>
           )}
           <KeywordResultsList
-            results={[...pickList, ...amazonPool].sort((a, b) => a.salePrice - b.salePrice)}
+            results={[...pickList, ...amazonPool].sort((a, b) =>
+              (a.priceUnavailable ? 1 : 0) - (b.priceUnavailable ? 1 : 0) || a.salePrice - b.salePrice)}
             query={query ?? ''}
             onSelect={handlePickSelect}
           />
@@ -383,6 +387,7 @@ function ResultsContent() {
             amazonSubscribeAvailable={rawResults.some(r => r.platform === 'amazon' && r.subscribeAvailable)}
             rakutenSubscribeAvailable={rawResults.some(r => r.platform === 'rakuten' && r.subscribeAvailable)}
           />
+          <AffiliateDisclosure />
           {ranked.length === 1 && crossSearching && (
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 mb-3 text-xs text-blue-600 text-center animate-pulse">
               {ranked[0].platform === 'rakuten'
@@ -397,7 +402,7 @@ function ResultsContent() {
                 : '楽天で同等商品が見つかりませんでした。 Rakuten equivalent not found.'}
             </div>
           )}
-          {ranked.length === 2 && (
+          {comparable && (
             <PriceExplanation
               winner={ranked[0]}
               loser={ranked[1]}
@@ -406,12 +411,12 @@ function ResultsContent() {
           )}
           {ranked.map((r, i) => (
             <ProductCard
-              key={r.affiliateUrl}
+              key={`${r.platform}:${r.affiliateUrl || r.title}`}
               result={r}
-              isWinner={i === 0}
+              isWinner={comparable && i === 0}
               toggles={toggles}
               pointsLoading={livePointsLoading && r.platform === 'rakuten'}
-              loading={r.salePrice === 0}
+              loading={r.salePrice === 0 && !r.priceUnavailable}
             />
           ))}
           <p className="text-center text-[9px] text-[var(--ink-soft)] mt-4 leading-relaxed">

@@ -2,7 +2,8 @@ import { NextRequest } from 'next/server'
 import { crawlRakutenProduct } from '@/lib/crawlers/rakuten'
 import { findEquivalent } from '@/lib/matching/find-equivalent'
 import { explainPriceDifference } from '@/lib/llm/openrouter'
-import { pickWinnerLoser } from '@/lib/price/explain'
+import { isComparablePair, pickWinnerLoser } from '@/lib/price/explain'
+import { byEffectivePrice } from '@/lib/price/normalize'
 import { ProductResult } from '@/lib/types'
 
 // Called when the user taps a Rakuten card from the keyword pick-list.
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         const matchTask = (async () => {
           match = await findEquivalent(source, 'amazon', candidates ?? []).catch(() => null)
           const results = [enrichedSource, ...(match ? [match] : [])]
-            .sort((a, b) => a.effectivePrice - b.effectivePrice)
+            .sort(byEffectivePrice)
           send({ type: 'basic', results })
         })()
 
@@ -58,8 +59,9 @@ export async function POST(req: NextRequest): Promise<Response> {
         await Promise.all([matchTask, liveTask])
 
         // Explanation reflects the live-points effective price (both have resolved).
-        if (match) {
-          const { winner, loser } = pickWinnerLoser(enrichedSource, match)
+        const m = match
+        if (m && isComparablePair(enrichedSource, m)) {
+          const { winner, loser } = pickWinnerLoser(enrichedSource, m)
           const explanation = await explainPriceDifference(winner, loser).catch(() => null)
           if (explanation) send({ type: 'explanation', text: explanation })
         }

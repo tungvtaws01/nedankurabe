@@ -1,4 +1,4 @@
-import { calcAmazonEffectivePrice, calcRakutenEffectivePrice, recalcWithToggles } from './normalize'
+import { calcAmazonEffectivePrice, calcRakutenEffectivePrice, recalcWithToggles, byEffectivePrice } from './normalize'
 import { DEFAULT_TOGGLES, ProductResult } from '@/lib/types'
 
 describe('calcAmazonEffectivePrice', () => {
@@ -105,5 +105,35 @@ describe('recalcWithToggles', () => {
     const ranked = recalcWithToggles([amazon, rakuten], { ...DEFAULT_TOGGLES, amazonSubscribeSave: true })
     expect(ranked[0].platform).toBe('rakuten')
     expect(ranked[1].effectivePrice).toBe(6373)
+  })
+})
+
+function priced(platform: 'amazon' | 'rakuten', effectivePrice: number, extra: Partial<ProductResult> = {}): ProductResult {
+  return {
+    platform, title: 't', imageUrl: '', shopName: '', salePrice: effectivePrice,
+    shippingCost: 0, couponDiscount: 0, pointRate: 1, pointsEarned: 0, effectivePrice,
+    subscribeAvailable: false, rakutenCardEligible: false, teikiRates: null,
+    taxRate: 1.1, affiliateUrl: `u-${platform}-${effectivePrice}`, ...extra,
+  }
+}
+
+describe('byEffectivePrice', () => {
+  it('sorts priced items ascending and pushes link-only items last', () => {
+    const linkOnly = priced('amazon', 0, { priceUnavailable: true, affiliateUrl: 'amz' })
+    const cheap = priced('rakuten', 100)
+    const dear = priced('rakuten', 200)
+    const sorted = [linkOnly, dear, cheap].sort(byEffectivePrice)
+    expect(sorted.map(r => r.affiliateUrl)).toEqual(['u-rakuten-100', 'u-rakuten-200', 'amz'])
+  })
+})
+
+describe('recalcWithToggles link-only', () => {
+  it('passes link-only items through unchanged and sorts them last', () => {
+    const linkOnly = priced('amazon', 0, { priceUnavailable: true, affiliateUrl: 'amz', salePrice: 0 })
+    const rakuten = priced('rakuten', 980)
+    const out = recalcWithToggles([linkOnly, rakuten], DEFAULT_TOGGLES)
+    expect(out[0].affiliateUrl).toBe('u-rakuten-980')
+    expect(out[1].priceUnavailable).toBe(true)
+    expect(out[1].effectivePrice).toBe(0) // not recomputed
   })
 })

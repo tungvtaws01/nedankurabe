@@ -17,6 +17,11 @@ export interface ProductResult {
   teikiRates: { first: number; recurring: number } | null  // Rakuten only
   taxRate: 1.08 | 1.1                                      // 1.08 for food (軽減税率), 1.1 otherwise
   affiliateUrl: string
+  // True when this is a link-only listing whose price/points cannot be shown
+  // compliantly (Amazon during the pre-Creators-API gap). Such results are
+  // rendered without a price, excluded from the cheapest-of comparison, and
+  // never marked the winner.
+  priceUnavailable?: boolean
 }
 
 export interface UserToggles {

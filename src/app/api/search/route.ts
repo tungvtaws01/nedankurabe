@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { crawlRakutenSearch } from '@/lib/crawlers/rakuten'
-import { crawlAmazonSearch } from '@/lib/crawlers/amazon'
-import { hasProxy } from '@/lib/crawlers/proxy-fetch'
-import { refineKeyword } from '@/lib/llm/openrouter'
+import { searchAmazonFromDb } from '@/lib/harvest/repo'
+import { buildAmazonLinkResult } from '@/lib/platforms/amazon-link'
+import { isBabyQuery } from '@/lib/search/baby-scope'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult, SearchResponse } from '@/lib/types'
 import { MOCK_RESULTS } from '@/lib/mock-data'
+
+// Amazon pick-list results come from the matching DB (link-only: Rakuten image +
+// tagged ASIN link, no price, no scraping).
+async function amazonFromDb(query: string): Promise<ProductResult[]> {
+  const sibs = await searchAmazonFromDb(query).catch(() => [])
+  return sibs.map((s) => buildAmazonLinkResult({ asin: s.asin, title: s.productTitle, imageUrl: s.productImageUrl }))
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   if (process.env.STAGE === 'local') {
     const body = await req.json() as { query?: string }
@@ -23,38 +31,31 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const body = await req.json() as { query?: string }
   if (!body.query?.trim()) return NextResponse.json({ error: 'query required' }, { status: 400 })
   const query = body.query.trim()
-  // kw3: prefix — busts stale kw2: entries cached before ScraperAPI was active
-  const cacheKey = makeCacheKey(`kw3:${query}`)
+  // kw6: prefix — busts kw5 entries created with the all-genres Rakuten fallback.
+  const cacheKey = makeCacheKey(`kw6:${query}`)
 
   const cached = await getCached<{ rakutenResults: ProductResult[]; amazonResults: ProductResult[] }>(cacheKey).catch(() => null)
   if (cached && cached.rakutenResults.length > 0) {
     return NextResponse.json({
-      mode: 'keyword-list', ...cached, results: [], query, cached: true,
+      mode: 'keyword-list', rakutenResults: cached.rakutenResults, amazonResults: cached.amazonResults ?? [],
+      results: [], query, cached: true,
     } satisfies SearchResponse)
   }
 
-  // Crawl Rakuten + Amazon in parallel.
-  // Amazon crawl is skipped when no SCRAPER_API_KEY — without a proxy
-  // Vercel's server IPs are blocked by Amazon search pages, adding ~5s of
-  // wasted latency. The LLM keyword refinement also only runs when needed.
-  const [rakutenResults, amazonResults] = await Promise.all([
-    crawlRakutenSearch(query).catch(() => [] as ProductResult[]),
-    hasProxy()
-      ? refineKeyword(query, 'amazon').catch(() => query)
-          .then(kw => crawlAmazonSearch(kw).catch(() => [] as ProductResult[]))
-      : Promise.resolve([] as ProductResult[]),
-  ])
-
+  // Baby-only scope: skip both platforms for off-topic queries so the UI shows the
+  // baby-only empty state. Rakuten (live API) + Amazon (DB, link-only) run in
+  // parallel otherwise. Amazon is never scraped.
+  const [rakutenResults, amazonResults] = isBabyQuery(query)
+    ? await Promise.all([
+        crawlRakutenSearch(query).catch(() => [] as ProductResult[]),
+        amazonFromDb(query),
+      ])
+    : [[] as ProductResult[], [] as ProductResult[]]
   if (rakutenResults.length > 0) {
     await setCached(cacheKey, { rakutenResults, amazonResults }).catch(() => {})
   }
 
   return NextResponse.json({
-    mode: 'keyword-list',
-    rakutenResults,
-    amazonResults,
-    results: [],
-    query,
-    cached: false,
+    mode: 'keyword-list', rakutenResults, amazonResults, results: [], query, cached: false,
   } satisfies SearchResponse)
 }

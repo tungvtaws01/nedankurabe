@@ -12,9 +12,10 @@ const URL_RE = /^(https?:\/\/)?(www\.)?amazon\.co\.jp|^(https?:\/\/)?item\.rakut
 interface Preview {
   platform: 'amazon' | 'rakuten'
   title: string
-  salePrice: number
+  salePrice: number | null
   imageUrl: string
   shopName: string
+  priceUnavailable?: boolean
 }
 
 export default function SearchBox() {
@@ -141,7 +142,11 @@ export default function SearchBox() {
                     <span className="text-[10px] text-[var(--ink-soft)] truncate">{preview.shopName}</span>
                   </div>
                   <p className="text-xs font-semibold leading-snug line-clamp-2 mb-1">{preview.title}</p>
-                  <p className="text-sm font-black text-[var(--red)]">¥{preview.salePrice.toLocaleString()}</p>
+                  {preview.priceUnavailable || preview.salePrice == null ? (
+                    <p className="text-[10px] text-[var(--ink-soft)]">Amazonで価格を確認</p>
+                  ) : (
+                    <p className="text-sm font-black text-[var(--red)]">¥{preview.salePrice.toLocaleString()}</p>
+                  )}
                 </div>
               </div>
             )}

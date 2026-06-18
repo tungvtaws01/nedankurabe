@@ -1,22 +1,12 @@
 import { ProductResult } from '@/lib/types'
 
-// Mock numbers are designed to demonstrate toggle behaviour:
-//
-// Default (SPU 1x, no card):   Amazon ¥2,156  <  Rakuten ¥2,182  → Amazon wins by ¥26
-// Rakuten Card OR SPU 3x:      Amazon ¥2,156  >  Rakuten ¥2,139  → Rakuten wins by ¥17
-// SPU 5x + Card:               Amazon ¥2,156  >  Rakuten ¥2,052  → Rakuten wins by ¥104
-// Amazon Subscribe & Save on:  Amazon ¥2,047  <  Rakuten ¥2,182  → Amazon wins again
-//
-// Rakuten formula:
-//   taxExcluded = floor(2400 / 1.1) = 2181
-//   effectivePointRate = pointRate(10) + (spu − 1) + cardBonus(0 or 2)
-//   effectivePrice = 2400 − floor(2181 × effectivePointRate / 100)
+// Mock pair: a priced Rakuten item + a link-only Amazon item (no price shown).
 
 export const MOCK_RESULTS: ProductResult[] = [
   {
     platform: 'amazon',
     title: 'パンパース テープ Sサイズ はじめての肌へのいちばん 82枚',
-    imageUrl: 'https://m.media-amazon.com/images/I/71s2qHPDlqL._AC_SL1500_.jpg',
+    imageUrl: 'https://thumbnail.image.rakuten.co.jp/@0_mall/rakuten24/cabinet/gu3/4987176206206.jpg',
     shopName: 'Amazon.co.jp',
     salePrice: 2178,
     shippingCost: 0,
@@ -30,7 +20,8 @@ export const MOCK_RESULTS: ProductResult[] = [
     rakutenCardEligible: false,
     teikiRates: null,
     taxRate: 1.1,
-    affiliateUrl: 'https://www.amazon.co.jp/dp/B0CCJ3KBN3?tag=mock-22',
+    affiliateUrl: 'https://www.amazon.co.jp/dp/B0CCJ3KBN3?tag=nedankurabe-22',
+    priceUnavailable: true,
   },
   {
     platform: 'rakuten',

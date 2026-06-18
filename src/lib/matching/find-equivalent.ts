@@ -1,12 +1,12 @@
 import { ProductResult } from '@/lib/types'
 import { refineKeyword, semanticMatch, classifyCategory } from '@/lib/llm/openrouter'
 import { type Category } from '@/lib/llm/category-prompts'
-import { crawlAmazonSearch } from '@/lib/crawlers/amazon'
 import { crawlRakutenSearch } from '@/lib/crawlers/rakuten'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { rankBySimilarity } from './rank'
-import { findListingByPlatformId, findSiblingListings, upsertProduct, upsertListing } from '@/lib/harvest/repo'
+import { findListingByPlatformId, findSiblingListings, upsertProduct, upsertListing, findAmazonSiblingByRakuten } from '@/lib/harvest/repo'
 import { lookupRakuten } from '@/lib/platforms/rakuten'
+import { buildAmazonLinkResult } from '@/lib/platforms/amazon-link'
 
 // Find the cross-platform equivalent of `source` on `targetPlatform`.
 //
@@ -21,6 +21,18 @@ export async function findEquivalent(
   targetPlatform: 'amazon' | 'rakuten',
   priorPool: ProductResult[] = [],
 ): Promise<ProductResult | null> {
+  // Amazon target is link-only and DB-sourced: no LLM, no scraping. We find the
+  // matched ASIN for this Rakuten source and return a link-only result (Rakuten
+  // image + tagged Amazon link). No DB match → no Amazon card.
+  if (targetPlatform === 'amazon') {
+    if (source.platform !== 'rakuten') return null
+    const rktCode = sourcePlatformId(source)
+    if (!rktCode) return null
+    const sib = await findAmazonSiblingByRakuten(rktCode).catch(() => null)
+    if (!sib) return null
+    return buildAmazonLinkResult({ asin: sib.asin, title: sib.productTitle, imageUrl: sib.productImageUrl })
+  }
+
   // --- Fast path: matching-table lookup by source platform_id ---
   // If we've already confirmed a match for this source product, return the
   // sibling listing directly without an LLM call. DB failures fall through.
@@ -70,9 +82,7 @@ async function searchTargeted(
   const cacheKey = makeCacheKey(`findeq:${targetPlatform}:${keyword}`)
   const cached = await getCached<ProductResult[]>(cacheKey).catch(() => null)
   if (cached) return cached
-  const results = targetPlatform === 'amazon'
-    ? await crawlAmazonSearch(keyword).catch(() => [] as ProductResult[])
-    : await crawlRakutenSearch(keyword).catch(() => [] as ProductResult[])
+  const results = await crawlRakutenSearch(keyword).catch(() => [] as ProductResult[])
   if (results.length) await setCached(cacheKey, results).catch(() => {})
   return results
 }
@@ -101,12 +111,11 @@ function sourcePlatformId(p: ProductResult): string | null {
   return m ? `${m[1]}:${m[2]}` : null
 }
 
-// Re-fetch a listing's full ProductResult by its platform id. Amazon's crawler
-// is imported lazily to avoid a circular import (crawlers/amazon -> matching).
+// Re-fetch a Rakuten listing's full ProductResult by its platform id. (Amazon
+// equivalents are built link-only from the DB above; this is Rakuten-only now.)
 async function hydrateListing(platformId: string, platform: 'amazon' | 'rakuten'): Promise<ProductResult | null> {
-  if (platform === 'rakuten') return lookupRakuten(platformId)
-  const { crawlAmazonProduct } = await import('@/lib/crawlers/amazon')
-  return crawlAmazonProduct(platformId)
+  if (platform !== 'rakuten') return null
+  return lookupRakuten(platformId)
 }
 
 // Persist a confirmed LLM match so subsequent lookups hit the fast path.

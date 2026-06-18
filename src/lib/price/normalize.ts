@@ -34,9 +34,18 @@ export function calcRakutenEffectivePrice(
   return itemPrice + shippingCost - subscriptionDiscount - couponDiscount - pointsEarned
 }
 
+// Sort comparator: cheapest effectivePrice first; link-only items (no displayable
+// price) always sort last so a real priced result is never out-ranked by a ¥0 placeholder.
+export function byEffectivePrice(a: ProductResult, b: ProductResult): number {
+  if (a.priceUnavailable && !b.priceUnavailable) return 1
+  if (b.priceUnavailable && !a.priceUnavailable) return -1
+  return a.effectivePrice - b.effectivePrice
+}
+
 export function recalcWithToggles(results: ProductResult[], toggles: UserToggles): ProductResult[] {
   return results
     .map(r => {
+      if (r.priceUnavailable) return r // no compliant price to recompute
       const effectivePrice =
         r.platform === 'amazon'
           ? calcAmazonEffectivePrice(
@@ -58,5 +67,5 @@ export function recalcWithToggles(results: ProductResult[], toggles: UserToggles
             )
       return { ...r, effectivePrice }
     })
-    .sort((a, b) => a.effectivePrice - b.effectivePrice)
+    .sort(byEffectivePrice)
 }

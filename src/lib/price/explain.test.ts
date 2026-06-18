@@ -1,4 +1,4 @@
-import { pickWinnerLoser, computePriceFacts } from './explain'
+import { pickWinnerLoser, computePriceFacts, isComparablePair } from './explain'
 import { ProductResult } from '@/lib/types'
 
 const mk = (over: Partial<ProductResult>): ProductResult => ({
@@ -59,5 +59,20 @@ describe('computePriceFacts', () => {
     const loser = mk({ platform: 'amazon', salePrice: 2000, effectivePrice: 2000 })
     const f = computePriceFacts(winner, loser)
     expect(f.reasons).toEqual([])
+  })
+})
+
+const mkC = (over: Partial<ProductResult>): ProductResult => ({
+  platform: 'rakuten', title: 't', imageUrl: '', shopName: '', salePrice: 100, shippingCost: 0,
+  couponDiscount: 0, pointRate: 1, pointsEarned: 0, effectivePrice: 100, subscribeAvailable: false,
+  rakutenCardEligible: false, teikiRates: null, taxRate: 1.1, affiliateUrl: 'u', ...over,
+})
+
+describe('isComparablePair', () => {
+  it('is true when both have prices', () => {
+    expect(isComparablePair(mkC({}), mkC({ platform: 'amazon' }))).toBe(true)
+  })
+  it('is false when either is link-only', () => {
+    expect(isComparablePair(mkC({}), mkC({ platform: 'amazon', priceUnavailable: true }))).toBe(false)
   })
 })
