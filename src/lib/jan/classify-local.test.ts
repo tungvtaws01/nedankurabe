@@ -1,5 +1,20 @@
 import { classifyLocal } from './classify-local'
 
+describe('classifyLocal scored lexicon', () => {
+  it('formula brand-lines win', () => {
+    expect(classifyLocal('和光堂 レーベンスミルク はいはい 810g×8缶')).toBe('formula')
+  })
+  it('weaning dish with 離乳食 word still classifies as tableware (specificity beats baby_food)', () => {
+    expect(classifyLocal('ベビー食器 離乳食 スプーン セット')).toBe('tableware')
+  })
+  it('diaper brand without the word おむつ', () => {
+    expect(classifyLocal('メリーズ パンツ Mサイズ 58枚')).toBe('diapers')
+  })
+  it('unrelated text → unknown', () => {
+    expect(classifyLocal('ノートパソコン 15インチ')).toBe('unknown')
+  })
+})
+
 describe('classifyLocal', () => {
   it('classifies brand-name diaper titles that lack the word おむつ', () => {
     // Real Rakuten titles that previously fell into "unknown" (brand + パンツ/テープ + N枚).
