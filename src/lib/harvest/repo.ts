@@ -132,6 +132,22 @@ export async function findMatchByAsin(asin: string): Promise<AmazonMatch | null>
     : null
 }
 
+// Resolve a JAN (EAN-13) to its product + active listings. Used by the lookup route when a
+// Rakuten URL slug is a bare JAN (e.g. /netbaby/4987244195937/) rather than an itemCode.
+export async function findByJan(jan: string): Promise<
+  { productTitle: string; productImageUrl: string; rakutenItemCode: string | null; asin: string | null } | null
+> {
+  const rows = await query<{ title: string; image_url: string; rakuten_id: string | null; asin: string | null }>(`
+    SELECT p.title,
+           p.image_url,
+           (SELECT l.platform_id FROM listings l WHERE l.product_id=p.id AND l.platform='rakuten' AND l.is_active=true LIMIT 1) AS rakuten_id,
+           (SELECT l.platform_id FROM listings l WHERE l.product_id=p.id AND l.platform='amazon'  AND l.is_active=true LIMIT 1) AS asin
+    FROM products p WHERE p.jan=$1 LIMIT 1`, [jan])
+  const r = rows[0]
+  if (!r) return null
+  return { productTitle: r.title, productImageUrl: r.image_url, rakutenItemCode: r.rakuten_id, asin: r.asin }
+}
+
 // Search active Amazon listings by keyword for the search pick-list. Tokenizes the
 // query on whitespace and requires every token to appear in the product title
 // (ILIKE AND). DB-only: returns the matched ASIN + product title + Rakuten-sourced

@@ -1,4 +1,5 @@
 import { isBabyQuery } from './baby-scope'
+import { BABY_KEYWORD_FIXTURES } from './baby-scope.fixtures'
 
 describe('isBabyQuery', () => {
   it.each([
@@ -21,6 +22,12 @@ describe('isBabyQuery', () => {
     'ノートパソコン',
   ])('treats off-topic query "%s" as not baby', (q) => {
     expect(isBabyQuery(q)).toBe(false)
+  })
+})
+
+describe('isBabyQuery — labeled fixtures', () => {
+  it.each(BABY_KEYWORD_FIXTURES)('$keyword → baby=$baby', ({ keyword, baby }) => {
+    expect(isBabyQuery(keyword)).toBe(baby)
   })
 })
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { crawlRakutenProduct } from '@/lib/crawlers/rakuten'
 import { resolveAmazonShortLink } from '@/lib/crawlers/amazon'
 import { findEquivalent } from '@/lib/matching/find-equivalent'
-import { findMatchByAsin } from '@/lib/harvest/repo'
+import { findMatchByAsin, findByJan } from '@/lib/harvest/repo'
 import { buildAmazonLinkResult } from '@/lib/platforms/amazon-link'
 import { lookupRakuten } from '@/lib/platforms/rakuten'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
@@ -81,6 +81,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const rakuten = match?.rakutenItemCode ? await lookupRakuten(match.rakutenItemCode).catch(() => null) : null
     results = [amazonCard, ...(rakuten ? [rakuten] : [])].sort(byEffectivePrice)
   } else {
+    // If the Rakuten URL slug is a bare JAN (EAN-13), resolve it authoritatively from our DB
+    // first (slug ≠ itemCode, so crawlRakutenProduct cannot resolve these).
+    const janMatch = parsed.id.match(/rakuten\.co\.jp\/[^/]+\/(\d{13})\b/)
+    if (janMatch) {
+      const hit = await findByJan(janMatch[1]).catch(() => null)
+      if (hit?.rakutenItemCode) {
+        const rk = await lookupRakuten(hit.rakutenItemCode).catch(() => null)
+        const amazonCard = hit.asin
+          ? buildAmazonLinkResult({ asin: hit.asin, title: hit.productTitle, imageUrl: hit.productImageUrl })
+          : null
+        const merged = [...(rk ? [rk] : []), ...(amazonCard ? [amazonCard] : [])].sort(byEffectivePrice)
+        if (merged.length) {
+          await setCached(cacheKey, merged).catch(() => {})
+          return NextResponse.json({
+            mode: 'comparison', rakutenResults: [], amazonResults: [], results: merged, query: url, cached: false,
+          } satisfies SearchResponse)
+        }
+      }
+    }
     const rakutenProduct = await crawlRakutenProduct(parsed.id).catch(() => null)
     if (!rakutenProduct) {
       return NextResponse.json({ error: '商品が見つかりませんでした。' }, { status: 404 })
