@@ -7,7 +7,7 @@ import { type Category } from '../llm/category-prompts'
 // only groups Stage 2 batches so each genre can be evaluated and prompt-tuned on its own.
 const RULES: Array<[Category, RegExp]> = [
   ['wipes',     /おしりふき|お尻ふき|おしり拭き|お尻拭き|手口ふき|ウェットティッシュ|ウエットティッシュ|純水.*ふき/],
-  ['formula',   /粉ミルク|液体ミルク|フォローアップ|らくらくキューブ|らくらくミルク|ほほえみ|はぐくみ|E赤ちゃん|アイクレオ|すこやかM1|ぐんぐん|ステップ.*缶|乳児用.*ミルク/],
+  ['formula',   /粉ミルク|液体ミルク|フォローアップ|らくらくキューブ|らくらくミルク|ほほえみ|はぐくみ|E赤ちゃん|アイクレオ|すこやかM1|ぐんぐん|ステップ.*缶|乳児用.*ミルク|はいはい|レーベンスミルク|ぴゅあ|ごくごく/],
   // tableware BEFORE baby_food: weaning dishes often say 離乳食 (e.g. ベビー食器 離乳食
   // セット), which baby_food would otherwise steal. The 食器/プレート/スプーン noun wins.
   ['tableware', /ベビー食器|お食事プレート|ランチプレート|ベビープレート|お食事ボウル|離乳食用.*(食器|スプーン|皿)/],
