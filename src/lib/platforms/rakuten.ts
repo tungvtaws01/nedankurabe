@@ -95,6 +95,38 @@ const GENRE_MAP: Array<[RegExp, string]> = [
   [/ベビーチェア|バンボ|ローチェア|ハイチェア.*ベビー/,                    "566882"], // ベビーチェア
 ];
 
+// Specific baby genres only — the authoritative precision signal for search results.
+// EXCLUDES the broad 100533 (キッズ・ベビー・マタニティ, which contains 出産内祝い gift
+// coffee/sweets) and "0" (all-genres). Values are the specific GENRE_MAP genres plus
+// the food genres used for reduced-tax baby consumables.
+export const BABY_GENRE_IDS: ReadonlySet<string> = new Set<string>([
+  '205197', // おむつ
+  '205194', // おしりふき
+  '205208', // 哺乳びん・授乳用品
+  '401171', // 粉ミルク
+  '568293', // 液体ミルク
+  '213980', // 離乳食・ベビーフード
+  '204417', // (food genre, reduced tax)
+  '207753', // ストローマグ
+  '207750', // ベビー食器
+  '407002', // スタイ・お食事エプロン
+  '200833', // ベビーカー
+  '566089', // 抱っこひも・スリング
+  '566088', // チャイルドシート
+  '551691', // 歯ブラシ・虫歯ケア
+  '205205', // ベビーローション・オイル
+  '401166', // 日焼け止め
+  '201591', // ベビー向けおもちゃ
+  '566090', // ベビー用インテリア
+  '213968', // バウンサー
+  '566882', // ベビーチェア
+])
+
+export function isBabyGenre(genreId: string | number | undefined | null): boolean {
+  if (genreId == null) return false
+  return BABY_GENRE_IDS.has(String(genreId))
+}
+
 export function getGenreId(keyword: string): string {
   for (const [pattern, genreId] of GENRE_MAP) {
     if (pattern.test(keyword)) return genreId;
@@ -191,6 +223,7 @@ async function searchRakutenKeyword(
     const data = JSON.parse(body) as { Items: Array<{ Item: any }> };
     const filtered = (data.Items ?? [])
       .filter(({ Item }) => !isTrialOrSamplePack(Item.itemName ?? ""))
+      .filter(({ Item }) => isBabyGenre(Item.genreId)) // authoritative baby-scope filter
       .map(({ Item }) => parseRakutenItem(Item, affiliateId));
     if (filtered.length > 0) return filtered;
   }

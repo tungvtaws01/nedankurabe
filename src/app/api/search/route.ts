@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { crawlRakutenSearch } from '@/lib/crawlers/rakuten'
 import { searchAmazonFromDb } from '@/lib/harvest/repo'
 import { buildAmazonLinkResult } from '@/lib/platforms/amazon-link'
-import { isBabyQuery } from '@/lib/search/baby-scope'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult, SearchResponse } from '@/lib/types'
 import { MOCK_RESULTS } from '@/lib/mock-data'
@@ -31,8 +30,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const body = await req.json() as { query?: string }
   if (!body.query?.trim()) return NextResponse.json({ error: 'query required' }, { status: 400 })
   const query = body.query.trim()
-  // kw6: prefix — busts kw5 entries created with the all-genres Rakuten fallback.
-  const cacheKey = makeCacheKey(`kw6:${query}`)
+  // kw7: prefix — busts kw6 entries; results now genre-filtered at the Rakuten layer.
+  const cacheKey = makeCacheKey(`kw7:${query}`)
 
   const cached = await getCached<{ rakutenResults: ProductResult[]; amazonResults: ProductResult[] }>(cacheKey).catch(() => null)
   if (cached && cached.rakutenResults.length > 0) {
@@ -42,15 +41,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     } satisfies SearchResponse)
   }
 
-  // Baby-only scope: skip both platforms for off-topic queries so the UI shows the
-  // baby-only empty state. Rakuten (live API) + Amazon (DB, link-only) run in
-  // parallel otherwise. Amazon is never scraped.
-  const [rakutenResults, amazonResults] = isBabyQuery(query)
-    ? await Promise.all([
-        crawlRakutenSearch(query).catch(() => [] as ProductResult[]),
-        amazonFromDb(query),
-      ])
-    : [[] as ProductResult[], [] as ProductResult[]]
+  // Always search — Rakuten results are genre-filtered at the platform layer, so
+  // off-topic queries return empty and the UI shows the baby-only empty state.
+  // Amazon is DB link-only; never scraped.
+  const [rakutenResults, amazonResults] = await Promise.all([
+    crawlRakutenSearch(query).catch(() => [] as ProductResult[]),
+    amazonFromDb(query),
+  ])
   if (rakutenResults.length > 0) {
     await setCached(cacheKey, { rakutenResults, amazonResults }).catch(() => {})
   }

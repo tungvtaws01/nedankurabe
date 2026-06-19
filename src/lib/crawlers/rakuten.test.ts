@@ -16,7 +16,7 @@ const SEARCH_API = JSON.stringify({
         pointRate: 1,
         itemUrl: 'https://item.rakuten.co.jp/netbaby/4902705129566/',
         smallImageUrls: [{ imageUrl: 'https://thumbnail.image.rakuten.co.jp/img.jpg' }],
-        genreId: '100533',
+        genreId: '401171', // 粉ミルク — specific baby genre (was 100533 broad genre)
       },
     },
     {
@@ -28,7 +28,7 @@ const SEARCH_API = JSON.stringify({
         pointRate: 1,
         itemUrl: 'https://item.rakuten.co.jp/shop/item2/',
         smallImageUrls: [{ imageUrl: 'https://thumbnail.image.rakuten.co.jp/img2.jpg' }],
-        genreId: '100533',
+        genreId: '205197', // おむつ — specific baby genre (was 100533 broad genre)
       },
     },
   ],
@@ -64,11 +64,12 @@ describe('crawlRakutenSearch', () => {
     expect(results).toHaveLength(2)
     expect(results[0].title).toBe('明治ほほえみ 780g×2缶入')
     expect(results[0].salePrice).toBe(5979)
-    // Points from 1% base rate: floor(floor(5979/1.1) * 1/100) = floor(5435/100) = 54
-    expect(results[0].pointsEarned).toBe(54)
+    // genreId 401171 = 粉ミルク → reduced 8% tax rate (1.08)
+    // Points from 1% base rate: floor(floor(5979/1.08) * 1/100) = floor(5536/100) = 55
+    expect(results[0].pointsEarned).toBe(55)
     // price >= 3980 → free shipping heuristic
     expect(results[0].shippingCost).toBe(0)
-    expect(results[0].effectivePrice).toBe(5979 - 54)
+    expect(results[0].effectivePrice).toBe(5979 - 55)
     expect(results[0].platform).toBe('rakuten')
     // No affiliate id configured → affiliateUrl is the raw item URL.
     expect(results[0].affiliateUrl).toBe('https://item.rakuten.co.jp/netbaby/4902705129566/')
