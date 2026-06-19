@@ -10,6 +10,7 @@ import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult } from '@/lib/types'
 import { isComparablePair, pickWinnerLoser } from '@/lib/price/explain'
 import { byEffectivePrice } from '@/lib/price/normalize'
+import { resolveJanRakutenUrl } from '@/lib/search/jan-url-lookup'
 
 function parseProductUrl(url: string): { platform: 'amazon' | 'rakuten'; id: string } | null {
   try {
@@ -108,6 +109,16 @@ export async function POST(req: NextRequest): Promise<Response> {
 
         if (parsed.platform === 'rakuten') {
           // ── Rakuten URL ──────────────────────────────────────────────────
+          // JAN-slug fast-path: if the URL slug is a bare EAN-13, resolve from DB
+          // (slug ≠ Rakuten itemCode, so crawlRakutenProductFast cannot handle it).
+          const janResults = await resolveJanRakutenUrl(parsed.id).catch(() => null)
+          if (janResults) {
+            send({ type: 'basic', results: janResults })
+            await setCached(cacheKey, janResults).catch(() => {})
+            send({ type: 'done' })
+            controller.close()
+            return
+          }
           send({ type: 'status', message: '楽天の商品情報を取得中…' })
           const rakutenProduct = await crawlRakutenProductFast(parsed.id).catch(() => null)
           if (!rakutenProduct) {

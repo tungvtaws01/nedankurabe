@@ -1,17 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { crawlRakutenSearch } from '@/lib/crawlers/rakuten'
-import { searchAmazonFromDb } from '@/lib/harvest/repo'
-import { buildAmazonLinkResult } from '@/lib/platforms/amazon-link'
+import { runBabySearch } from '@/lib/search/run-search'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult, SearchResponse } from '@/lib/types'
 import { MOCK_RESULTS } from '@/lib/mock-data'
-
-// Amazon pick-list results come from the matching DB (link-only: Rakuten image +
-// tagged ASIN link, no price, no scraping).
-async function amazonFromDb(query: string): Promise<ProductResult[]> {
-  const sibs = await searchAmazonFromDb(query).catch(() => [])
-  return sibs.map((s) => buildAmazonLinkResult({ asin: s.asin, title: s.productTitle, imageUrl: s.productImageUrl }))
-}
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   if (process.env.STAGE === 'local') {
@@ -44,10 +35,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // Always search — Rakuten results are genre-filtered at the platform layer, so
   // off-topic queries return empty and the UI shows the baby-only empty state.
   // Amazon is DB link-only; never scraped.
-  const [rakutenResults, amazonResults] = await Promise.all([
-    crawlRakutenSearch(query).catch(() => [] as ProductResult[]),
-    amazonFromDb(query),
-  ])
+  const { rakutenResults, amazonResults } = await runBabySearch(query)
   if (rakutenResults.length > 0) {
     await setCached(cacheKey, { rakutenResults, amazonResults }).catch(() => {})
   }
