@@ -5,9 +5,12 @@ import { rankBySimilarity, similarity } from '@/lib/matching/rank'
 import { findProductCandidatesByTokens, type ProductCandidate } from '@/lib/harvest/repo'
 
 // Minimum rankBySimilarity score for an LLM-confirmed candidate to be accepted.
-// Provisional value; locked empirically by scripts/tuning/tune-db-fallback.ts to
-// hit precision >= 95% (see plan Task 5). The numeric-token-weighted similarity for
-// a true same-product pair is typically >= 0.15; loosely-related pairs score < 0.1.
+// Locked 2026-06-26 via scripts/tuning/tune-db-fallback.ts (n=150 goldset rows):
+//   T=0.12 → precision 0.976, recall 0.857 (max recall 0.871 at T=0).
+// Precision is already >= 0.95 at every T because the LLM + brand gate reject most
+// false matches; the remaining 3 FPs are high-similarity REMOVE pairs no floor can
+// drop. The floor's job is the thin-/junk-pool safety net the goldset can't exercise,
+// so we keep it nonzero at the point where recall is still near its max.
 export const SIMILARITY_FLOOR = 0.12
 
 export interface DbMatch {
