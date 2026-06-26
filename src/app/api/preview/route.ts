@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { crawlRakutenProductFast } from '@/lib/crawlers/rakuten'
+import { crawlRakutenProductFast, crawlRakutenProduct } from '@/lib/crawlers/rakuten'
 import { resolveAmazonShortLink } from '@/lib/crawlers/amazon'
 import { findMatchByAsin } from '@/lib/harvest/repo'
 
@@ -38,7 +38,9 @@ export async function POST(req: NextRequest) {
   if (!parsed) return NextResponse.json({ error: 'invalid url' }, { status: 400 })
 
   if (parsed.platform === 'rakuten') {
-    const product = await crawlRakutenProductFast(parsed.id).catch(() => null)
+    const product =
+      await crawlRakutenProductFast(parsed.id).catch(() => null) ??
+      await crawlRakutenProduct(parsed.id).catch(() => null)
     if (!product) return NextResponse.json({ error: 'not found' }, { status: 404 })
     return NextResponse.json({
       platform: 'rakuten', title: product.title, salePrice: product.salePrice,

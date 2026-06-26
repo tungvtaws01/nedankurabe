@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { crawlRakutenProduct } from '@/lib/crawlers/rakuten'
+import { crawlRakutenProduct, crawlRakutenProductFast } from '@/lib/crawlers/rakuten'
 import { resolveAmazonShortLink } from '@/lib/crawlers/amazon'
 import { findEquivalent } from '@/lib/matching/find-equivalent'
 import { findMatchByAsin } from '@/lib/harvest/repo'
@@ -91,7 +91,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         mode: 'comparison', rakutenResults: [], amazonResults: [], results: janHit, query: url, cached: false,
       } satisfies SearchResponse)
     }
-    const rakutenProduct = await crawlRakutenProduct(parsed.id).catch(() => null)
+    const rakutenProduct =
+      await crawlRakutenProductFast(parsed.id).catch(() => null) ??
+      await crawlRakutenProduct(parsed.id).catch(() => null)
     if (!rakutenProduct) {
       return NextResponse.json({ error: '商品が見つかりませんでした。' }, { status: 404 })
     }

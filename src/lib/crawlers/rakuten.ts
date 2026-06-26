@@ -1,6 +1,6 @@
 import { parse } from 'node-html-parser'
 import { ProductResult } from '@/lib/types'
-import { searchRakuten } from '@/lib/platforms/rakuten'
+import { searchRakuten, lookupRakuten } from '@/lib/platforms/rakuten'
 import { proxyFetch, hasProxy } from './proxy-fetch'
 import { cleanRakutenTitle } from '@/lib/platforms/rakuten'
 
@@ -100,16 +100,8 @@ export async function crawlRakutenSearch(keyword: string): Promise<ProductResult
 export async function crawlRakutenProductFast(itemUrl: string): Promise<ProductResult | null> {
   const m = itemUrl.match(/item\.rakuten\.co\.jp\/([^/]+)\/([^/?]+)/)
   if (!m) return null
-  const [, shopName, itemCode] = m
-
-  try {
-    const results = await searchRakuten(itemCode)
-    if (!results.length) return null
-    // Prefer result from the same shop; fall back to first result
-    return results.find(r => r.affiliateUrl.includes(shopName)) ?? results[0]
-  } catch {
-    return null
-  }
+  const [, shopCode, itemCode] = m
+  return lookupRakuten(`${shopCode}:${itemCode}`).catch(() => null)
 }
 
 function parseRakutenItemHtml(html: string, itemUrl: string): ProductResult | null {
