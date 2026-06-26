@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { crawlRakutenProduct, crawlRakutenProductFast } from '@/lib/crawlers/rakuten'
 import { resolveAmazonShortLink } from '@/lib/crawlers/amazon'
 import { findEquivalent } from '@/lib/matching/find-equivalent'
-import { findMatchByAsin } from '@/lib/harvest/repo'
-import { buildAmazonLinkResult } from '@/lib/platforms/amazon-link'
-import { lookupRakuten } from '@/lib/platforms/rakuten'
+import { resolveAmazonPaste } from '@/lib/lookup/resolve-amazon-paste'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult, SearchResponse } from '@/lib/types'
 import { explainPriceDifference } from '@/lib/llm/openrouter'
@@ -72,15 +70,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   let results: ProductResult[] = []
 
   if (parsed.platform === 'amazon') {
-    // DB-only: build a link-only Amazon card; if matched, add the priced Rakuten sibling.
-    const match = await findMatchByAsin(parsed.id).catch(() => null)
-    const title = match?.productTitle ?? extractTitleFromAmazonUrl(resolvedUrl) ?? ''
-    if (!title && !match) {
+    // DB-only: link-only Amazon card + its priced Rakuten sibling. Exact ASIN match
+    // first; on miss, a confidence-gated DB title match (no Amazon scraping).
+    const resolution = await resolveAmazonPaste(parsed.id, extractTitleFromAmazonUrl(resolvedUrl) ?? '')
+    if (!resolution) {
       return NextResponse.json({ error: '商品が見つかりませんでした。' }, { status: 404 })
     }
-    const amazonCard = buildAmazonLinkResult({ asin: parsed.id, title, imageUrl: match?.productImageUrl ?? '' })
-    const rakuten = match?.rakutenItemCode ? await lookupRakuten(match.rakutenItemCode).catch(() => null) : null
-    results = [amazonCard, ...(rakuten ? [rakuten] : [])].sort(byEffectivePrice)
+    results = [resolution.amazonCard, ...(resolution.rakuten ? [resolution.rakuten] : [])].sort(byEffectivePrice)
   } else {
     // If the Rakuten URL slug is a bare JAN (EAN-13), resolve it authoritatively from our DB
     // first (slug ≠ itemCode, so crawlRakutenProduct cannot resolve these).
