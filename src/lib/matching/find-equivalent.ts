@@ -4,7 +4,8 @@ import { type Category } from '@/lib/llm/category-prompts'
 import { crawlRakutenSearch } from '@/lib/crawlers/rakuten'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { rankBySimilarity } from './rank'
-import { findListingByPlatformId, findSiblingListings, upsertProduct, upsertListing, findAmazonSiblingByRakuten } from '@/lib/harvest/repo'
+import { findListingByPlatformId, findSiblingListings, upsertProduct, upsertListing, findAmazonSiblingByRakuten, linkSlugToProduct } from '@/lib/harvest/repo'
+import { matchAgainstDb } from '@/lib/matching/db-fallback'
 import { lookupRakuten } from '@/lib/platforms/rakuten'
 import { buildAmazonLinkResult } from '@/lib/platforms/amazon-link'
 
@@ -29,8 +30,16 @@ export async function findEquivalent(
     const rktCode = sourcePlatformId(source)
     if (!rktCode) return null
     const sib = await findAmazonSiblingByRakuten(rktCode).catch(() => null)
-    if (!sib) return null
-    return buildAmazonLinkResult({ asin: sib.asin, title: sib.productTitle, imageUrl: sib.productImageUrl })
+    if (sib) {
+      return buildAmazonLinkResult({ asin: sib.asin, title: sib.productTitle, imageUrl: sib.productImageUrl })
+    }
+    // Exact-id missed (pasted slug ≠ stored API itemCode). Match the source against
+    // our own DB products by title; write back so the next paste hits the fast path.
+    const category = await classifyCategory(source.title).catch(() => 'unknown' as const)
+    const dbMatch = await matchAgainstDb(source, 'amazon', category === 'unknown' ? undefined : category).catch(() => null)
+    if (!dbMatch) return null
+    await linkSlugToProduct(dbMatch.productId, 'rakuten', rktCode, source.title, 0.8).catch(() => {})
+    return buildAmazonLinkResult({ asin: dbMatch.targetListingId, title: dbMatch.productTitle, imageUrl: dbMatch.productImageUrl })
   }
 
   // --- Fast path: matching-table lookup by source platform_id ---

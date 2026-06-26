@@ -16,7 +16,9 @@ jest.mock('@/lib/harvest/repo', () => ({
   upsertProduct: jest.fn(),
   upsertListing: jest.fn(),
   findAmazonSiblingByRakuten: jest.fn(),
+  linkSlugToProduct: jest.fn(async () => {}),
 }))
+jest.mock('@/lib/matching/db-fallback', () => ({ matchAgainstDb: jest.fn() }))
 jest.mock('@/lib/platforms/amazon-link', () => ({
   buildAmazonLinkResult: (i: { asin: string; title: string; imageUrl: string }) => ({
     platform: 'amazon', title: i.title, imageUrl: i.imageUrl, shopName: 'Amazon.co.jp',
@@ -30,7 +32,8 @@ import { refineKeyword, semanticMatch } from '@/lib/llm/openrouter'
 import { crawlAmazonSearch } from '@/lib/crawlers/amazon'
 import { crawlRakutenSearch } from '@/lib/crawlers/rakuten'
 import { getCached } from '@/lib/cache'
-import { findAmazonSiblingByRakuten } from '@/lib/harvest/repo'
+import { findAmazonSiblingByRakuten, linkSlugToProduct } from '@/lib/harvest/repo'
+import { matchAgainstDb } from '@/lib/matching/db-fallback'
 import { findEquivalent } from './find-equivalent'
 import { ProductResult } from '@/lib/types'
 
@@ -113,5 +116,30 @@ describe('findEquivalent', () => {
     expect(r?.priceUnavailable).toBe(true)
     expect(r?.affiliateUrl).toContain('B0ABC12345')
     expect(crawlAmazonSearch).not.toHaveBeenCalled()
+  })
+})
+
+describe('findEquivalent Amazon DB fallback', () => {
+  it('falls back to matchAgainstDb when exact-id misses, then writes back', async () => {
+    (findAmazonSiblingByRakuten as jest.Mock).mockResolvedValue(null)
+    ;(matchAgainstDb as jest.Mock).mockResolvedValue({
+      productId: 688, targetListingId: 'B0FTFXNGFS',
+      productTitle: 'パンパース M46', productImageUrl: 'img', similarity: 0.4,
+    })
+    const rakutenSource = p('パンパース はじめての肌いち M46枚', 'https://item.rakuten.co.jp/jetprice/x392sh/')
+    rakutenSource.platform = 'rakuten'
+    const out = await findEquivalent(rakutenSource, 'amazon')
+    expect(out).not.toBeNull()
+    expect(out!.platform).toBe('amazon')
+    expect(out!.affiliateUrl).toContain('B0FTFXNGFS')
+    expect(linkSlugToProduct).toHaveBeenCalledWith(688, 'rakuten', 'jetprice:x392sh', expect.any(String), 0.8)
+  })
+
+  it('returns null when exact-id misses and matchAgainstDb finds nothing', async () => {
+    (findAmazonSiblingByRakuten as jest.Mock).mockResolvedValue(null)
+    ;(matchAgainstDb as jest.Mock).mockResolvedValue(null)
+    const rakutenSource = p('未知の商品', 'https://item.rakuten.co.jp/shop/unknown/')
+    rakutenSource.platform = 'rakuten'
+    expect(await findEquivalent(rakutenSource, 'amazon')).toBeNull()
   })
 })
