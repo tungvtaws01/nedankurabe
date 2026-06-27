@@ -44,3 +44,6 @@ docs/harvest/verify/pairs.jsonl
 docs/harvest/verify/shard-paths.json
 # Browser (Playwright MCP) test artifacts
 .playwright-mcp/
+
+# TypeScript incremental build cache
+tsconfig.tsbuildinfo
