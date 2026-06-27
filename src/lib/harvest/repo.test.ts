@@ -121,23 +121,21 @@ describe('findProductCandidatesByTokens', () => {
   beforeEach(() => { querySpy = jest.spyOn(db, 'query') })
   afterEach(() => querySpy.mockRestore())
 
-  it('tokenizes, ANDs ILIKE conditions, filters by target platform, maps rows', async () => {
+  it('matches space-insensitively on textual tokens only (drops size tokens)', async () => {
     querySpy.mockResolvedValue([
-      { product_id: 688, title: 'P&G パンパース M46', image_url: 'http://x/i.jpg', target_id: 'B0FTFXNGFS' },
+      { product_id: 1, title: '明治 ほほえみ らくらくキューブ 27g×30袋', image_url: 'i', target_id: 'A1' },
     ])
-    const out = await findProductCandidatesByTokens('パンパース M46', 'amazon')
+    const out = await findProductCandidatesByTokens('明治ほほえみ らくらくキューブ 27g', 'amazon')
     const [sql, params] = querySpy.mock.calls[0]
-    expect(sql).toContain('p.title ILIKE $1')
-    expect(sql).toContain('p.title ILIKE $2')
-    expect(sql).toContain('lt.platform = $3 AND lt.is_active')
-    expect(params).toEqual(['%パンパース%', '%M46%', 'amazon', 10])
-    expect(out).toEqual([
-      { productId: 688, title: 'P&G パンパース M46', imageUrl: 'http://x/i.jpg', targetListingId: 'B0FTFXNGFS' },
-    ])
+    // space-insensitive comparison on the title column
+    expect(sql).toMatch(/regexp_replace\(p\.title/)
+    // textual tokens bound space-stripped; the size token "27g" is NOT bound
+    expect(params).toEqual(['%明治ほほえみ%', '%らくらくキューブ%', 'amazon', 20])
+    expect(out).toEqual([{ productId: 1, title: '明治 ほほえみ らくらくキューブ 27g×30袋', imageUrl: 'i', targetListingId: 'A1' }])
   })
 
-  it('returns [] and does not query for an empty keyword', async () => {
-    expect(await findProductCandidatesByTokens('   ', 'amazon')).toEqual([])
+  it('returns [] and does not query for an all-size/empty keyword', async () => {
+    expect(await findProductCandidatesByTokens('780g ×2', 'amazon')).toEqual([])
     expect(querySpy).not.toHaveBeenCalled()
   })
 })

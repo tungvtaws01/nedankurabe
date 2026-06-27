@@ -176,18 +176,25 @@ export interface ProductCandidate {
 }
 
 // Candidates for cross-platform DB matching: products that already have an active
-// listing on `targetPlatform` and whose title contains every query token (ILIKE-AND).
-// Returns the target-platform listing id so the caller can build the result card.
-// Generalizes searchAmazonFromDb to either platform.
+// listing on `targetPlatform` and whose title (whitespace-collapsed) contains every
+// textual token (ILIKE-AND). Size/numeric tokens are dropped from the AND so all
+// pack sizes surface; ranking handles size selection.
 export async function findProductCandidatesByTokens(
   keyword: string,
   targetPlatform: 'amazon' | 'rakuten',
-  limit = 10,
+  limit = 20,
 ): Promise<ProductCandidate[]> {
-  const tokens = keyword.trim().split(/[\s　]+/).filter(Boolean).slice(0, 6)
+  // Textual tokens only: drop pure-number / size tokens (12, 27g, 780g, 240ml, 58枚,
+  // 2袋…) — pack size is handled by ranking, not retrieval. Keep brand/product words.
+  const SIZE_TOKEN = /^(?:[×x×]\d+|\d+(?:\.\d+)?(?:g|kg|ml|l|枚|袋|缶|個|本|箱|セット|パック|ケース|組)?)$/i
+  const tokens = keyword.trim().split(/[\s　]+/).filter((t) => t && !SIZE_TOKEN.test(t)).slice(0, 6)
   if (!tokens.length) return []
-  const conds = tokens.map((_, i) => `p.title ILIKE $${i + 1}`).join(' AND ')
-  const params = [...tokens.map((t) => `%${t}%`), targetPlatform, limit]
+  // Space-insensitive: compare the title with whitespace removed against space-stripped tokens,
+  // so "明治 ほほえみ" matches "明治ほほえみ". Non-indexed scan; table is ~10k rows.
+  const conds = tokens
+    .map((_, i) => `regexp_replace(p.title, '[\\s　]', '', 'g') ILIKE $${i + 1}`)
+    .join(' AND ')
+  const params = [...tokens.map((t) => `%${t.replace(/[\s　]/g, '')}%`), targetPlatform, limit]
   const rows = await query<{ product_id: number; title: string; image_url: string; target_id: string }>(
     `SELECT p.id AS product_id, p.title, p.image_url, lt.platform_id AS target_id
        FROM products p
