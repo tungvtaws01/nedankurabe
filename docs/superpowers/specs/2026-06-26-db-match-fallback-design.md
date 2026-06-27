@@ -161,12 +161,28 @@ a wrong-pack candidate tends to fail the floor without an explicit quantity rule
 
 ### Threshold tuning (offline)
 
-`scripts/tuning/tune-db-fallback.ts` replays the 1,600 goldset pairs
-(`docs/harvest/verify/goldset.jsonl`) through `rankBySimilarity` + `semanticMatch`
-against a DB-candidate pool, sweeps T, and reports precision/recall. Lock T at the
-knee meeting **precision ≥ 95%**. `qtyDiffers` rows confirm pack-mismatch behavior
-separately. Not part of the prod path; not a Jest test. The chosen T and its measured
-precision/recall are recorded in this spec and in the `db-fallback.ts` comment.
+`scripts/tuning/tune-db-fallback.ts` replays goldset rows
+(`docs/harvest/verify/goldset.jsonl`; KEEP = true match, REMOVE = must-reject)
+through `rankBySimilarity` + `semanticMatch` against a candidate pool (the paired
+title + same-category distractors), sweeps T, and reports precision/recall. Lock T at
+the knee meeting **precision ≥ 95%**. Not part of the prod path; not a Jest test.
+
+**Result (locked 2026-06-26, n=150):**
+
+| T | precision | recall | TP | FP |
+|---|---|---|---|---|
+| 0.00 | 0.976 | 0.871 | 122 | 3 |
+| 0.10 | 0.976 | 0.864 | 121 | 3 |
+| **0.12** | **0.976** | **0.857** | 120 | 3 |
+| 0.15 | 0.974 | 0.814 | 114 | 3 |
+| 0.20 | 0.971 | 0.721 | 101 | 3 |
+| 0.30 | 0.976 | 0.593 | 83 | 2 |
+
+Precision is ≥ 0.95 at every T: the LLM + brand gate reject most false matches, and
+the 3 residual FPs are high-similarity REMOVE pairs no floor can drop. Raising T only
+sacrifices recall. **`SIMILARITY_FLOOR = 0.12`** keeps a nonzero thin-/junk-pool
+safety net (a failure mode the goldset cannot exercise) at the point where recall is
+still near its max.
 
 ## Error handling
 

@@ -167,3 +167,52 @@ export async function searchAmazonFromDb(keyword: string, limit = 10): Promise<A
   )
   return rows.map((r) => ({ asin: r.asin, productTitle: r.title, productImageUrl: r.image_url }))
 }
+
+export interface ProductCandidate {
+  productId: number
+  title: string
+  imageUrl: string
+  targetListingId: string // ASIN or "shop:itemId" on the target platform
+}
+
+// Candidates for cross-platform DB matching: products that already have an active
+// listing on `targetPlatform` and whose title contains every query token (ILIKE-AND).
+// Returns the target-platform listing id so the caller can build the result card.
+// Generalizes searchAmazonFromDb to either platform.
+export async function findProductCandidatesByTokens(
+  keyword: string,
+  targetPlatform: 'amazon' | 'rakuten',
+  limit = 10,
+): Promise<ProductCandidate[]> {
+  const tokens = keyword.trim().split(/[\s　]+/).filter(Boolean).slice(0, 6)
+  if (!tokens.length) return []
+  const conds = tokens.map((_, i) => `p.title ILIKE $${i + 1}`).join(' AND ')
+  const params = [...tokens.map((t) => `%${t}%`), targetPlatform, limit]
+  const rows = await query<{ product_id: number; title: string; image_url: string; target_id: string }>(
+    `SELECT p.id AS product_id, p.title, p.image_url, lt.platform_id AS target_id
+       FROM products p
+       JOIN listings lt ON lt.product_id = p.id AND lt.platform = $${tokens.length + 1} AND lt.is_active
+      WHERE ${conds} AND p.image_url <> ''
+      LIMIT $${tokens.length + 2}`,
+    params,
+  )
+  return rows.map((r) => ({
+    productId: r.product_id, title: r.title, imageUrl: r.image_url, targetListingId: r.target_id,
+  }))
+}
+
+// Write-back: link a pasted slug/ASIN to an already-known product so the next paste
+// of the same URL hits the instant exact-id path. matchSource='llm' keeps these
+// rows separable from vision-verified matches. Idempotent via upsertListing's
+// ON CONFLICT (platform, platform_id).
+export async function linkSlugToProduct(
+  productId: number,
+  platform: 'amazon' | 'rakuten',
+  platformId: string,
+  title: string,
+  confidence: number,
+): Promise<void> {
+  await upsertListing({
+    productId, platform, platformId, title, packCount: 1, matchSource: 'llm', confidence,
+  })
+}

@@ -47,7 +47,7 @@ it('returns product id as a JS number, not a string', async () => {
 // These spy on the `query` helper so no real DB connection is needed.
 // ---------------------------------------------------------------------------
 import * as db from '../db'
-import { findAmazonSiblingByRakuten, findMatchByAsin, searchAmazonFromDb } from './repo'
+import { findAmazonSiblingByRakuten, findMatchByAsin, searchAmazonFromDb, findProductCandidatesByTokens, linkSlugToProduct } from './repo'
 
 describe('findAmazonSiblingByRakuten', () => {
   let querySpy: jest.SpyInstance
@@ -113,5 +113,42 @@ describe('searchAmazonFromDb', () => {
   it('returns [] for an empty/whitespace keyword without querying', async () => {
     expect(await searchAmazonFromDb('   ')).toEqual([])
     expect(querySpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('findProductCandidatesByTokens', () => {
+  let querySpy: jest.SpyInstance
+  beforeEach(() => { querySpy = jest.spyOn(db, 'query') })
+  afterEach(() => querySpy.mockRestore())
+
+  it('tokenizes, ANDs ILIKE conditions, filters by target platform, maps rows', async () => {
+    querySpy.mockResolvedValue([
+      { product_id: 688, title: 'P&G パンパース M46', image_url: 'http://x/i.jpg', target_id: 'B0FTFXNGFS' },
+    ])
+    const out = await findProductCandidatesByTokens('パンパース M46', 'amazon')
+    const [sql, params] = querySpy.mock.calls[0]
+    expect(sql).toContain('p.title ILIKE $1')
+    expect(sql).toContain('p.title ILIKE $2')
+    expect(sql).toContain('lt.platform = $3 AND lt.is_active')
+    expect(params).toEqual(['%パンパース%', '%M46%', 'amazon', 10])
+    expect(out).toEqual([
+      { productId: 688, title: 'P&G パンパース M46', imageUrl: 'http://x/i.jpg', targetListingId: 'B0FTFXNGFS' },
+    ])
+  })
+
+  it('returns [] and does not query for an empty keyword', async () => {
+    expect(await findProductCandidatesByTokens('   ', 'amazon')).toEqual([])
+    expect(querySpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('linkSlugToProduct', () => {
+  it('upserts a listing row with matchSource=llm and packCount 1', async () => {
+    const querySpy = jest.spyOn(db, 'query').mockResolvedValue([])
+    await linkSlugToProduct(688, 'rakuten', 'jetprice:x392sh', 'P&G パンパース', 0.8)
+    const [sql, params] = querySpy.mock.calls[0]
+    expect(sql).toContain('INSERT INTO listings')
+    expect(params).toEqual([688, 'rakuten', 'jetprice:x392sh', 'P&G パンパース', 1, 'llm', 0.8, null])
+    querySpy.mockRestore()
   })
 })
