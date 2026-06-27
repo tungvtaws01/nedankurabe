@@ -1,6 +1,6 @@
 import { ProductResult } from '@/lib/types'
 import { type Category } from '@/lib/llm/category-prompts'
-import { semanticMatch } from '@/lib/llm/openrouter'
+import { semanticMatch, refineKeyword } from '@/lib/llm/openrouter'
 import { rankBySimilarity, similarity } from '@/lib/matching/rank'
 import { findProductCandidatesByTokens, type ProductCandidate } from '@/lib/harvest/repo'
 
@@ -42,7 +42,13 @@ export async function matchAgainstDb(
   target: 'amazon' | 'rakuten',
   category?: Category,
 ): Promise<DbMatch | null> {
-  const candidates = await findProductCandidatesByTokens(source.title, target).catch(() => [] as ProductCandidate[])
+  // Retrieve candidates by a refined search keyword, NOT the raw title: Japanese
+  // Rakuten titles are largely spaceless (e.g. "明治ほほえみ（780g×2パック）"), so a
+  // whitespace splitter yields one unmatchable ILIKE token. refineKeyword is the
+  // same category-tuned "title → keyword" step the live-search path uses; on failure
+  // it falls back to the stripped title. Ranking/gating below still use source.title.
+  const keyword = await refineKeyword(source.title, target, category).catch(() => source.title)
+  const candidates = await findProductCandidatesByTokens(keyword, target).catch(() => [] as ProductCandidate[])
   if (!candidates.length) return null
 
   // Keep a result→candidate map by object identity; rankBySimilarity preserves refs.
