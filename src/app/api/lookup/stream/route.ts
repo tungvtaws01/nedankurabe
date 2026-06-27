@@ -1,10 +1,9 @@
 import { NextRequest } from 'next/server'
-import { crawlRakutenProductFast, crawlRakutenProductLive } from '@/lib/crawlers/rakuten'
+import { crawlRakutenProductFast, crawlRakutenProduct, crawlRakutenProductLive } from '@/lib/crawlers/rakuten'
 import { resolveAmazonShortLink } from '@/lib/crawlers/amazon'
 import { findEquivalent } from '@/lib/matching/find-equivalent'
-import { findMatchByAsin } from '@/lib/harvest/repo'
 import { buildAmazonLinkResult } from '@/lib/platforms/amazon-link'
-import { lookupRakuten } from '@/lib/platforms/rakuten'
+import { resolveAmazonPaste } from '@/lib/lookup/resolve-amazon-paste'
 import { explainPriceDifference } from '@/lib/llm/openrouter'
 import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { ProductResult } from '@/lib/types'
@@ -120,7 +119,11 @@ export async function POST(req: NextRequest): Promise<Response> {
             return
           }
           send({ type: 'status', message: '楽天の商品情報を取得中…' })
-          const rakutenProduct = await crawlRakutenProductFast(parsed.id).catch(() => null)
+          // Fast path (API by itemCode) → HTML-crawl fallback for slug URLs whose
+          // public slug ≠ the Rakuten API itemCode (crawlRakutenProductFast returns null).
+          const rakutenProduct =
+            await crawlRakutenProductFast(parsed.id).catch(() => null) ??
+            await crawlRakutenProduct(parsed.id).catch(() => null)
           if (!rakutenProduct) {
             send({ type: 'error', message: '商品が見つかりませんでした。' })
             controller.close()
@@ -151,28 +154,25 @@ export async function POST(req: NextRequest): Promise<Response> {
 
         } else {
           // ── Amazon URL ───────────────────────────────────────────────────
+          // Exact ASIN match → priced Rakuten sibling; on miss, a confidence-gated
+          // DB title match surfaces the Rakuten sibling (resolveAmazonPaste). The
+          // ASIN never 404s — we always show at least the link-only Amazon card.
           send({ type: 'status', message: '商品情報を確認中…' })
-          const match = await findMatchByAsin(parsed.id).catch(() => null)
-          const title = match?.productTitle ?? extractTitleFromAmazonUrl(resolvedUrl) ?? ''
-          const amazonCard = buildAmazonLinkResult({ asin: parsed.id, title, imageUrl: match?.productImageUrl ?? '' })
+          const resolution = await resolveAmazonPaste(parsed.id, extractTitleFromAmazonUrl(resolvedUrl) ?? '').catch(() => null)
+          const amazonCard = resolution?.amazonCard ?? buildAmazonLinkResult({ asin: parsed.id, title: '', imageUrl: '' })
+          const rakuten = resolution?.rakuten ?? null
           send({ type: 'partial', results: [amazonCard] })
 
           let results: ProductResult[] = [amazonCard]
-          if (match?.rakutenItemCode) {
-            send({ type: 'status', message: '楽天の同等商品を取得中…' })
-            const rakuten = await lookupRakuten(match.rakutenItemCode).catch(() => null)
-            if (rakuten) {
-              results = [amazonCard, rakuten].sort(byEffectivePrice)
-              send({ type: 'basic', results })
-              const itemUrl = extractItemUrl(rakuten.affiliateUrl)
-              const live = await crawlRakutenProductLive(itemUrl, rakuten.salePrice, rakuten.taxRate).catch(() => null)
-              if (live) {
-                const updated = applyLivePoints(rakuten, live)
-                send({ type: 'live-points', result: updated })
-                results = results.map(r => r.platform === 'rakuten' ? updated : r)
-              }
-            } else {
-              send({ type: 'basic', results })
+          if (rakuten) {
+            results = [amazonCard, rakuten].sort(byEffectivePrice)
+            send({ type: 'basic', results })
+            const itemUrl = extractItemUrl(rakuten.affiliateUrl)
+            const live = await crawlRakutenProductLive(itemUrl, rakuten.salePrice, rakuten.taxRate).catch(() => null)
+            if (live) {
+              const updated = applyLivePoints(rakuten, live)
+              send({ type: 'live-points', result: updated })
+              results = results.map(r => r.platform === 'rakuten' ? updated : r)
             }
           } else {
             send({ type: 'basic', results })

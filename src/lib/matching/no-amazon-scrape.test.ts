@@ -6,7 +6,6 @@ import { join } from 'path'
 const DISPLAY_FILES = [
   'src/app/api/search/route.ts',
   'src/app/api/search/stream/route.ts',
-  'src/app/api/lookup/route.ts',
   'src/app/api/lookup/stream/route.ts',
   'src/app/api/preview/route.ts',
   'src/lib/matching/find-equivalent.ts',
