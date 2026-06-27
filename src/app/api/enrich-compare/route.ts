@@ -18,7 +18,7 @@ import { ProductResult } from '@/lib/types'
 // them concurrently does not stack the two waits. Emits the same event shapes the
 // /api/lookup/stream consumer in results/page.tsx already handles.
 export async function POST(req: NextRequest): Promise<Response> {
-  const body = await req.json() as { source?: ProductResult; candidates?: ProductResult[] }
+  const body = await req.json() as { source?: ProductResult }
   if (!body.source) {
     return new Response(JSON.stringify({ error: 'source required' }), { status: 400 })
   }

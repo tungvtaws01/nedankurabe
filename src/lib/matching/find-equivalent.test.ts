@@ -32,7 +32,7 @@ import { refineKeyword, semanticMatch } from '@/lib/llm/openrouter'
 import { crawlAmazonSearch } from '@/lib/crawlers/amazon'
 import { crawlRakutenSearch } from '@/lib/crawlers/rakuten'
 import { getCached } from '@/lib/cache'
-import { findAmazonSiblingByRakuten } from '@/lib/harvest/repo'
+import { findAmazonSiblingByRakuten, linkSlugToProduct } from '@/lib/harvest/repo'
 import { matchAgainstDb } from '@/lib/matching/db-fallback'
 import { findEquivalent, findAmazonEquivalents } from './find-equivalent'
 import { ProductResult } from '@/lib/types'
@@ -135,6 +135,7 @@ describe('findAmazonEquivalents', () => {
     expect(out.map((r: ProductResult) => r.affiliateUrl.match(/dp\/([A-Z0-9]+)/)?.[1])).toEqual(['B0SIB', 'B0OTHER'])
     expect(out[1].sizeMatch).toBe('different')
     expect(out.every((r: ProductResult) => r.platform === 'amazon' && r.priceUnavailable)).toBe(true)
+    expect(linkSlugToProduct).toHaveBeenCalledWith(9, 'rakuten', 'shop:x', 'パンパース M 58枚', 0.8)
   })
 
   it('returns [] when no sibling and no DB match', async () => {

@@ -39,6 +39,8 @@ export async function findAmazonEquivalents(
     out.push(card)
   }
 
+  // Write-back the best DB match so subsequent lookups hit the fast path.
+  // Intentional skip when many is empty: the exact-id sibling (if any) is already FK-linked in the DB.
   if (rktCode && many[0]) {
     await linkSlugToProduct(many[0].productId, 'rakuten', rktCode, source.title, 0.8).catch(() => {})
   }
