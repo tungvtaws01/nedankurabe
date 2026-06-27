@@ -22,6 +22,10 @@ export interface ProductResult {
   // rendered without a price, excluded from the cheapest-of comparison, and
   // never marked the winner.
   priceUnavailable?: boolean
+  // Cross-platform pack-size relation vs the item the user is comparing against.
+  // Set only on link-only Amazon candidate cards; 'exact' ≈ same pack, 'different' ≈
+  // same product different pack. Omitted when size is not comparable.
+  sizeMatch?: 'exact' | 'different'
 }
 
 export interface UserToggles {

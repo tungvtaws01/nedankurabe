@@ -36,7 +36,7 @@ export async function findEquivalent(
     // Exact-id missed (pasted slug ≠ stored API itemCode). Match the source against
     // our own DB products by title; write back so the next paste hits the fast path.
     const category = await classifyCategory(source.title).catch(() => 'unknown' as const)
-    const dbMatch = await matchAgainstDb(source, 'amazon', category === 'unknown' ? undefined : category).catch(() => null)
+    const dbMatch = (await matchAgainstDb(source, 'amazon', category === 'unknown' ? undefined : category).catch(() => []))[0] ?? null
     if (!dbMatch) return null
     await linkSlugToProduct(dbMatch.productId, 'rakuten', rktCode, source.title, 0.8).catch(() => {})
     return buildAmazonLinkResult({ asin: dbMatch.targetListingId, title: dbMatch.productTitle, imageUrl: dbMatch.productImageUrl })

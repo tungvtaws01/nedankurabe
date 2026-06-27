@@ -45,10 +45,10 @@ it('exact ASIN match: returns Amazon card + hydrated Rakuten sibling, no fallbac
 
 it('ASIN miss: DB fallback finds a Rakuten sibling, hydrates price, writes back', async () => {
   (findMatchByAsin as jest.Mock).mockResolvedValue(null)
-  ;(matchAgainstDb as jest.Mock).mockResolvedValue({
+  ;(matchAgainstDb as jest.Mock).mockResolvedValue([{
     productId: 688, targetListingId: 'jetprice:10718259',
     productTitle: 'パンパース はじめての肌いち M46枚', productImageUrl: 'ri', similarity: 0.4,
-  })
+  }])
   ;(lookupRakuten as jest.Mock).mockResolvedValue(rakutenResult('パンパース はじめての肌いち M46枚'))
   const out = await resolveAmazonPaste('B0MISS00002', 'パンパース M46枚')
   expect(out!.amazonCard.title).toBe('パンパース はじめての肌いち M46枚')
@@ -60,7 +60,7 @@ it('ASIN miss: DB fallback finds a Rakuten sibling, hydrates price, writes back'
 
 it('ASIN miss + fallback miss: Amazon card from slug title, no Rakuten', async () => {
   (findMatchByAsin as jest.Mock).mockResolvedValue(null)
-  ;(matchAgainstDb as jest.Mock).mockResolvedValue(null)
+  ;(matchAgainstDb as jest.Mock).mockResolvedValue([])
   const out = await resolveAmazonPaste('B0MISS00003', 'スリングだっこ紐')
   expect(out!.amazonCard.title).toBe('スリングだっこ紐')
   expect(out!.rakuten).toBeNull()

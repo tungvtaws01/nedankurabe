@@ -122,10 +122,10 @@ describe('findEquivalent', () => {
 describe('findEquivalent Amazon DB fallback', () => {
   it('falls back to matchAgainstDb when exact-id misses, then writes back', async () => {
     (findAmazonSiblingByRakuten as jest.Mock).mockResolvedValue(null)
-    ;(matchAgainstDb as jest.Mock).mockResolvedValue({
+    ;(matchAgainstDb as jest.Mock).mockResolvedValue([{
       productId: 688, targetListingId: 'B0FTFXNGFS',
       productTitle: 'パンパース M46', productImageUrl: 'img', similarity: 0.4,
-    })
+    }])
     const rakutenSource = p('パンパース はじめての肌いち M46枚', 'https://item.rakuten.co.jp/jetprice/x392sh/')
     rakutenSource.platform = 'rakuten'
     const out = await findEquivalent(rakutenSource, 'amazon')
@@ -137,7 +137,7 @@ describe('findEquivalent Amazon DB fallback', () => {
 
   it('returns null when exact-id misses and matchAgainstDb finds nothing', async () => {
     (findAmazonSiblingByRakuten as jest.Mock).mockResolvedValue(null)
-    ;(matchAgainstDb as jest.Mock).mockResolvedValue(null)
+    ;(matchAgainstDb as jest.Mock).mockResolvedValue([])
     const rakutenSource = p('未知の商品', 'https://item.rakuten.co.jp/shop/unknown/')
     rakutenSource.platform = 'rakuten'
     expect(await findEquivalent(rakutenSource, 'amazon')).toBeNull()

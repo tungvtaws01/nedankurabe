@@ -1,69 +1,59 @@
 jest.mock('@/lib/harvest/repo', () => ({ findProductCandidatesByTokens: jest.fn() }))
-jest.mock('@/lib/llm/openrouter', () => ({ semanticMatch: jest.fn(), refineKeyword: jest.fn() }))
-// rank.ts is NOT mocked — we exercise the real similarity gate.
+jest.mock('@/lib/llm/openrouter', () => ({ semanticMatchAll: jest.fn(), refineKeyword: jest.fn() }))
+// rank.ts and pack-size.ts are NOT mocked — exercise the real gate + ranking.
 
 import { findProductCandidatesByTokens } from '@/lib/harvest/repo'
-import { semanticMatch, refineKeyword } from '@/lib/llm/openrouter'
+import { semanticMatchAll, refineKeyword } from '@/lib/llm/openrouter'
 import { matchAgainstDb } from './db-fallback'
 import { ProductResult } from '@/lib/types'
 
 const src = (title: string): ProductResult => ({
   platform: 'rakuten', title, imageUrl: '', shopName: '', salePrice: 1000,
-  shippingCost: 0, couponDiscount: 0, pointRate: 1, pointsEarned: 0,
-  effectivePrice: 1000, subscribeAvailable: false, rakutenCardEligible: false,
-  teikiRates: null, taxRate: 1.1, affiliateUrl: '',
+  shippingCost: 0, couponDiscount: 0, pointRate: 1, pointsEarned: 0, effectivePrice: 1000,
+  subscribeAvailable: false, rakutenCardEligible: false, teikiRates: null, taxRate: 1.1, affiliateUrl: '',
 })
 
 beforeEach(() => {
   jest.clearAllMocks()
-  // Default: keyword refinement is identity, so existing tests are unaffected.
   ;(refineKeyword as jest.Mock).mockImplementation(async (t: string) => t)
 })
 
-it('refines the source title into a keyword before DB retrieval (spaceless JP titles)', async () => {
-  // Raw title has no spaces → a whitespace splitter would produce one unmatchable
-  // ILIKE token. matchAgainstDb must retrieve using the refined keyword instead.
-  (refineKeyword as jest.Mock).mockResolvedValue('明治ほほえみ 780g')
+it('refines the title to a keyword before retrieval (spaceless JP titles)', async () => {
+  (refineKeyword as jest.Mock).mockResolvedValue('明治ほほえみ らくらくキューブ')
   ;(findProductCandidatesByTokens as jest.Mock).mockResolvedValue([
-    { productId: 5, title: '明治ほほえみ 780g 母乳サイエンス 乳児用調製粉乳', imageUrl: 'i', targetListingId: 'B0G2RVVXWP' },
+    { productId: 5, title: '明治ほほえみ らくらくキューブ 27g×30袋', imageUrl: 'i', targetListingId: 'A30' },
   ])
-  ;(semanticMatch as jest.Mock).mockResolvedValue(0)
-  const m = await matchAgainstDb(src('明治ほほえみ（780g×2パック）'), 'amazon')
-  expect(refineKeyword).toHaveBeenCalledWith('明治ほほえみ（780g×2パック）', 'amazon', undefined)
-  expect(findProductCandidatesByTokens).toHaveBeenCalledWith('明治ほほえみ 780g', 'amazon')
-  expect(m?.targetListingId).toBe('B0G2RVVXWP')
+  ;(semanticMatchAll as jest.Mock).mockResolvedValue([0])
+  const out = await matchAgainstDb(src('明治ほほえみらくらくキューブ(27g×120袋)'), 'amazon')
+  expect(findProductCandidatesByTokens).toHaveBeenCalledWith('明治ほほえみ らくらくキューブ', 'amazon')
+  expect(out.map((m) => m.targetListingId)).toEqual(['A30'])
 })
 
-it('returns the match when confirmed AND above the similarity floor', async () => {
+it('returns confirmed candidates ranked by pack closeness, tagged, deduped, capped at 5', async () => {
   (findProductCandidatesByTokens as jest.Mock).mockResolvedValue([
-    { productId: 688, title: 'パンパース はじめての肌いち テープ スーパージャンボM46枚', imageUrl: 'i', targetListingId: 'B0FTFXNGFS' },
+    { productId: 1, title: '明治ほほえみ らくらくキューブ 27g×4袋', imageUrl: 'i', targetListingId: 'A4' },     // 108g, far
+    { productId: 2, title: '明治ほほえみ らくらくキューブ 810g×2個', imageUrl: 'i', targetListingId: 'A60' },   // 1620g, closest
+    { productId: 2, title: '明治ほほえみ らくらくキューブ 810g×2個', imageUrl: 'i', targetListingId: 'A60' },   // dup
+    { productId: 3, title: '明治ほほえみ らくらくキューブ 27g×30袋', imageUrl: 'i', targetListingId: 'A30' },   // 810g, mid
   ])
-  ;(semanticMatch as jest.Mock).mockResolvedValue(0)
-  const m = await matchAgainstDb(src('パンパース はじめての肌いち テープ スーパージャンボM46枚 おむつ'), 'amazon')
-  expect(m).not.toBeNull()
-  expect(m!.productId).toBe(688)
-  expect(m!.targetListingId).toBe('B0FTFXNGFS')
-  expect(m!.productImageUrl).toBe('i')
+  ;(semanticMatchAll as jest.Mock).mockResolvedValue([0, 1, 2, 3])
+  // source 27g×60袋 = 1620g → A60 (exact) closest, then A30, then A4
+  const out = await matchAgainstDb(src('明治ほほえみ らくらくキューブ 27g×60袋'), 'amazon')
+  expect(out.map((m) => m.targetListingId)).toEqual(['A60', 'A30', 'A4'])
+  expect(out[0].sizeMatch).toBe('exact')      // 1620 vs 1620
+  expect(out[2].sizeMatch).toBe('different')  // 108 vs 1620
 })
 
-it('returns null when semanticMatch does not confirm', async () => {
+it('returns [] when nothing confirms', async () => {
   (findProductCandidatesByTokens as jest.Mock).mockResolvedValue([
-    { productId: 1, title: 'パンパース M46枚', imageUrl: 'i', targetListingId: 'A' },
+    { productId: 1, title: 'x', imageUrl: 'i', targetListingId: 'A' },
   ])
-  ;(semanticMatch as jest.Mock).mockResolvedValue(null)
-  expect(await matchAgainstDb(src('パンパース M46枚'), 'amazon')).toBeNull()
+  ;(semanticMatchAll as jest.Mock).mockResolvedValue([])
+  expect(await matchAgainstDb(src('y'), 'amazon')).toEqual([])
 })
 
-it('returns null when confirmed but below the similarity floor', async () => {
-  (findProductCandidatesByTokens as jest.Mock).mockResolvedValue([
-    { productId: 2, title: '全く別の商品 哺乳瓶 240ml ガラス製', imageUrl: 'i', targetListingId: 'B' },
-  ])
-  ;(semanticMatch as jest.Mock).mockResolvedValue(0)
-  expect(await matchAgainstDb(src('パンパース おむつ テープ スーパージャンボM46枚'), 'amazon')).toBeNull()
-})
-
-it('returns null and does not call semanticMatch on an empty candidate pool', async () => {
+it('returns [] on an empty candidate pool without calling the LLM', async () => {
   (findProductCandidatesByTokens as jest.Mock).mockResolvedValue([])
-  expect(await matchAgainstDb(src('x'), 'amazon')).toBeNull()
-  expect(semanticMatch).not.toHaveBeenCalled()
+  expect(await matchAgainstDb(src('x'), 'amazon')).toEqual([])
+  expect(semanticMatchAll).not.toHaveBeenCalled()
 })
