@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { crawlRakutenProduct } from '@/lib/crawlers/rakuten'
-import { findEquivalent } from '@/lib/matching/find-equivalent'
+import { findAmazonEquivalents } from '@/lib/matching/find-equivalent'
 import { explainPriceDifference } from '@/lib/llm/openrouter'
 import { isComparablePair, pickWinnerLoser } from '@/lib/price/explain'
 import { byEffectivePrice } from '@/lib/price/normalize'
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!body.source) {
     return new Response(JSON.stringify({ error: 'source required' }), { status: 400 })
   }
-  const { source, candidates } = body
+  const { source } = body
 
   // Resolve the real item URL from the affiliate link for the live-points crawl.
   const itemUrl = source.affiliateUrl.includes('hb.afl.rakuten')
@@ -41,9 +41,9 @@ export async function POST(req: NextRequest): Promise<Response> {
 
         // Amazon match — emits `basic` as soon as it resolves (~5-8s).
         const matchTask = (async () => {
-          match = await findEquivalent(source, 'amazon', candidates ?? []).catch(() => null)
-          const results = [enrichedSource, ...(match ? [match] : [])]
-            .sort(byEffectivePrice)
+          const matches = await findAmazonEquivalents(source).catch(() => [])
+          match = matches[0] ?? null
+          const results = [enrichedSource, ...matches].sort(byEffectivePrice)
           send({ type: 'basic', results })
         })()
 
