@@ -1,9 +1,9 @@
 jest.mock('@/lib/harvest/repo', () => ({ findProductCandidatesByTokens: jest.fn() }))
-jest.mock('@/lib/llm/openrouter', () => ({ semanticMatch: jest.fn() }))
+jest.mock('@/lib/llm/openrouter', () => ({ semanticMatch: jest.fn(), refineKeyword: jest.fn() }))
 // rank.ts is NOT mocked — we exercise the real similarity gate.
 
 import { findProductCandidatesByTokens } from '@/lib/harvest/repo'
-import { semanticMatch } from '@/lib/llm/openrouter'
+import { semanticMatch, refineKeyword } from '@/lib/llm/openrouter'
 import { matchAgainstDb } from './db-fallback'
 import { ProductResult } from '@/lib/types'
 
@@ -14,7 +14,25 @@ const src = (title: string): ProductResult => ({
   teikiRates: null, taxRate: 1.1, affiliateUrl: '',
 })
 
-beforeEach(() => jest.clearAllMocks())
+beforeEach(() => {
+  jest.clearAllMocks()
+  // Default: keyword refinement is identity, so existing tests are unaffected.
+  ;(refineKeyword as jest.Mock).mockImplementation(async (t: string) => t)
+})
+
+it('refines the source title into a keyword before DB retrieval (spaceless JP titles)', async () => {
+  // Raw title has no spaces → a whitespace splitter would produce one unmatchable
+  // ILIKE token. matchAgainstDb must retrieve using the refined keyword instead.
+  (refineKeyword as jest.Mock).mockResolvedValue('明治ほほえみ 780g')
+  ;(findProductCandidatesByTokens as jest.Mock).mockResolvedValue([
+    { productId: 5, title: '明治ほほえみ 780g 母乳サイエンス 乳児用調製粉乳', imageUrl: 'i', targetListingId: 'B0G2RVVXWP' },
+  ])
+  ;(semanticMatch as jest.Mock).mockResolvedValue(0)
+  const m = await matchAgainstDb(src('明治ほほえみ（780g×2パック）'), 'amazon')
+  expect(refineKeyword).toHaveBeenCalledWith('明治ほほえみ（780g×2パック）', 'amazon', undefined)
+  expect(findProductCandidatesByTokens).toHaveBeenCalledWith('明治ほほえみ 780g', 'amazon')
+  expect(m?.targetListingId).toBe('B0G2RVVXWP')
+})
 
 it('returns the match when confirmed AND above the similarity floor', async () => {
   (findProductCandidatesByTokens as jest.Mock).mockResolvedValue([
