@@ -77,43 +77,66 @@ export async function refineKeyword(
   }
 }
 
+// Shared core: brand-gates, calls the LLM, and returns all confirmed original
+// indices into `candidates`. Returns [] on empty input, brand gate eliminating
+// all candidates, LLM "no match", or any error.
+async function confirmedMatchIndices(
+  source: ProductResult,
+  candidates: ProductResult[],
+  opts?: { category?: Category },
+): Promise<number[]> {
+  if (!candidates.length) return []
+  const gated = candidates
+    .map((c, origIdx) => ({ c, origIdx }))
+    .filter(({ c }) => !brandsAreDistinct(source.title, c.title))
+  if (!gated.length) return []
+  const pool = gated.slice(0, 8) // reasoning models exhaust tokens on long lists
+  const fmt = (p: ProductResult, i?: number) => {
+    const prefix = i !== undefined ? `${i}: ` : 'Source: '
+    const desc = p.description ? ` [${p.description.slice(0, 120)}]` : ''
+    return `${prefix}${p.title.slice(0, 100)} ¥${p.salePrice.toLocaleString()}${desc}`
+  }
+  const candidateList = pool.map(({ c }, i) => fmt(c, i)).join('\n')
+  const result = await callLLM([{
+    role: 'user',
+    content: `${composeMatchPrompt(opts?.category)}\n\n${fmt(source)}\nCandidates:\n${candidateList}`,
+  }], { model: JUDGE_MODEL, maxTokens: 600 })
+  const cleaned = result.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
+  const parsed = JSON.parse(cleaned) as { matches: number[] }
+  if (!Array.isArray(parsed.matches)) return []
+  // LLM indices are into `pool`; map back to original `candidates` indices.
+  return parsed.matches
+    .filter((i) => typeof i === 'number' && pool[i] !== undefined)
+    .map((i) => pool[i].origIdx)
+}
+
 export async function semanticMatch(
   source: ProductResult,
   candidates: ProductResult[],
   opts?: { category?: Category },
 ): Promise<number | null> {
-  if (!candidates.length) return null
   try {
-    // Brand gate: drop candidates whose KNOWN brand differs from the source's known
-    // brand. Track original indices so the return value still indexes `candidates`.
-    const gated = candidates
-      .map((c, origIdx) => ({ c, origIdx }))
-      .filter(({ c }) => !brandsAreDistinct(source.title, c.title))
-    if (!gated.length) return null
-    const pool = gated.slice(0, 8) // reasoning models exhaust tokens on long lists
-    const fmt = (p: ProductResult, i?: number) => {
-      const prefix = i !== undefined ? `${i}: ` : 'Source: '
-      const desc = p.description ? ` [${p.description.slice(0, 120)}]` : ''
-      return `${prefix}${p.title.slice(0, 100)} ¥${p.salePrice.toLocaleString()}${desc}`
-    }
-    const candidateList = pool.map(({ c }, i) => fmt(c, i)).join('\n')
-    const result = await callLLM([{
-      role: 'user',
-      content: `${composeMatchPrompt(opts?.category)}\n\n${fmt(source)}\nCandidates:\n${candidateList}`,
-    }], { model: JUDGE_MODEL, maxTokens: 600 })
-    const cleaned = result.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
-    const parsed = JSON.parse(cleaned) as { matches: number[] }
-    if (!Array.isArray(parsed.matches) || parsed.matches.length === 0) return null
-    // LLM indices are into `pool`; map back to original `candidates` indices.
-    const validOrig = parsed.matches
-      .filter((i) => typeof i === 'number' && pool[i] !== undefined)
-      .map((i) => pool[i].origIdx)
+    const validOrig = await confirmedMatchIndices(source, candidates, opts)
     if (validOrig.length === 0) return null
     return validOrig.reduce((best, i) =>
       candidates[i].effectivePrice < candidates[best].effectivePrice ? i : best
     )
   } catch {
     return null
+  }
+}
+
+// Like semanticMatch, but returns ALL confirmed same-product candidate indices
+// (into `candidates`), preserving the LLM's order. Used by multi-candidate matching.
+export async function semanticMatchAll(
+  source: ProductResult,
+  candidates: ProductResult[],
+  opts?: { category?: Category },
+): Promise<number[]> {
+  try {
+    return await confirmedMatchIndices(source, candidates, opts)
+  } catch {
+    return []
   }
 }
 
