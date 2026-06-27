@@ -42,3 +42,5 @@ docs/harvest/verify/shards-hi-keep/
 docs/harvest/verify/batches/
 docs/harvest/verify/pairs.jsonl
 docs/harvest/verify/shard-paths.json
+# Browser (Playwright MCP) test artifacts
+.playwright-mcp/
