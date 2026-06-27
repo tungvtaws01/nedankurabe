@@ -25,6 +25,7 @@ it('refines the title to a keyword before retrieval (spaceless JP titles)', asyn
   ])
   ;(semanticMatchAll as jest.Mock).mockResolvedValue([0])
   const out = await matchAgainstDb(src('明治ほほえみらくらくキューブ(27g×120袋)'), 'amazon')
+  expect(refineKeyword).toHaveBeenCalledWith('明治ほほえみらくらくキューブ(27g×120袋)', 'amazon', undefined)
   expect(findProductCandidatesByTokens).toHaveBeenCalledWith('明治ほほえみ らくらくキューブ', 'amazon')
   expect(out.map((m) => m.targetListingId)).toEqual(['A30'])
 })
@@ -56,4 +57,14 @@ it('returns [] on an empty candidate pool without calling the LLM', async () => 
   (findProductCandidatesByTokens as jest.Mock).mockResolvedValue([])
   expect(await matchAgainstDb(src('x'), 'amazon')).toEqual([])
   expect(semanticMatchAll).not.toHaveBeenCalled()
+})
+
+it('excludes a confirmed candidate whose similarity score is below SIMILARITY_FLOOR', async () => {
+  // source and candidate share almost no tokens → real similarity() << 0.12
+  (findProductCandidatesByTokens as jest.Mock).mockResolvedValue([
+    { productId: 9, title: '全く別の商品 哺乳瓶 240ml ガラス製', imageUrl: 'i', targetListingId: 'X1' },
+  ])
+  ;(semanticMatchAll as jest.Mock).mockResolvedValue([0])
+  const out = await matchAgainstDb(src('パンパース おむつ テープ スーパージャンボM46枚'), 'amazon')
+  expect(out).toEqual([])
 })

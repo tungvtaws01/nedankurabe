@@ -5,8 +5,11 @@ import { rankBySimilarity, similarity } from '@/lib/matching/rank'
 import { parsePackSize, sizeRelation, packCloseness } from '@/lib/matching/pack-size'
 import { findProductCandidatesByTokens, type ProductCandidate } from '@/lib/harvest/repo'
 
-// Min rankBySimilarity score for a confirmed candidate (thin-/junk-pool safety net).
-// Locked via scripts/tuning/tune-db-fallback.ts; see prior tuning (precision ≥ 0.95).
+// Min similarity() score for a confirmed candidate (thin-/junk-pool safety net).
+// Locked 2026-06-26 via scripts/tuning/tune-db-fallback.ts, n=150 goldset rows.
+// T=0.12 → precision 0.976 / recall 0.857 (max recall 0.871 at T=0).
+// Precision ≥0.95 holds at every T — LLM+brand gate carry the load;
+// the floor is solely a junk/thin-pool guard.
 export const SIMILARITY_FLOOR = 0.12
 const MAX_CANDIDATES = 5
 
