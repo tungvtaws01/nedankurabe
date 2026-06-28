@@ -1,17 +1,17 @@
 import { ProductResult } from '@/lib/types'
 import { type Category } from '@/lib/llm/category-prompts'
-import { semanticMatch, refineKeyword } from '@/lib/llm/openrouter'
+import { semanticMatchAll, refineKeyword } from '@/lib/llm/openrouter'
 import { rankBySimilarity, similarity } from '@/lib/matching/rank'
+import { parsePackSize, sizeRelation, packCloseness } from '@/lib/matching/pack-size'
 import { findProductCandidatesByTokens, type ProductCandidate } from '@/lib/harvest/repo'
 
-// Minimum rankBySimilarity score for an LLM-confirmed candidate to be accepted.
-// Locked 2026-06-26 via scripts/tuning/tune-db-fallback.ts (n=150 goldset rows):
-//   T=0.12 → precision 0.976, recall 0.857 (max recall 0.871 at T=0).
-// Precision is already >= 0.95 at every T because the LLM + brand gate reject most
-// false matches; the remaining 3 FPs are high-similarity REMOVE pairs no floor can
-// drop. The floor's job is the thin-/junk-pool safety net the goldset can't exercise,
-// so we keep it nonzero at the point where recall is still near its max.
+// Min similarity() score for a confirmed candidate (thin-/junk-pool safety net).
+// Locked 2026-06-26 via scripts/tuning/tune-db-fallback.ts, n=150 goldset rows.
+// T=0.12 → precision 0.976 / recall 0.857 (max recall 0.871 at T=0).
+// Precision ≥0.95 holds at every T — LLM+brand gate carry the load;
+// the floor is solely a junk/thin-pool guard.
 export const SIMILARITY_FLOOR = 0.12
+const MAX_CANDIDATES = 5
 
 export interface DbMatch {
   productId: number
@@ -19,11 +19,9 @@ export interface DbMatch {
   productTitle: string
   productImageUrl: string
   similarity: number
+  sizeMatch?: 'exact' | 'different'
 }
 
-// Adapt a DB product candidate into the minimal ProductResult that
-// rankBySimilarity / semanticMatch consume. No live price → effectivePrice 0, so
-// semanticMatch's cheapest-tiebreak returns the highest-ranked confirmed match.
 function toResult(c: ProductCandidate, platform: 'amazon' | 'rakuten'): ProductResult {
   return {
     platform, title: c.title, imageUrl: c.imageUrl, shopName: '',
@@ -33,41 +31,53 @@ function toResult(c: ProductCandidate, platform: 'amazon' | 'rakuten'): ProductR
   }
 }
 
-// Find the cross-platform equivalent of `source` among our own DB products that
-// already have a listing on `target`. DB-only (no scraping). Returns a match only
-// when semanticMatch confirms AND the rank similarity clears SIMILARITY_FLOOR.
-// Best-effort: any failure returns null so the caller degrades to no sibling card.
+// All same-product DB candidates on `target`, ranked by pack-size closeness to
+// `source` (size-unknown last), deduped by listing id, capped at MAX_CANDIDATES.
+// Best-effort: any failure returns []. Ranking/gating use source.title; retrieval
+// uses a refined keyword (handles spaceless JP titles).
 export async function matchAgainstDb(
   source: ProductResult,
   target: 'amazon' | 'rakuten',
   category?: Category,
-): Promise<DbMatch | null> {
-  // Retrieve candidates by a refined search keyword, NOT the raw title: Japanese
-  // Rakuten titles are largely spaceless (e.g. "明治ほほえみ（780g×2パック）"), so a
-  // whitespace splitter yields one unmatchable ILIKE token. refineKeyword is the
-  // same category-tuned "title → keyword" step the live-search path uses; on failure
-  // it falls back to the stripped title. Ranking/gating below still use source.title.
+): Promise<DbMatch[]> {
   const keyword = await refineKeyword(source.title, target, category).catch(() => source.title)
   const candidates = await findProductCandidatesByTokens(keyword, target).catch(() => [] as ProductCandidate[])
-  if (!candidates.length) return null
+  if (!candidates.length) return []
 
-  // Keep a result→candidate map by object identity; rankBySimilarity preserves refs.
   const pairs = candidates.map((c) => ({ cand: c, result: toResult(c, target) }))
   const resultToCand = new Map(pairs.map((p) => [p.result, p.cand]))
   const ranked = rankBySimilarity(source, pairs.map((p) => p.result))
 
-  const idx = await semanticMatch(source, ranked, { category }).catch(() => null)
-  if (idx === null) return null
-  const chosen = ranked[idx]
-  if (!chosen) return null
+  const idxs = await semanticMatchAll(source, ranked, { category }).catch(() => [] as number[])
+  if (!idxs.length) return []
 
-  const score = similarity(source.title, chosen.title)
-  if (score < SIMILARITY_FLOOR) return null
-
-  const cand = resultToCand.get(chosen)
-  if (!cand) return null
-  return {
-    productId: cand.productId, targetListingId: cand.targetListingId,
-    productTitle: cand.title, productImageUrl: cand.imageUrl, similarity: score,
+  const srcPack = parsePackSize(source.title)
+  const matches: DbMatch[] = []
+  for (const idx of idxs) {
+    const chosen = ranked[idx]
+    if (!chosen) continue
+    const cand = resultToCand.get(chosen)
+    if (!cand) continue
+    const sim = similarity(source.title, chosen.title)
+    if (sim < SIMILARITY_FLOOR) continue
+    const rel = sizeRelation(srcPack, parsePackSize(cand.title))
+    matches.push({
+      productId: cand.productId, targetListingId: cand.targetListingId,
+      productTitle: cand.title, productImageUrl: cand.imageUrl, similarity: sim,
+      sizeMatch: rel === 'unknown' ? undefined : rel,
+    })
   }
+
+  matches.sort((a, b) =>
+    packCloseness(srcPack, parsePackSize(a.productTitle)) - packCloseness(srcPack, parsePackSize(b.productTitle)))
+
+  const seen = new Set<string>()
+  const out: DbMatch[] = []
+  for (const m of matches) {
+    if (seen.has(m.targetListingId)) continue
+    seen.add(m.targetListingId)
+    out.push(m)
+    if (out.length >= MAX_CANDIDATES) break
+  }
+  return out
 }

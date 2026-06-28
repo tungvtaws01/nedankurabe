@@ -95,10 +95,11 @@ export async function productsAtStage(stage: string, limit: number): Promise<{ i
 export interface AmazonSibling { asin: string; productTitle: string; productImageUrl: string }
 
 // Given a Rakuten listing's platform_id ("shop:itemId"), return the matched Amazon
-// ASIN plus the product's title and Rakuten-sourced image. DB-only; no scraping.
+// ASIN plus the AMAZON listing's own title (the card links to that ASIN, so its title +
+// parsed size must describe the destination) and the Rakuten-sourced image. DB-only; no scraping.
 export async function findAmazonSiblingByRakuten(rakutenItemCode: string): Promise<AmazonSibling | null> {
   const rows = await query<{ asin: string; title: string; image_url: string }>(
-    `SELECT la.platform_id AS asin, p.title, p.image_url
+    `SELECT la.platform_id AS asin, la.title, p.image_url
        FROM listings lr
        JOIN products p ON p.id = lr.product_id
        JOIN listings la ON la.product_id = p.id AND la.platform='amazon' AND la.is_active
@@ -170,26 +171,37 @@ export async function searchAmazonFromDb(keyword: string, limit = 10): Promise<A
 
 export interface ProductCandidate {
   productId: number
-  title: string
+  title: string // the TARGET listing's own title (what the card links to), not the Rakuten product title
   imageUrl: string
   targetListingId: string // ASIN or "shop:itemId" on the target platform
 }
 
 // Candidates for cross-platform DB matching: products that already have an active
-// listing on `targetPlatform` and whose title contains every query token (ILIKE-AND).
-// Returns the target-platform listing id so the caller can build the result card.
-// Generalizes searchAmazonFromDb to either platform.
+// listing on `targetPlatform` and whose title (whitespace-collapsed) contains every
+// textual token (ILIKE-AND). Size/numeric tokens are dropped from the AND so all
+// pack sizes surface; ranking handles size selection.
 export async function findProductCandidatesByTokens(
   keyword: string,
   targetPlatform: 'amazon' | 'rakuten',
-  limit = 10,
+  limit = 20,
 ): Promise<ProductCandidate[]> {
-  const tokens = keyword.trim().split(/[\s　]+/).filter(Boolean).slice(0, 6)
+  // Textual tokens only: drop pure-number / size tokens (12, 27g, 780g, 240ml, 58枚,
+  // 2袋…) — pack size is handled by ranking, not retrieval. Keep brand/product words.
+  const SIZE_TOKEN = /^(?:[×x×]\d+|\d+(?:\.\d+)?(?:g|kg|ml|l|枚|袋|缶|個|本|箱|セット|パック|ケース|組)?)$/i
+  const tokens = keyword.trim().split(/[\s　]+/).filter((t) => t && !SIZE_TOKEN.test(t)).slice(0, 6)
   if (!tokens.length) return []
-  const conds = tokens.map((_, i) => `p.title ILIKE $${i + 1}`).join(' AND ')
-  const params = [...tokens.map((t) => `%${t}%`), targetPlatform, limit]
-  const rows = await query<{ product_id: number; title: string; image_url: string; target_id: string }>(
-    `SELECT p.id AS product_id, p.title, p.image_url, lt.platform_id AS target_id
+  // Space-insensitive: compare the title with whitespace removed against space-stripped tokens,
+  // so "明治 ほほえみ" matches "明治ほほえみ". Non-indexed scan; table is ~10k rows.
+  const conds = tokens
+    .map((_, i) => `regexp_replace(p.title, '[\\s　]', '', 'g') ILIKE $${i + 1}`)
+    .join(' AND ')
+  const params = [...tokens.map((t) => `%${t.replace(/[\s　]/g, '')}%`), targetPlatform, limit]
+  // Retrieve by the Rakuten products.title tokens (tuned for recall), but return the
+  // TARGET listing's own title (lt.title) — that's the listing the card links to, so its
+  // title + parsed pack size must describe the destination, not the Rakuten product row.
+  // Image stays Rakuten-sourced (p.image_url) for Amazon compliance.
+  const rows = await query<{ product_id: number; target_title: string; image_url: string; target_id: string }>(
+    `SELECT p.id AS product_id, lt.title AS target_title, p.image_url, lt.platform_id AS target_id
        FROM products p
        JOIN listings lt ON lt.product_id = p.id AND lt.platform = $${tokens.length + 1} AND lt.is_active
       WHERE ${conds} AND p.image_url <> ''
@@ -197,7 +209,7 @@ export async function findProductCandidatesByTokens(
     params,
   )
   return rows.map((r) => ({
-    productId: r.product_id, title: r.title, imageUrl: r.image_url, targetListingId: r.target_id,
+    productId: r.product_id, title: r.target_title, imageUrl: r.image_url, targetListingId: r.target_id,
   }))
 }
 

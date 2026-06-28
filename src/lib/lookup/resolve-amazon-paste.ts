@@ -24,7 +24,7 @@ export async function resolveAmazonPaste(asin: string, slugTitle: string): Promi
 
   if (!match && slugTitle) {
     const probe = buildAmazonLinkResult({ asin, title: slugTitle, imageUrl: '' })
-    const dbMatch = await matchAgainstDb(probe, 'rakuten').catch(() => null)
+    const dbMatch = (await matchAgainstDb(probe, 'rakuten').catch(() => []))[0] ?? null
     if (dbMatch) {
       title = dbMatch.productTitle
       imageUrl = dbMatch.productImageUrl

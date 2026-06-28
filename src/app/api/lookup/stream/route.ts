@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { crawlRakutenProductFast, crawlRakutenProduct, crawlRakutenProductLive } from '@/lib/crawlers/rakuten'
 import { resolveAmazonShortLink } from '@/lib/crawlers/amazon'
-import { findEquivalent } from '@/lib/matching/find-equivalent'
+import { findAmazonEquivalents } from '@/lib/matching/find-equivalent'
 import { buildAmazonLinkResult } from '@/lib/platforms/amazon-link'
 import { resolveAmazonPaste } from '@/lib/lookup/resolve-amazon-paste'
 import { explainPriceDifference } from '@/lib/llm/openrouter'
@@ -137,8 +137,8 @@ export async function POST(req: NextRequest): Promise<Response> {
           await Promise.all([
             (async () => {
               send({ type: 'status', message: 'Amazonの同等商品を確認中…' })
-              const amazonMatch = await findEquivalent(rakutenProduct, 'amazon').catch(() => null)
-              basicResults = [latestRakuten, ...(amazonMatch ? [amazonMatch] : [])].sort(byEffectivePrice)
+              const matches = await findAmazonEquivalents(rakutenProduct).catch(() => [])
+              basicResults = [latestRakuten, ...matches].sort(byEffectivePrice)
               send({ type: 'basic', results: basicResults })
             })(),
             (async () => {

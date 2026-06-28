@@ -34,7 +34,7 @@ import { crawlRakutenSearch } from '@/lib/crawlers/rakuten'
 import { getCached } from '@/lib/cache'
 import { findAmazonSiblingByRakuten, linkSlugToProduct } from '@/lib/harvest/repo'
 import { matchAgainstDb } from '@/lib/matching/db-fallback'
-import { findEquivalent } from './find-equivalent'
+import { findEquivalent, findAmazonEquivalents } from './find-equivalent'
 import { ProductResult } from '@/lib/types'
 
 const p = (title: string, url: string): ProductResult => ({
@@ -48,6 +48,7 @@ beforeEach(() => {
   jest.clearAllMocks()
   ;(refineKeyword as jest.Mock).mockResolvedValue('明治ほほえみ キューブ')
   ;(getCached as jest.Mock).mockResolvedValue(null)
+  ;(matchAgainstDb as jest.Mock).mockResolvedValue([])
 })
 
 describe('findEquivalent', () => {
@@ -119,27 +120,59 @@ describe('findEquivalent', () => {
   })
 })
 
-describe('findEquivalent Amazon DB fallback', () => {
-  it('falls back to matchAgainstDb when exact-id misses, then writes back', async () => {
-    (findAmazonSiblingByRakuten as jest.Mock).mockResolvedValue(null)
-    ;(matchAgainstDb as jest.Mock).mockResolvedValue({
-      productId: 688, targetListingId: 'B0FTFXNGFS',
-      productTitle: 'パンパース M46', productImageUrl: 'img', similarity: 0.4,
+describe('findAmazonEquivalents', () => {
+  it('puts the exact-id sibling first, then ranked DB matches, deduped, ≤5', async () => {
+    (findAmazonSiblingByRakuten as jest.Mock).mockResolvedValue({
+      asin: 'B0SIB', productTitle: 'P&G パンパース M 58枚', productImageUrl: 'img',
     })
-    const rakutenSource = p('パンパース はじめての肌いち M46枚', 'https://item.rakuten.co.jp/jetprice/x392sh/')
-    rakutenSource.platform = 'rakuten'
-    const out = await findEquivalent(rakutenSource, 'amazon')
-    expect(out).not.toBeNull()
-    expect(out!.platform).toBe('amazon')
-    expect(out!.affiliateUrl).toContain('B0FTFXNGFS')
-    expect(linkSlugToProduct).toHaveBeenCalledWith(688, 'rakuten', 'jetprice:x392sh', expect.any(String), 0.8)
+    ;(matchAgainstDb as jest.Mock).mockResolvedValue([
+      { productId: 9, targetListingId: 'B0SIB', productTitle: 'dup', productImageUrl: 'i', similarity: 0.5, sizeMatch: 'exact' },
+      { productId: 9, targetListingId: 'B0OTHER', productTitle: 'P&G パンパース M 116枚', productImageUrl: 'i2', similarity: 0.4, sizeMatch: 'different' },
+    ])
+    const source = p('パンパース M 58枚', 'https://item.rakuten.co.jp/shop/x/')
+    source.platform = 'rakuten'
+    const out = await findAmazonEquivalents(source)
+    expect(out.map((r: ProductResult) => r.affiliateUrl.match(/dp\/([A-Z0-9]+)/)?.[1])).toEqual(['B0SIB', 'B0OTHER'])
+    expect(out[0].sizeMatch).toBe('exact') // sibling pack (58枚) == source (58枚) → tagged
+    expect(out[1].sizeMatch).toBe('different')
+    expect(out.every((r: ProductResult) => r.platform === 'amazon' && r.priceUnavailable)).toBe(true)
+    expect(linkSlugToProduct).toHaveBeenCalledWith(9, 'rakuten', 'shop:x', 'パンパース M 58枚', 0.8)
   })
 
-  it('returns null when exact-id misses and matchAgainstDb finds nothing', async () => {
+  it('ranks the same-size match ahead of a different-size exact-id sibling', async () => {
+    // Sibling is a confirmed pair but a different pack size (810g) than the 1,620g source;
+    // a DB match is the genuine same size (1,620g). Same-size must lead.
+    (findAmazonSiblingByRakuten as jest.Mock).mockResolvedValue({
+      asin: 'B0SIB810', productTitle: '明治ほほえみ らくらくキューブ 810g (27g×30袋)', productImageUrl: 'i',
+    })
+    ;(matchAgainstDb as jest.Mock).mockResolvedValue([
+      { productId: 7, targetListingId: 'B0EXACT', productTitle: '明治ほほえみ らくらくキューブ 1,620g (27g×60袋)', productImageUrl: 'i2', similarity: 0.5, sizeMatch: 'exact' },
+    ])
+    const source = p('明治ほほえみ らくらくキューブ(27g×60袋入)', 'https://item.rakuten.co.jp/shop/x/')
+    source.platform = 'rakuten'
+    const out = await findAmazonEquivalents(source)
+    expect(out.map((r: ProductResult) => r.affiliateUrl.match(/dp\/([A-Z0-9]+)/)?.[1])).toEqual(['B0EXACT', 'B0SIB810'])
+    expect(out[0].sizeMatch).toBe('exact')
+  })
+
+  it('returns [] when no sibling and no DB match', async () => {
     (findAmazonSiblingByRakuten as jest.Mock).mockResolvedValue(null)
-    ;(matchAgainstDb as jest.Mock).mockResolvedValue(null)
-    const rakutenSource = p('未知の商品', 'https://item.rakuten.co.jp/shop/unknown/')
-    rakutenSource.platform = 'rakuten'
-    expect(await findEquivalent(rakutenSource, 'amazon')).toBeNull()
+    ;(matchAgainstDb as jest.Mock).mockResolvedValue([])
+    const source = p('未知の商品', 'https://item.rakuten.co.jp/shop/u/')
+    source.platform = 'rakuten'
+    expect(await findAmazonEquivalents(source)).toEqual([])
+  })
+})
+
+describe('findEquivalent amazon delegates to findAmazonEquivalents', () => {
+  it('returns the first (closest) equivalent or null', async () => {
+    (findAmazonSiblingByRakuten as jest.Mock).mockResolvedValue(null)
+    ;(matchAgainstDb as jest.Mock).mockResolvedValue([
+      { productId: 1, targetListingId: 'B0TOP', productTitle: 't', productImageUrl: 'i', similarity: 0.4, sizeMatch: 'exact' },
+    ])
+    const source = p('パンパース M 58枚', 'https://item.rakuten.co.jp/shop/x/')
+    source.platform = 'rakuten'
+    const r = await findEquivalent(source, 'amazon')
+    expect(r?.affiliateUrl).toContain('B0TOP')
   })
 })

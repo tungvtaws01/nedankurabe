@@ -1,7 +1,7 @@
 const mockFetch = jest.fn()
 global.fetch = mockFetch
 
-import { refineKeyword, semanticMatch, classifyCategory } from './openrouter'
+import { refineKeyword, semanticMatch, classifyCategory, semanticMatchAll } from './openrouter'
 import { ProductResult } from '@/lib/types'
 
 const llmReply = (content: string) => ({
@@ -193,6 +193,49 @@ describe('refineKeyword dispatch', () => {
     const body1 = JSON.parse(mockFetch.mock.calls[1][1].body)
     expect(body0.messages[0].content).toContain('Classify this Japanese baby product')
     expect(body1.messages[0].content).toContain('Extract a search keyword')
+  })
+})
+
+describe('semanticMatchAll', () => {
+  const src = (title: string): ProductResult => ({
+    platform: 'rakuten', title, imageUrl: '', shopName: '', salePrice: 1000,
+    shippingCost: 0, couponDiscount: 0, pointRate: 1, pointsEarned: 0, effectivePrice: 1000,
+    subscribeAvailable: false, rakutenCardEligible: false, teikiRates: null, taxRate: 1.1, affiliateUrl: '',
+  })
+
+  it('returns ALL confirmed indices (not just the cheapest)', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: '{"matches":[0,2]}' } }] }),
+    })
+    const cands = ['明治ほほえみ 780g', '別ブランド 哺乳瓶', '明治ほほえみ 780g×2'].map(src)
+    expect(await semanticMatchAll(src('明治ほほえみ 780g'), cands)).toEqual([0, 2])
+  })
+
+  it('returns [] when none confirmed', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: '{"matches":[]}' } }] }),
+    })
+    expect(await semanticMatchAll(src('x'), [src('y')])).toEqual([])
+  })
+
+  it('returns [] when candidates is empty', async () => {
+    expect(await semanticMatchAll(src('x'), [])).toEqual([])
+  })
+
+  it('returns [] when LLM call fails', async () => {
+    mockFetch.mockRejectedValue(new Error('network'))
+    expect(await semanticMatchAll(src('x'), [src('y')])).toEqual([])
+  })
+
+  it('returns [] when all candidates are gated by brand mismatch', async () => {
+    // カークランド vs RICO — known distinct brands, gate removes candidate before LLM
+    const result = await semanticMatchAll(
+      src('カークランド おしりふき 100枚'),
+      [src('RICO おしりふき 100枚')],
+    )
+    expect(result).toEqual([])
   })
 })
 

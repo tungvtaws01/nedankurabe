@@ -229,7 +229,7 @@ function ResultsContent() {
         const res = await fetch('/api/enrich-compare', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ source: selected, candidates: amazonPool }),
+          body: JSON.stringify({ source: selected }),
         })
         if (!res.ok || !res.body) {
           if (opIdRef.current === opId) {

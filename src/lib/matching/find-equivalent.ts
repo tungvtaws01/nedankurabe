@@ -6,8 +6,60 @@ import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { rankBySimilarity } from './rank'
 import { findListingByPlatformId, findSiblingListings, upsertProduct, upsertListing, findAmazonSiblingByRakuten, linkSlugToProduct } from '@/lib/harvest/repo'
 import { matchAgainstDb } from '@/lib/matching/db-fallback'
+import { parsePackSize, sizeRelation, packCloseness } from '@/lib/matching/pack-size'
 import { lookupRakuten } from '@/lib/platforms/rakuten'
 import { buildAmazonLinkResult } from '@/lib/platforms/amazon-link'
+
+// All same-product Amazon equivalents for a Rakuten source, link-only and ranked by
+// pack-size closeness: exact-id sibling first, then confidence-gated DB matches.
+// Deduped by ASIN, capped at 5. Best-effort: failures yield fewer/zero cards.
+export async function findAmazonEquivalents(
+  source: ProductResult,
+  category?: Category,
+): Promise<ProductResult[]> {
+  if (source.platform !== 'rakuten') return []
+  const rktCode = sourcePlatformId(source)
+  const srcPack = parsePackSize(source.title)
+  const out: ProductResult[] = []
+  const seen = new Set<string>()
+
+  if (rktCode) {
+    const sib = await findAmazonSiblingByRakuten(rktCode).catch(() => null)
+    if (sib) {
+      const card = buildAmazonLinkResult({ asin: sib.asin, title: sib.productTitle, imageUrl: sib.productImageUrl })
+      // The exact-id sibling is the confirmed pair, but still tag its pack relation
+      // so a same-pack match shows サイズ一致 (not a blank badge next to labeled fuzzy matches).
+      const rel = sizeRelation(srcPack, parsePackSize(sib.productTitle))
+      if (rel !== 'unknown') card.sizeMatch = rel
+      out.push(card)
+      seen.add(sib.asin)
+    }
+  }
+
+  const cat = category ?? (await classifyCategory(source.title).catch(() => 'unknown' as const))
+  const many = await matchAgainstDb(source, 'amazon', cat === 'unknown' ? undefined : cat).catch(() => [])
+  for (const m of many) {
+    if (seen.has(m.targetListingId)) continue
+    seen.add(m.targetListingId)
+    const card = buildAmazonLinkResult({ asin: m.targetListingId, title: m.productTitle, imageUrl: m.productImageUrl })
+    card.sizeMatch = m.sizeMatch
+    out.push(card)
+  }
+
+  // Write-back the best DB match so subsequent lookups hit the fast path.
+  // Intentional skip when many is empty: the exact-id sibling (if any) is already FK-linked in the DB.
+  if (rktCode && many[0]) {
+    await linkSlugToProduct(many[0].productId, 'rakuten', rktCode, source.title, 0.8).catch(() => {})
+  }
+
+  // Rank by pack-size closeness so the same-size option leads — even ahead of a confirmed
+  // exact-id sibling that happens to be a different pack size (e.g. a single box vs the
+  // source's 2-pack). Stable sort keeps sibling-before-DB order within equal closeness;
+  // size-unknown cards (packCloseness → Infinity) sort last.
+  out.sort((a, b) =>
+    packCloseness(srcPack, parsePackSize(a.title)) - packCloseness(srcPack, parsePackSize(b.title)))
+  return out.slice(0, 5)
+}
 
 // Find the cross-platform equivalent of `source` on `targetPlatform`.
 //
@@ -22,24 +74,8 @@ export async function findEquivalent(
   targetPlatform: 'amazon' | 'rakuten',
   priorPool: ProductResult[] = [],
 ): Promise<ProductResult | null> {
-  // Amazon target is link-only and DB-sourced: no LLM, no scraping. We find the
-  // matched ASIN for this Rakuten source and return a link-only result (Rakuten
-  // image + tagged Amazon link). No DB match → no Amazon card.
   if (targetPlatform === 'amazon') {
-    if (source.platform !== 'rakuten') return null
-    const rktCode = sourcePlatformId(source)
-    if (!rktCode) return null
-    const sib = await findAmazonSiblingByRakuten(rktCode).catch(() => null)
-    if (sib) {
-      return buildAmazonLinkResult({ asin: sib.asin, title: sib.productTitle, imageUrl: sib.productImageUrl })
-    }
-    // Exact-id missed (pasted slug ≠ stored API itemCode). Match the source against
-    // our own DB products by title; write back so the next paste hits the fast path.
-    const category = await classifyCategory(source.title).catch(() => 'unknown' as const)
-    const dbMatch = await matchAgainstDb(source, 'amazon', category === 'unknown' ? undefined : category).catch(() => null)
-    if (!dbMatch) return null
-    await linkSlugToProduct(dbMatch.productId, 'rakuten', rktCode, source.title, 0.8).catch(() => {})
-    return buildAmazonLinkResult({ asin: dbMatch.targetListingId, title: dbMatch.productTitle, imageUrl: dbMatch.productImageUrl })
+    return (await findAmazonEquivalents(source, undefined))[0] ?? null
   }
 
   // --- Fast path: matching-table lookup by source platform_id ---

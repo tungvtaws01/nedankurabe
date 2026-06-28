@@ -82,6 +82,16 @@ export default function ProductCard({ result, isWinner, toggles, pointsLoading, 
           : 'bg-[var(--red)] text-white'}`}>
           {isAmazon ? 'Amazon' : '楽天 Rakuten'}
         </span>
+        {result.sizeMatch === 'exact' && (
+          <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-green-100 text-green-800">
+            サイズ一致 <span className="font-normal italic">same size</span>
+          </span>
+        )}
+        {result.sizeMatch === 'different' && (
+          <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">
+            別容量 <span className="font-normal italic">different size</span>
+          </span>
+        )}
       </div>
 
       <div className="flex gap-3 mb-3">
