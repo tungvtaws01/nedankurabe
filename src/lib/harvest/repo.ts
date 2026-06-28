@@ -186,8 +186,12 @@ export async function findProductCandidatesByTokens(
   limit = 20,
 ): Promise<ProductCandidate[]> {
   // Textual tokens only: drop pure-number / size tokens (12, 27g, 780g, 240ml, 58枚,
-  // 2袋…) — pack size is handled by ranking, not retrieval. Keep brand/product words.
-  const SIZE_TOKEN = /^(?:[×x×]\d+|\d+(?:\.\d+)?(?:g|kg|ml|l|枚|袋|缶|個|本|箱|セット|パック|ケース|組)?)$/i
+  // 2袋, 60袋入, ×4セット…) — pack size is handled by ranking, not retrieval. Keep
+  // brand/product words. The optional 入/入り suffix and a unit after ×N matter: a token
+  // like "60袋入" must be dropped, otherwise it's required as text and no Amazon title
+  // contains it, collapsing the candidate pool to zero.
+  const UNIT = '(?:g|kg|ml|l|枚|袋|缶|個|本|箱|セット|パック|ケース|組)?(?:入り?)?'
+  const SIZE_TOKEN = new RegExp(`^(?:[×x×]\\d+${UNIT}|\\d+(?:\\.\\d+)?${UNIT})$`, 'i')
   const tokens = keyword.trim().split(/[\s　]+/).filter((t) => t && !SIZE_TOKEN.test(t)).slice(0, 6)
   if (!tokens.length) return []
   // Space-insensitive: compare the title with whitespace removed against space-stripped tokens,

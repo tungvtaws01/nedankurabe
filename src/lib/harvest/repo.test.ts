@@ -152,6 +152,14 @@ describe('findProductCandidatesByTokens', () => {
     expect(await findProductCandidatesByTokens('780g ×2', 'amazon')).toEqual([])
     expect(querySpy).not.toHaveBeenCalled()
   })
+
+  it('drops count tokens with a 入/入り suffix (60袋入) so size variants still match', async () => {
+    querySpy.mockResolvedValue([])
+    await findProductCandidatesByTokens('明治ほほえみ らくらくキューブ 60袋入', 'amazon')
+    const [, params] = querySpy.mock.calls[0]
+    // "60袋入" must be dropped — only the textual brand/line tokens are bound
+    expect(params).toEqual(['%明治ほほえみ%', '%らくらくキューブ%', 'amazon', 20])
+  })
 })
 
 describe('linkSlugToProduct', () => {
