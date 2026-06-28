@@ -133,6 +133,7 @@ describe('findAmazonEquivalents', () => {
     source.platform = 'rakuten'
     const out = await findAmazonEquivalents(source)
     expect(out.map((r: ProductResult) => r.affiliateUrl.match(/dp\/([A-Z0-9]+)/)?.[1])).toEqual(['B0SIB', 'B0OTHER'])
+    expect(out[0].sizeMatch).toBe('exact') // sibling pack (58枚) == source (58枚) → tagged
     expect(out[1].sizeMatch).toBe('different')
     expect(out.every((r: ProductResult) => r.platform === 'amazon' && r.priceUnavailable)).toBe(true)
     expect(linkSlugToProduct).toHaveBeenCalledWith(9, 'rakuten', 'shop:x', 'パンパース M 58枚', 0.8)

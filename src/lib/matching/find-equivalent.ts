@@ -6,6 +6,7 @@ import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { rankBySimilarity } from './rank'
 import { findListingByPlatformId, findSiblingListings, upsertProduct, upsertListing, findAmazonSiblingByRakuten, linkSlugToProduct } from '@/lib/harvest/repo'
 import { matchAgainstDb } from '@/lib/matching/db-fallback'
+import { parsePackSize, sizeRelation } from '@/lib/matching/pack-size'
 import { lookupRakuten } from '@/lib/platforms/rakuten'
 import { buildAmazonLinkResult } from '@/lib/platforms/amazon-link'
 
@@ -18,13 +19,19 @@ export async function findAmazonEquivalents(
 ): Promise<ProductResult[]> {
   if (source.platform !== 'rakuten') return []
   const rktCode = sourcePlatformId(source)
+  const srcPack = parsePackSize(source.title)
   const out: ProductResult[] = []
   const seen = new Set<string>()
 
   if (rktCode) {
     const sib = await findAmazonSiblingByRakuten(rktCode).catch(() => null)
     if (sib) {
-      out.push(buildAmazonLinkResult({ asin: sib.asin, title: sib.productTitle, imageUrl: sib.productImageUrl }))
+      const card = buildAmazonLinkResult({ asin: sib.asin, title: sib.productTitle, imageUrl: sib.productImageUrl })
+      // The exact-id sibling is the confirmed pair, but still tag its pack relation
+      // so a same-pack match shows サイズ一致 (not a blank badge next to labeled fuzzy matches).
+      const rel = sizeRelation(srcPack, parsePackSize(sib.productTitle))
+      if (rel !== 'unknown') card.sizeMatch = rel
+      out.push(card)
       seen.add(sib.asin)
     }
   }
