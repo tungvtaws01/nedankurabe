@@ -12,6 +12,19 @@ export interface PackSize {
 // pack-type descriptor, not a quantity; the (?!パック) lookahead skips that form).
 const MULT_RE = /[×xX]\s*(\d+)|(\d+)\s*(?:袋|缶|箱|個|本|セット|ケース|組)(?!パック)/g
 
+interface RawMeasure { dimension: 'g' | 'ml'; value: number }
+
+/** First measure in a string as a RAW value (no pack multiplier applied). kg→g. */
+function rawMeasure(text: string): RawMeasure | null {
+  let m = text.match(/(\d+(?:\.\d+)?)\s*kg(?![a-z])/i)
+  if (m) return { dimension: 'g', value: parseFloat(m[1]) * 1000 }
+  m = text.match(/(\d+(?:\.\d+)?)\s*g(?![a-z])/i)
+  if (m) return { dimension: 'g', value: parseFloat(m[1]) }
+  m = text.match(/(\d+(?:\.\d+)?)\s*ml/i)
+  if (m) return { dimension: 'ml', value: parseFloat(m[1]) }
+  return null
+}
+
 /** Extract total from a single flat string (no nested parens). */
 function extractFromFlat(text: string): PackSize {
   let mult = 1
@@ -61,14 +74,27 @@ export function parsePackSize(title: string): PackSize {
   const outerResult = extractFromFlat(outer)
   if (outerResult.dimension !== null) return outerResult
 
-  // 5. No measure in outer — try innermost parens ONLY when the outer text has no
-  //    multiplier of its own (outerMult===1).  If the outer already has a ×N, we can't
-  //    safely multiply it against the measure that is itself already multiplied inside the
-  //    paren (e.g. "(400g*2袋入)×3個セット" → unknown, not 400×2×3=2400).
+  // 5. No measure in outer. The measure and its count multipliers may be split across
+  //    sibling parens — e.g. "(60袋入×4セット(1袋27g))": the 27g measure sits in one paren
+  //    while the 60×4=240 count sits in another. Combine: take the single raw measure across
+  //    all inner parens and multiply by the product of every count multiplier in any inner
+  //    paren. Gated on outerMult===1 — if a count sits OUTSIDE the parens we can't safely
+  //    combine (e.g. "(400g*2袋入)×3個セット" → unknown, not 400×2×3=2400).
   if (outerMult === 1) {
+    let innerMult = 1
     for (const inner of innerParens) {
-      const r = extractFromFlat(inner)
-      if (r.dimension !== null) return r
+      for (const m of inner.matchAll(MULT_RE)) {
+        const n = parseInt(m[1] ?? m[2], 10)
+        if (n > 1 && n < 1000) innerMult *= n
+      }
+    }
+    // Raw measures (no per-segment mult applied) across all inner parens.
+    const measures = innerParens.map(rawMeasure).filter((m): m is RawMeasure => m !== null)
+    const distinct = new Set(measures.map((m) => `${m.dimension}:${m.value}`))
+    // Exactly one measure → safe to scale by the combined inner count. More than one
+    // (total + breakdown both inside parens) is ambiguous → fall through to unknown.
+    if (distinct.size === 1) {
+      return { dimension: measures[0].dimension, total: Math.round(measures[0].value * innerMult) }
     }
   }
 
