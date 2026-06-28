@@ -95,10 +95,11 @@ export async function productsAtStage(stage: string, limit: number): Promise<{ i
 export interface AmazonSibling { asin: string; productTitle: string; productImageUrl: string }
 
 // Given a Rakuten listing's platform_id ("shop:itemId"), return the matched Amazon
-// ASIN plus the product's title and Rakuten-sourced image. DB-only; no scraping.
+// ASIN plus the AMAZON listing's own title (the card links to that ASIN, so its title +
+// parsed size must describe the destination) and the Rakuten-sourced image. DB-only; no scraping.
 export async function findAmazonSiblingByRakuten(rakutenItemCode: string): Promise<AmazonSibling | null> {
   const rows = await query<{ asin: string; title: string; image_url: string }>(
-    `SELECT la.platform_id AS asin, p.title, p.image_url
+    `SELECT la.platform_id AS asin, la.title, p.image_url
        FROM listings lr
        JOIN products p ON p.id = lr.product_id
        JOIN listings la ON la.product_id = p.id AND la.platform='amazon' AND la.is_active
@@ -170,7 +171,7 @@ export async function searchAmazonFromDb(keyword: string, limit = 10): Promise<A
 
 export interface ProductCandidate {
   productId: number
-  title: string
+  title: string // the TARGET listing's own title (what the card links to), not the Rakuten product title
   imageUrl: string
   targetListingId: string // ASIN or "shop:itemId" on the target platform
 }
@@ -195,8 +196,12 @@ export async function findProductCandidatesByTokens(
     .map((_, i) => `regexp_replace(p.title, '[\\s　]', '', 'g') ILIKE $${i + 1}`)
     .join(' AND ')
   const params = [...tokens.map((t) => `%${t.replace(/[\s　]/g, '')}%`), targetPlatform, limit]
-  const rows = await query<{ product_id: number; title: string; image_url: string; target_id: string }>(
-    `SELECT p.id AS product_id, p.title, p.image_url, lt.platform_id AS target_id
+  // Retrieve by the Rakuten products.title tokens (tuned for recall), but return the
+  // TARGET listing's own title (lt.title) — that's the listing the card links to, so its
+  // title + parsed pack size must describe the destination, not the Rakuten product row.
+  // Image stays Rakuten-sourced (p.image_url) for Amazon compliance.
+  const rows = await query<{ product_id: number; target_title: string; image_url: string; target_id: string }>(
+    `SELECT p.id AS product_id, lt.title AS target_title, p.image_url, lt.platform_id AS target_id
        FROM products p
        JOIN listings lt ON lt.product_id = p.id AND lt.platform = $${tokens.length + 1} AND lt.is_active
       WHERE ${conds} AND p.image_url <> ''
@@ -204,7 +209,7 @@ export async function findProductCandidatesByTokens(
     params,
   )
   return rows.map((r) => ({
-    productId: r.product_id, title: r.title, imageUrl: r.image_url, targetListingId: r.target_id,
+    productId: r.product_id, title: r.target_title, imageUrl: r.image_url, targetListingId: r.target_id,
   }))
 }
 

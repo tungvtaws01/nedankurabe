@@ -123,7 +123,7 @@ describe('findProductCandidatesByTokens', () => {
 
   it('matches space-insensitively on textual tokens only (drops size tokens)', async () => {
     querySpy.mockResolvedValue([
-      { product_id: 1, title: '明治 ほほえみ らくらくキューブ 27g×30袋', image_url: 'i', target_id: 'A1' },
+      { product_id: 1, target_title: '明治 ほほえみ らくらくキューブ 27g×30袋', image_url: 'i', target_id: 'A1' },
     ])
     const out = await findProductCandidatesByTokens('明治ほほえみ らくらくキューブ 27g', 'amazon')
     const [sql, params] = querySpy.mock.calls[0]
@@ -132,6 +132,20 @@ describe('findProductCandidatesByTokens', () => {
     // textual tokens bound space-stripped; the size token "27g" is NOT bound
     expect(params).toEqual(['%明治ほほえみ%', '%らくらくキューブ%', 'amazon', 20])
     expect(out).toEqual([{ productId: 1, title: '明治 ほほえみ らくらくキューブ 27g×30袋', imageUrl: 'i', targetListingId: 'A1' }])
+  })
+
+  it('returns the TARGET listing title (lt.title), not the Rakuten products.title', async () => {
+    // A bad harvest pair: the product (Rakuten-sourced) title says 2個セット (1,620g) but the
+    // linked Amazon listing is a single 810g box. The card links to the Amazon ASIN, so its
+    // title + size must come from the Amazon listing, not the product row.
+    querySpy.mockResolvedValue([
+      { product_id: 1956, target_title: '明治ほほえみ らくらくキューブ 810g (27g×30袋)', image_url: 'i', target_id: 'B0G2RVD9RS' },
+    ])
+    const out = await findProductCandidatesByTokens('明治ほほえみ らくらくキューブ', 'amazon')
+    const [sql] = querySpy.mock.calls[0]
+    expect(sql).toMatch(/lt\.title\s+AS\s+target_title/)
+    expect(out[0].title).toBe('明治ほほえみ らくらくキューブ 810g (27g×30袋)')
+    expect(out[0].targetListingId).toBe('B0G2RVD9RS')
   })
 
   it('returns [] and does not query for an all-size/empty keyword', async () => {

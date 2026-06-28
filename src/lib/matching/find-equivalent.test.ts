@@ -139,6 +139,22 @@ describe('findAmazonEquivalents', () => {
     expect(linkSlugToProduct).toHaveBeenCalledWith(9, 'rakuten', 'shop:x', 'パンパース M 58枚', 0.8)
   })
 
+  it('ranks the same-size match ahead of a different-size exact-id sibling', async () => {
+    // Sibling is a confirmed pair but a different pack size (810g) than the 1,620g source;
+    // a DB match is the genuine same size (1,620g). Same-size must lead.
+    (findAmazonSiblingByRakuten as jest.Mock).mockResolvedValue({
+      asin: 'B0SIB810', productTitle: '明治ほほえみ らくらくキューブ 810g (27g×30袋)', productImageUrl: 'i',
+    })
+    ;(matchAgainstDb as jest.Mock).mockResolvedValue([
+      { productId: 7, targetListingId: 'B0EXACT', productTitle: '明治ほほえみ らくらくキューブ 1,620g (27g×60袋)', productImageUrl: 'i2', similarity: 0.5, sizeMatch: 'exact' },
+    ])
+    const source = p('明治ほほえみ らくらくキューブ(27g×60袋入)', 'https://item.rakuten.co.jp/shop/x/')
+    source.platform = 'rakuten'
+    const out = await findAmazonEquivalents(source)
+    expect(out.map((r: ProductResult) => r.affiliateUrl.match(/dp\/([A-Z0-9]+)/)?.[1])).toEqual(['B0EXACT', 'B0SIB810'])
+    expect(out[0].sizeMatch).toBe('exact')
+  })
+
   it('returns [] when no sibling and no DB match', async () => {
     (findAmazonSiblingByRakuten as jest.Mock).mockResolvedValue(null)
     ;(matchAgainstDb as jest.Mock).mockResolvedValue([])

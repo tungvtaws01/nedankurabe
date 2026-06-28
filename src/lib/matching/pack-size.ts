@@ -29,8 +29,11 @@ function extractFromFlat(text: string): PackSize {
 }
 
 export function parsePackSize(title: string): PackSize {
+  // 0. Strip thousands-separator commas between digits ("1,620g" → "1620g"). Amazon titles
+  //    use them; a stray comma otherwise truncates the number (1,620g would parse as 620g).
+  const noCommas = title.replace(/(?<=\d)[,，](?=\d)/g, '')
   // 1. Drop baby weight RANGES (the baby's size, not the pack): 6~11kg, 6-11kg, （4-8kg）
-  const noRange = title.replace(/[(（]?\s*\d+\s*[-~ー〜]\s*\d+\s*kg\s*[)）]?/gi, ' ')
+  const noRange = noCommas.replace(/[(（]?\s*\d+\s*[-~ー〜]\s*\d+\s*kg\s*[)）]?/gi, ' ')
 
   // 2. Collect innermost parenthetical segments (before stripping) — these are the
   //    breakdown parens like (780g×2パック) or (27g×60袋入) that contain both the

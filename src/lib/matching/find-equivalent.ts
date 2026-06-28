@@ -6,7 +6,7 @@ import { getCached, setCached, makeCacheKey } from '@/lib/cache'
 import { rankBySimilarity } from './rank'
 import { findListingByPlatformId, findSiblingListings, upsertProduct, upsertListing, findAmazonSiblingByRakuten, linkSlugToProduct } from '@/lib/harvest/repo'
 import { matchAgainstDb } from '@/lib/matching/db-fallback'
-import { parsePackSize, sizeRelation } from '@/lib/matching/pack-size'
+import { parsePackSize, sizeRelation, packCloseness } from '@/lib/matching/pack-size'
 import { lookupRakuten } from '@/lib/platforms/rakuten'
 import { buildAmazonLinkResult } from '@/lib/platforms/amazon-link'
 
@@ -51,6 +51,13 @@ export async function findAmazonEquivalents(
   if (rktCode && many[0]) {
     await linkSlugToProduct(many[0].productId, 'rakuten', rktCode, source.title, 0.8).catch(() => {})
   }
+
+  // Rank by pack-size closeness so the same-size option leads — even ahead of a confirmed
+  // exact-id sibling that happens to be a different pack size (e.g. a single box vs the
+  // source's 2-pack). Stable sort keeps sibling-before-DB order within equal closeness;
+  // size-unknown cards (packCloseness → Infinity) sort last.
+  out.sort((a, b) =>
+    packCloseness(srcPack, parsePackSize(a.title)) - packCloseness(srcPack, parsePackSize(b.title)))
   return out.slice(0, 5)
 }
 
